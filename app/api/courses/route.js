@@ -1,18 +1,16 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase-admin"
 
-// Mapeo de etiqueta de grado a valor numérico en la tabla grupo
-const gradeMap: Record<string, string> = {
+const gradeMap = {
   "1er Grado": "1",
   "2do Grado": "2",
   "3er Grado": "3",
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request) {
   try {
-    // Verificar token de autenticación
     const authHeader = request.headers.get("Authorization")
-    if (!authHeader?.startsWith("Bearer ")) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
@@ -34,7 +32,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Grado inválido" }, { status: 400 })
     }
 
-    // Buscar grupo existente para este docente y grado
     const { data: grupoExistente } = await supabaseAdmin
       .from("grupo")
       .select("id_grupo")
@@ -42,12 +39,11 @@ export async function POST(request: NextRequest) {
       .eq("id_docente", user.id)
       .single()
 
-    let idGrupo: string
+    let idGrupo
 
     if (grupoExistente) {
       idGrupo = grupoExistente.id_grupo
     } else {
-      // Crear grupo si no existe (nombre requerido por el schema)
       const { data: nuevoGrupo, error: grupoError } = await supabaseAdmin
         .from("grupo")
         .insert({ grado: gradoNum, id_docente: user.id, nombre: grade })
@@ -63,7 +59,6 @@ export async function POST(request: NextRequest) {
       idGrupo = nuevoGrupo.id_grupo
     }
 
-    // Insertar el curso
     const { data: curso, error: cursoError } = await supabaseAdmin
       .from("curso")
       .insert({
@@ -82,7 +77,6 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true, id_curso: curso.id_curso })
-
   } catch (error) {
     console.error("Error en /api/courses:", error)
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })

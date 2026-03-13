@@ -1,18 +1,15 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase-admin"
 
-const difficultyMap: Record<string, number> = {
+const difficultyMap = {
   facil: 1, medio: 2, dificil: 3,
-  easy:  1, medium: 2, hard:   3,
+  easy: 1, medium: 2, hard: 3,
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request, { params }) {
   try {
     const authHeader = request.headers.get("Authorization")
-    if (!authHeader?.startsWith("Bearer ")) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
@@ -26,13 +23,15 @@ export async function PUT(
     const body = await request.json()
     const { titulo, instrucciones, nivel_dificultad } = body
 
-    const updateData: Record<string, any> = {}
+    const updateData = {}
     if (titulo !== undefined) updateData.titulo = titulo
     if (instrucciones !== undefined) updateData.instrucciones = instrucciones || null
     if (nivel_dificultad !== undefined) {
-      updateData.nivel_dificultad = typeof nivel_dificultad === "string"
-        ? (difficultyMap[nivel_dificultad] ?? 1)
-        : nivel_dificultad
+      if (typeof nivel_dificultad === "string") {
+        updateData.nivel_dificultad = difficultyMap[nivel_dificultad] ?? 1
+      } else {
+        updateData.nivel_dificultad = nivel_dificultad
+      }
     }
 
     const { error: updateError } = await supabaseAdmin

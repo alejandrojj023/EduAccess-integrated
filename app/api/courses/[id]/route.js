@@ -1,13 +1,10 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase-admin"
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request, { params }) {
   try {
     const authHeader = request.headers.get("Authorization")
-    if (!authHeader?.startsWith("Bearer ")) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
@@ -25,7 +22,7 @@ export async function PUT(
       return NextResponse.json({ error: "El título es requerido" }, { status: 400 })
     }
 
-    const updateData: Record<string, string | null> = { titulo }
+    const updateData = { titulo }
     if (descripcion !== undefined) updateData.descripcion = descripcion || null
     if (materia !== undefined) updateData.materia = materia
 
