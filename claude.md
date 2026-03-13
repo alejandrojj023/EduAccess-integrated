@@ -301,3 +301,4 @@ SUPABASE_SERVICE_ROLE_KEY=...       # clave privada, SOLO en API routes, nunca e
     Usar `params.id` directamente (sin await) da `undefined`, que al template-stringear
     produce la URL `/api/.../undefined` y Supabase devuelve error UUID inválido.
     Afecta: `lessons/[id]`, `courses/[id]`, `activities/[id]`.
+11. **prueva**
