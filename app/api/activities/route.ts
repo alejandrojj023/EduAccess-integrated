@@ -1,0 +1,77 @@
+import { NextRequest, NextResponse } from "next/server"
+import { supabaseAdmin } from "@/lib/supabase-admin"
+
+const activityTypeMap: Record<string, string> = {
+  image:    "identificacion",
+  sound:    "reconocimiento_sonidos",
+  sequence: "secuenciacion",
+  multiple: "seleccion_guiada",
+  short:    "respuesta_corta",
+  voice:    "respuesta_oral",
+}
+
+const difficultyMap: Record<string, number> = {
+  facil: 1, medio: 2, dificil: 3,
+  easy:  1, medium: 2, hard:   3,
+}
+
+const activityTitleMap: Record<string, string> = {
+  image:    "Identificacion de imagenes",
+  sound:    "Reconocimiento de sonidos",
+  sequence: "Ordenar secuencias",
+  multiple: "Opcion multiple",
+  short:    "Respuesta corta escrita",
+  voice:    "Respuesta por voz",
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get("Authorization")
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+
+    const token = authHeader.substring(7)
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
+    if (authError || !user) {
+      return NextResponse.json({ error: "Token inválido" }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { lessonId, type, instrucciones, nivel_dificultad } = body
+
+    if (!lessonId || !type) {
+      return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
+    }
+
+    // Calculate next orden
+    const { count } = await supabaseAdmin
+      .from("actividad")
+      .select("id_actividad", { count: "exact", head: true })
+      .eq("id_leccion", lessonId)
+
+    const orden = (count ?? 0) + 1
+
+    const { data: actividad, error: actError } = await supabaseAdmin
+      .from("actividad")
+      .insert({
+        id_leccion: lessonId,
+        tipo: activityTypeMap[type] ?? "seleccion_guiada",
+        titulo: activityTitleMap[type] ?? type,
+        instrucciones: instrucciones || null,
+        nivel_dificultad: nivel_dificultad ? (difficultyMap[nivel_dificultad] ?? 1) : null,
+        orden,
+      })
+      .select("id_actividad")
+      .single()
+
+    if (actError || !actividad) {
+      return NextResponse.json({ error: actError?.message ?? "Error al crear actividad" }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, id_actividad: actividad.id_actividad })
+  } catch (error) {
+    console.error("Error en POST /api/activities:", error)
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+  }
+}
