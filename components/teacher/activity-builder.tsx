@@ -24,7 +24,9 @@ import {
   BookOpen,
   FileText,
   List,
+  Settings2,
 } from "lucide-react"
+import { parseActivityConfig, serializeActivityConfig } from "@/lib/activity-config"
 
 interface ActivityBuilderProps {
   onBack: () => void
@@ -121,6 +123,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
   const [loadingData, setLoadingData] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState("")
+  const [showGearMenu, setShowGearMenu] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -225,10 +228,15 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
   const openConfigForEdit = (activity: ExistingActivity) => {
     setEditingActivity(activity)
     setSelectedType(activity.type)
-    setInstrucciones(activity.instrucciones ?? "")
+    const config = parseActivityConfig(activity.instrucciones)
+    setInstrucciones(config.instrucciones)
     setDificultad(difficultyFromInt(activity.nivel_dificultad))
-    setOptions([{ id: "1", text: "", isCorrect: false }, { id: "2", text: "", isCorrect: false }])
-    setCorrectAnswer("")
+    if (config.opciones && config.opciones.length > 0) {
+      setOptions(config.opciones.map((o, i) => ({ id: String(i + 1), text: o.texto, isCorrect: o.correcta })))
+    } else {
+      setOptions([{ id: "1", text: "", isCorrect: false }, { id: "2", text: "", isCorrect: false }])
+    }
+    setCorrectAnswer(config.respuesta_correcta ?? "")
     setSaveError("")
     setView("config")
   }
@@ -247,6 +255,16 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
         return
       }
 
+      const typeShowsOptions = selectedType === "multiple" || selectedType === "image" || selectedType === "sound"
+      const typeShowsCorrect = selectedType === "short" || selectedType === "voice"
+      const serialized = serializeActivityConfig({
+        instrucciones,
+        opciones: typeShowsOptions
+          ? options.filter((o) => o.text.trim()).map((o) => ({ texto: o.text, correcta: o.isCorrect }))
+          : undefined,
+        respuesta_correcta: typeShowsCorrect && correctAnswer ? correctAnswer : undefined,
+      })
+
       if (editingActivity) {
         // PUT existing activity
         const response = await fetch(`/api/activities/${editingActivity.id}`, {
@@ -255,7 +273,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ instrucciones, nivel_dificultad: dificultad }),
+          body: JSON.stringify({ instrucciones: serialized, nivel_dificultad: dificultad }),
         })
         if (!response.ok) {
           const data = await response.json()
@@ -267,7 +285,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
         setExistingActivities((prev) =>
           prev.map((a) =>
             a.id === editingActivity.id
-              ? { ...a, instrucciones, nivel_dificultad: diffInt }
+              ? { ...a, instrucciones: serialized, nivel_dificultad: diffInt }
               : a
           )
         )
@@ -289,7 +307,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
           body: JSON.stringify({
             lessonId: selectedLessonId,
             type: selectedType,
-            instrucciones,
+            instrucciones: serialized,
             nivel_dificultad: dificultad,
           }),
         })
@@ -494,10 +512,16 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                       onChange={(e) => setSelectedLessonId(e.target.value)}
                       className="w-full h-14 px-4 text-lg border-2 border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                     >
-                      {lessons.map((l) => (
-                        <option key={l.id} value={l.id}>
-                          {l.courseTitle} › {l.title}
-                        </option>
+                      {Array.from(new Set(lessons.map((l) => l.courseTitle))).map((courseTitle) => (
+                        <optgroup key={courseTitle} label={courseTitle}>
+                          {lessons
+                            .filter((l) => l.courseTitle === courseTitle)
+                            .map((l) => (
+                              <option key={l.id} value={l.id}>
+                                {l.title}
+                              </option>
+                            ))}
+                        </optgroup>
                       ))}
                     </select>
                   )}
@@ -680,17 +704,48 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
               <p className="text-sm text-muted-foreground">Selecciona un tipo de actividad</p>
             </div>
           </div>
-          {settings.voiceEnabled && (
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => speak("Constructor de actividades. Selecciona el tipo de actividad que deseas crear, o revisa tus actividades existentes.")}
-              className="h-12"
-            >
-              <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />
-              Escuchar
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {settings.voiceEnabled && (
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => speak("Constructor de actividades. Selecciona el tipo de actividad que deseas crear, o revisa tus actividades existentes.")}
+                className="h-12"
+              >
+                <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />
+                Escuchar
+              </Button>
+            )}
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="lg"
+                className="h-12 w-12 p-0"
+                aria-label="Opciones de modo"
+                onClick={() => setShowGearMenu((prev) => !prev)}
+              >
+                <Settings2 className="w-5 h-5" />
+              </Button>
+              {showGearMenu && (
+                <div className="absolute right-0 top-14 z-20 w-64 bg-card border-2 border-border rounded-xl shadow-xl overflow-hidden">
+                  <button
+                    className="w-full px-5 py-4 text-left text-base font-medium hover:bg-primary/10 transition-colors flex items-center gap-3"
+                    onClick={() => { setView("grid"); setShowGearMenu(false) }}
+                  >
+                    <Plus className="w-5 h-5 text-primary" />
+                    Crear nueva actividad
+                  </button>
+                  <button
+                    className="w-full px-5 py-4 text-left text-base font-medium hover:bg-primary/10 transition-colors flex items-center gap-3"
+                    onClick={() => { setView("existing"); setShowGearMenu(false) }}
+                  >
+                    <List className="w-5 h-5 text-primary" />
+                    {loadingData ? "Cargando..." : `Ver actividades existentes (${existingActivities.length})`}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </header>
 

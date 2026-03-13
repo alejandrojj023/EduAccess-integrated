@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin"
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get("Authorization")
@@ -17,7 +17,7 @@ export async function PUT(
       return NextResponse.json({ error: "Token inválido" }, { status: 401 })
     }
 
-    const courseId = params.id
+    const { id: courseId } = await params
     const body = await request.json()
     const { titulo, descripcion, materia } = body
 

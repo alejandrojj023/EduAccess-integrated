@@ -66,6 +66,7 @@ lib/
   supabase-admin.ts               — Cliente service_role (solo API routes)
   auth-context.tsx                — AuthProvider: login, register, logout, user state
   accessibility-context.tsx       — Configuracion de accesibilidad + TTS
+  activity-config.ts              — parseActivityConfig / serializeActivityConfig (JSON en instrucciones)
 ```
 
 ## Navegacion (app/page.tsx)
@@ -255,9 +256,16 @@ SUPABASE_SERVICE_ROLE_KEY=...       # clave privada, SOLO en API routes, nunca e
 3. **Grupo por docente+grado**: cada docente tiene un `grupo` por cada grado que usa.
    Al crear un curso se busca o crea el grupo correspondiente (`id_docente + grado`).
 
-4. **Actividades sin editor de preguntas**: los tipos de actividad se seleccionan al
-   crear/editar una leccion. No existe editor de preguntas/opciones individual aun
-   (`pregunta` y `opcion` existen en DB pero no tienen UI todavia).
+4. **Actividades: config completa en `instrucciones` JSON**: al crear/editar una actividad
+   (en `create-lesson`, `edit-lesson` o `activity-builder`), el formulario inline muestra:
+   - `instrucciones`: texto libre para el estudiante
+   - `opciones de respuesta` (A/B/C con marca de correcta): para tipos `multiple`, `image`, `sound`
+   - `respuesta_correcta`: para tipos `short`, `voice`
+   - `nivel_dificultad`: Facil/Medio/Dificil
+   Todo se serializa como JSON en la columna `instrucciones` (TEXT) via `lib/activity-config.ts`.
+   Formato: `{ instrucciones: string, opciones?: [{texto, correcta}], respuesta_correcta?: string }`.
+   Parser retrocompatible: si no es JSON valido, trata el valor como texto plano.
+   Helper: `parseActivityConfig(raw)` / `serializeActivityConfig(config)` en `lib/activity-config.ts`.
 
 5. **`progresion_alumno` es cache**: actualizada por trigger en cada `intento_actividad`.
    El docente la lee para el dashboard; el alumno no la consulta directamente.
@@ -265,5 +273,31 @@ SUPABASE_SERVICE_ROLE_KEY=...       # clave privada, SOLO en API routes, nunca e
 6. **Orden de lecciones y actividades**: ambas tienen constraint UNIQUE por curso/leccion.
    Al crear: `count + 1`. Al editar actividades: se eliminan todas y se reinsertan.
 
-7. **"Editar" curso**: no existe pantalla de edicion de metadatos del curso. El boton
-   "Editar" en `course-list.tsx` navega a la gestion de lecciones (`lessons-{courseId}`).
+7. **Editar curso**: existe `edit-course.tsx` + `PUT /api/courses/[id]`. Accesible desde:
+   - `course-list.tsx` → boton "Editar Info" (navega a `edit-course-{id}`)
+   - `lesson-management.tsx` → boton "Editar Curso" en el header
+   Permite editar `titulo`, `descripcion`, `materia`. El `grado` NO es editable (esta en
+   `grupo`; cambiarlo moveria a todos los alumnos del grupo).
+
+8. **Constructor de actividades (`activities`)**: 3 vistas:
+   - **Grid**: grid de 6 tarjetas de tipo + boton "Ver actividades existentes" + icono engranaje
+     en el header con dropdown para cambiar entre "Crear nueva actividad" / "Ver actividades existentes"
+   - **Existing**: lista agrupada por curso → leccion, con boton "Editar" por actividad
+   - **Config**: formulario completo con instrucciones, opciones por tipo (con marca de correcta),
+     respuesta_correcta, dificultad. Selector de leccion usa `<optgroup>` agrupado por curso.
+     Al editar: los campos se pre-llenan parseando el JSON de `instrucciones` desde DB.
+     Al guardar: serializa config completo via `serializeActivityConfig`.
+
+9. **`nivel_dificultad` es INTEGER en DB**: el frontend usa strings "facil"/"medio"/"dificil".
+   Todos los API routes convierten: facil→1, medio→2, dificil→3 antes del INSERT/UPDATE.
+   Al leer desde DB, convertir integer a string antes de usar en estado React.
+
+10. **Next.js 16 — params async**: en los route handlers `[id]`, `params` es una
+    `Promise<{id: string}>` y debe awaitearse. Usar siempre:
+    ```typescript
+    { params }: { params: Promise<{ id: string }> }
+    const { id } = await params
+    ```
+    Usar `params.id` directamente (sin await) da `undefined`, que al template-stringear
+    produce la URL `/api/.../undefined` y Supabase devuelve error UUID inválido.
+    Afecta: `lessons/[id]`, `courses/[id]`, `activities/[id]`.

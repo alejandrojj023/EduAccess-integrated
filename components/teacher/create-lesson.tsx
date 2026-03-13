@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { supabase } from "@/lib/supabase"
 import { ArrowLeft, Save, Volume2, FileText, Plus, Trash2, GripVertical, ChevronLeft } from "lucide-react"
+import { serializeActivityConfig } from "@/lib/activity-config"
 
 interface CreateLessonProps {
   courseId: string | null
@@ -20,6 +21,8 @@ interface ActivityItem {
   title: string
   instrucciones: string
   nivel_dificultad: string
+  opciones?: { texto: string; correcta: boolean }[]
+  respuesta_correcta?: string
 }
 
 const activityTypes = [
@@ -48,6 +51,11 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
   const [configuringType, setConfiguringType] = useState<{ type: string; label: string } | null>(null)
   const [actInstrucciones, setActInstrucciones] = useState("")
   const [actDificultad, setActDificultad] = useState("facil")
+  const [actOptions, setActOptions] = useState<{ id: string; text: string; isCorrect: boolean }[]>([
+    { id: "1", text: "", isCorrect: false },
+    { id: "2", text: "", isCorrect: false },
+  ])
+  const [actCorrectAnswer, setActCorrectAnswer] = useState("")
 
   const { speak, settings } = useAccessibility()
 
@@ -55,16 +63,25 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
     setConfiguringType({ type, label })
     setActInstrucciones("")
     setActDificultad("facil")
+    setActOptions([{ id: "1", text: "", isCorrect: false }, { id: "2", text: "", isCorrect: false }])
+    setActCorrectAnswer("")
   }
 
   const handleConfirmActivity = () => {
     if (!configuringType) return
+    const showOpciones = configuringType.type === "multiple" || configuringType.type === "image" || configuringType.type === "sound"
+    const showRespuesta = configuringType.type === "short" || configuringType.type === "voice"
+    const opciones = showOpciones ? actOptions.filter((o) => o.text.trim()).map((o) => ({ texto: o.text, correcta: o.isCorrect })) : undefined
+    const respuesta_correcta = showRespuesta && actCorrectAnswer ? actCorrectAnswer : undefined
+    const serialized = serializeActivityConfig({ instrucciones: actInstrucciones, opciones, respuesta_correcta })
     const newActivity: ActivityItem = {
       id: Date.now().toString(),
       type: configuringType.type,
       title: configuringType.label,
-      instrucciones: actInstrucciones,
+      instrucciones: serialized,
       nivel_dificultad: actDificultad,
+      opciones,
+      respuesta_correcta,
     }
     setActivities([...activities, newActivity])
     speak(`Actividad ${configuringType.label} agregada`)
@@ -166,6 +183,77 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
               />
             </CardContent>
           </Card>
+
+          {(configuringType?.type === "multiple" || configuringType?.type === "image" || configuringType?.type === "sound") && (
+            <Card className="border-2 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-xl">Opciones de Respuesta</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {actOptions.map((option, index) => (
+                  <div key={option.id} className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setActOptions(actOptions.map((o) => ({ ...o, isCorrect: o.id === option.id })))}
+                      className={`w-12 h-12 rounded-xl border-2 flex items-center justify-center shrink-0 transition-all ${
+                        option.isCorrect
+                          ? "bg-green-500 border-green-500 text-white"
+                          : "border-border hover:border-primary"
+                      }`}
+                      aria-label={option.isCorrect ? "Respuesta correcta" : "Marcar como correcta"}
+                    >
+                      {option.isCorrect ? "✓" : String.fromCharCode(65 + index)}
+                    </button>
+                    <Input
+                      value={option.text}
+                      onChange={(e) => setActOptions(actOptions.map((o) => o.id === option.id ? { ...o, text: e.target.value } : o))}
+                      placeholder={`Opcion ${index + 1}`}
+                      className="h-12 text-lg border-2 flex-1"
+                    />
+                    {actOptions.length > 2 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setActOptions(actOptions.filter((o) => o.id !== option.id))}
+                        className="text-destructive hover:bg-destructive/10"
+                        aria-label="Eliminar opcion"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-12 border-2 border-dashed"
+                  onClick={() => setActOptions([...actOptions, { id: Date.now().toString(), text: "", isCorrect: false }])}
+                >
+                  <Plus className="w-5 h-5 mr-2" aria-hidden="true" />
+                  Agregar Opcion
+                </Button>
+                <p className="text-sm text-muted-foreground">Haz clic en la letra para marcar la respuesta correcta</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {(configuringType?.type === "short" || configuringType?.type === "voice") && (
+            <Card className="border-2 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-xl">Respuesta Correcta</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Input
+                  value={actCorrectAnswer}
+                  onChange={(e) => setActCorrectAnswer(e.target.value)}
+                  placeholder="Escribe la respuesta esperada"
+                  className="h-14 text-lg border-2"
+                />
+                <p className="text-sm text-muted-foreground mt-3">El sistema comparara la respuesta del estudiante con esta</p>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="border-2 shadow-lg">
             <CardHeader>
