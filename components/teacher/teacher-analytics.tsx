@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useAnalytics } from "@/hooks/teacher/use-analytics"
+import { useSpeakOnHover } from "@/components/ui/accessible-tooltip"
 import {
   ArrowLeft,
   Volume2,
@@ -46,6 +47,11 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
     loading,
   } = useAnalytics()
 
+  const hoverCorrect  = useSpeakOnHover(`Respuestas correctas: promedio de respuestas acertadas por tus alumnos. Actualmente ${overallStats.averageCorrect}%`)
+  const hoverIntentos = useSpeakOnHover(`Total de intentos: número de actividades completadas por todos tus alumnos. Total: ${overallStats.totalAttempts}`)
+  const hoverTiempo   = useSpeakOnHover(`Tiempo promedio: cuánto tardan tus alumnos en completar una actividad. Promedio: ${overallStats.averageTime}`)
+  const hoverActivos  = useSpeakOnHover(`Estudiantes activos: alumnos que han realizado al menos una actividad. Total: ${overallStats.activeStudents}`)
+
   const handleReadInstructions = () => {
     speak(
       `Analiticas del curso. El promedio de respuestas correctas es ${overallStats.averageCorrect} por ciento. Hay ${overallStats.totalAttempts} intentos totales. El tiempo promedio es ${overallStats.averageTime}. Tienes ${overallStats.activeStudents} estudiantes activos.`
@@ -63,7 +69,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
               size="lg"
               onClick={onBack}
               className="h-12 w-12 p-0"
-              aria-label="Volver"
+              aria-label="Regresar al panel principal"
             >
               <ArrowLeft className="w-6 h-6" />
             </Button>
@@ -83,55 +89,62 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
 
       <main className="max-w-6xl mx-auto px-4 py-8">
         {/* Overview Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="border-2 shadow-lg">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-14 h-14 bg-success/10 rounded-2xl flex items-center justify-center">
-                <CheckCircle className="w-7 h-7 text-success" aria-hidden="true" />
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-foreground">{overallStats.averageCorrect}%</p>
-                <p className="text-sm text-muted-foreground">Respuestas Correctas</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 shadow-lg">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center">
-                <Target className="w-7 h-7 text-primary" aria-hidden="true" />
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-foreground">{overallStats.totalAttempts}</p>
-                <p className="text-sm text-muted-foreground">Total Intentos</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 shadow-lg">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-14 h-14 bg-accent/20 rounded-2xl flex items-center justify-center">
-                <Clock className="w-7 h-7 text-accent-foreground" aria-hidden="true" />
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-foreground">{overallStats.averageTime}</p>
-                <p className="text-sm text-muted-foreground">Tiempo Promedio</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 shadow-lg">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-14 h-14 bg-chart-4/20 rounded-2xl flex items-center justify-center">
-                <Users className="w-7 h-7 text-chart-4" aria-hidden="true" />
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-foreground">{overallStats.activeStudents}</p>
-                <p className="text-sm text-muted-foreground">Estudiantes Activos</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <section aria-label="Estadísticas generales del curso" className="mb-8">
+          <ul className="grid grid-cols-2 lg:grid-cols-4 gap-6 list-none p-0">
+            <li>
+              <Card className="border-2 shadow-lg h-full" {...hoverCorrect}>
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className="w-14 h-14 bg-success/10 rounded-2xl flex items-center justify-center" aria-hidden="true">
+                    <CheckCircle className="w-7 h-7 text-success" />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-foreground">{overallStats.averageCorrect}%</p>
+                    <p className="text-sm text-muted-foreground">Respuestas Correctas</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </li>
+            <li>
+              <Card className="border-2 shadow-lg h-full" {...hoverIntentos}>
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center" aria-hidden="true">
+                    <Target className="w-7 h-7 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-foreground">{overallStats.totalAttempts}</p>
+                    <p className="text-sm text-muted-foreground">Total Intentos</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </li>
+            <li>
+              <Card className="border-2 shadow-lg h-full" {...hoverTiempo}>
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className="w-14 h-14 bg-accent/20 rounded-2xl flex items-center justify-center" aria-hidden="true">
+                    <Clock className="w-7 h-7 text-accent-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-foreground">{overallStats.averageTime}</p>
+                    <p className="text-sm text-muted-foreground">Tiempo Promedio</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </li>
+            <li>
+              <Card className="border-2 shadow-lg h-full" {...hoverActivos}>
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className="w-14 h-14 bg-chart-4/20 rounded-2xl flex items-center justify-center" aria-hidden="true">
+                    <Users className="w-7 h-7 text-chart-4" />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-foreground">{overallStats.activeStudents}</p>
+                    <p className="text-sm text-muted-foreground">Estudiantes Activos</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </li>
+          </ul>
+        </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Performance by Lesson */}

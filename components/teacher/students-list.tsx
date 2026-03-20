@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useStudents } from "@/hooks/teacher/use-students"
+import { useSpeakOnHover } from "@/components/ui/accessible-tooltip"
 import {
   ArrowLeft,
   Volume2,
@@ -34,10 +35,17 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
   )
 
   const studentsNeedingSupport = students.filter((s) => s.needsSupport).length
+  const averageProgress = students.length > 0
+    ? Math.round(students.reduce((acc, s) => acc + s.progress, 0) / students.length)
+    : 0
+
+  const hoverTotal    = useSpeakOnHover(`Total de estudiantes inscritos en tus cursos: ${students.length}`)
+  const hoverPromedio = useSpeakOnHover(`Progreso promedio: porcentaje de avance de todos tus alumnos. Actualmente ${averageProgress}%`)
+  const hoverApoyo    = useSpeakOnHover(`Estudiantes que necesitan apoyo adicional: ${studentsNeedingSupport}`)
 
   const handleReadInstructions = () => {
     speak(
-      `Lista de estudiantes. Tienes ${students.length} estudiantes. ${studentsNeedingSupport} estudiantes necesitan apoyo adicional. Puedes ver el progreso de cada estudiante y acceder a su reporte individual.`
+      `Lista de estudiantes. Tienes ${students.length} estudiantes. El progreso promedio es ${averageProgress} por ciento. ${studentsNeedingSupport} estudiantes necesitan apoyo adicional.`
     )
   }
 
@@ -52,7 +60,7 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
               size="lg"
               onClick={onBack}
               className="h-12 w-12 p-0"
-              aria-label="Volver"
+              aria-label="Regresar al panel principal"
             >
               <ArrowLeft className="w-6 h-6" />
             </Button>
@@ -72,45 +80,49 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
 
       <main className="max-w-5xl mx-auto px-4 py-8">
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-          <Card className="border-2 shadow-lg">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center">
-                <User className="w-7 h-7 text-primary" aria-hidden="true" />
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-foreground">{students.length}</p>
-                <p className="text-muted-foreground">Total Estudiantes</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 shadow-lg">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-14 h-14 bg-success/10 rounded-2xl flex items-center justify-center">
-                <TrendingUp className="w-7 h-7 text-success" aria-hidden="true" />
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-foreground">
-                  {Math.round(students.reduce((acc, s) => acc + s.progress, 0) / students.length)}%
-                </p>
-                <p className="text-muted-foreground">Progreso Promedio</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 shadow-lg border-accent">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-14 h-14 bg-accent/20 rounded-2xl flex items-center justify-center">
-                <AlertCircle className="w-7 h-7 text-accent-foreground" aria-hidden="true" />
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-foreground">{studentsNeedingSupport}</p>
-                <p className="text-muted-foreground">Necesitan Apoyo</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <section aria-label="Resumen de estudiantes" className="mb-8">
+          <ul className="grid grid-cols-1 sm:grid-cols-3 gap-6 list-none p-0">
+            <li>
+              <Card className="border-2 shadow-lg h-full" {...hoverTotal}>
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center" aria-hidden="true">
+                    <User className="w-7 h-7 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-foreground">{students.length}</p>
+                    <p className="text-muted-foreground">Total Estudiantes</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </li>
+            <li>
+              <Card className="border-2 shadow-lg h-full" {...hoverPromedio}>
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className="w-14 h-14 bg-success/10 rounded-2xl flex items-center justify-center" aria-hidden="true">
+                    <TrendingUp className="w-7 h-7 text-success" />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-foreground">{averageProgress}%</p>
+                    <p className="text-muted-foreground">Progreso Promedio</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </li>
+            <li>
+              <Card className="border-2 shadow-lg border-accent h-full" {...hoverApoyo}>
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className="w-14 h-14 bg-accent/20 rounded-2xl flex items-center justify-center" aria-hidden="true">
+                    <AlertCircle className="w-7 h-7 text-accent-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-foreground">{studentsNeedingSupport}</p>
+                    <p className="text-muted-foreground">Necesitan Apoyo</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </li>
+          </ul>
+        </section>
 
         {/* Search */}
         <div className="relative mb-6">
@@ -126,82 +138,90 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
         </div>
 
         {/* Students List */}
-        <div className="grid gap-4">
-          {filteredStudents.map((student) => (
-            <Card
-              key={student.id}
-              className={`border-2 shadow-lg transition-all hover:border-primary/50 ${
-                student.needsSupport ? "border-accent/50 bg-accent/5" : ""
-              }`}
-            >
-              <CardContent className="p-6">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                  <div className="flex items-center gap-5">
-                    <div
-                      className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-primary-foreground ${
-                        student.needsSupport ? "bg-accent" : "bg-primary"
-                      }`}
-                    >
-                      {student.name.charAt(0)}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-xl font-bold text-foreground">{student.name}</h3>
-                        {student.needsSupport && (
-                          <span className="inline-flex items-center gap-1 text-sm bg-accent/20 text-accent-foreground px-3 py-1 rounded-full font-medium">
-                            <AlertCircle className="w-4 h-4" aria-hidden="true" />
-                            Necesita apoyo
+        <section aria-label="Lista de estudiantes">
+          <ul className="grid gap-4 list-none p-0">
+            {filteredStudents.map((student) => (
+              <li key={student.id}>
+              <article aria-label={`${student.name}${student.needsSupport ? ", necesita apoyo" : ""}, progreso ${student.progress}%`}>
+              <Card
+                className={`border-2 shadow-lg transition-all hover:border-primary/50 ${
+                  student.needsSupport ? "border-accent/50 bg-accent/5" : ""
+                }`}
+              >
+                <CardContent className="p-6">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                    <div className="flex items-center gap-5">
+                      <div
+                        className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-primary-foreground ${
+                          student.needsSupport ? "bg-accent" : "bg-primary"
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {student.name.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <h3 className="text-xl font-bold text-foreground">{student.name}</h3>
+                          {student.needsSupport && (
+                            <span className="inline-flex items-center gap-1 text-sm bg-accent/20 text-accent-foreground px-3 py-1 rounded-full font-medium">
+                              <AlertCircle className="w-4 h-4" aria-hidden="true" />
+                              Necesita apoyo
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-muted-foreground">{student.email}</p>
+                        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" aria-hidden="true" />
+                            <time>{student.lastActive}</time>
                           </span>
-                        )}
-                      </div>
-                      <p className="text-muted-foreground">{student.email}</p>
-                      <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" aria-hidden="true" />
-                          {student.lastActive}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <CheckCircle className="w-4 h-4" aria-hidden="true" />
-                          {student.completedActivities}/{student.totalActivities} actividades
-                        </span>
+                          <span className="flex items-center gap-1">
+                            <CheckCircle className="w-4 h-4" aria-hidden="true" />
+                            {student.completedActivities}/{student.totalActivities} actividades
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-6">
-                    <div className="w-40">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-muted-foreground">Progreso</span>
-                        <span
-                          className={`text-lg font-bold ${
-                            student.progress >= 70
-                              ? "text-success"
-                              : student.progress >= 40
-                              ? "text-accent-foreground"
-                              : "text-destructive"
-                          }`}
-                        >
-                          {student.progress}%
-                        </span>
+                    <div className="flex items-center gap-6">
+                      <div className="w-40" aria-label={`Progreso: ${student.progress}%`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-muted-foreground">Progreso</span>
+                          <span
+                            className={`text-lg font-bold ${
+                              student.progress >= 70
+                                ? "text-success"
+                                : student.progress >= 40
+                                ? "text-accent-foreground"
+                                : "text-destructive"
+                            }`}
+                            aria-hidden="true"
+                          >
+                            {student.progress}%
+                          </span>
+                        </div>
+                        <Progress value={student.progress} className="h-3" />
                       </div>
-                      <Progress value={student.progress} className="h-3" />
-                    </div>
 
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      className="h-12 px-6 border-2"
-                      onClick={() => onNavigate(`student-report-${student.id}`)}
-                    >
-                      <Eye className="w-5 h-5 mr-2" aria-hidden="true" />
-                      Ver Reporte
-                    </Button>
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="h-12 px-6 border-2"
+                        onClick={() => onNavigate(`student-report-${student.id}`)}
+                        aria-label={`Ver reporte de ${student.name}`}
+                      >
+                        <Eye className="w-5 h-5 mr-2" aria-hidden="true" />
+                        Ver Reporte
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+              </article>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         {filteredStudents.length === 0 && (
           <Card className="border-2 border-dashed">

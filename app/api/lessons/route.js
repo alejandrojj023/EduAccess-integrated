@@ -49,6 +49,7 @@ export async function POST(request) {
         titulo,
         contenido: contenido || null,
         orden: nextOrden,
+        publicado: true,
       })
       .select("id_leccion")
       .single()
@@ -68,6 +69,7 @@ export async function POST(request) {
         instrucciones: act.instrucciones || null,
         nivel_dificultad: act.nivel_dificultad ? (difficultyMap[act.nivel_dificultad] ?? 1) : null,
         orden: index + 1,
+        publicado: true,
       }))
 
       const { error: actError } = await supabaseAdmin

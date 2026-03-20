@@ -20,7 +20,12 @@ import { StudentActivity } from "@/components/student/student-activity"
 import { VoiceActivity } from "@/components/student/voice-activity"
 import { InitialTest } from "@/components/student/initial-test"
 import { StudentProgress } from "@/components/student/student-progress"
+import { StudentCalendar } from "@/components/student/student-calendar"
 import { AccessibilitySettings } from "@/components/accessibility-settings"
+import { GroupManagement } from "@/components/teacher/group-management"
+import { JoinGroup } from "@/components/student/join-group"
+import { StudentCourse } from "@/components/student/student-course"
+import { StudentLesson } from "@/components/student/student-lesson"
 import { BookOpen } from "lucide-react"
 
 type Screen =
@@ -41,14 +46,25 @@ type Screen =
   | "voice-activity"
   | "initial-test"
   | "student-progress"
+  | "student-calendar"
+  | "join-group"
+  | "group-management"
+  | "student-course"
+  | "student-lesson"
   | "accessibility"
 
 function AppContent() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("login")
-  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null)
-  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
-  const [selectedActivityType, setSelectedActivityType] = useState<string | null>(null)
-  const [editCourseBackTo, setEditCourseBackTo] = useState<"courses" | "lessons">("courses")
+  const [selectedCourseId,      setSelectedCourseId]      = useState<string | null>(null)
+  const [selectedLessonId,      setSelectedLessonId]      = useState<string | null>(null)
+  const [selectedActivityType,  setSelectedActivityType]  = useState<string | null>(null)
+  const [editCourseBackTo,      setEditCourseBackTo]      = useState<"courses" | "lessons">("courses")
+  // Student navigation state
+  const [studentCourseId,   setStudentCourseId]   = useState<string | null>(null)
+  const [studentCourseName, setStudentCourseName] = useState<string | null>(null)
+  const [studentLessonId,   setStudentLessonId]   = useState<string | null>(null)
+  const [studentLessonName, setStudentLessonName] = useState<string | null>(null)
+  const [studentActivityId, setStudentActivityId] = useState<string | null>(null)
   const { user, logout, isAuthenticated, loading, needsTest } = useAuth()
 
   // Redirigir automáticamente cuando cambia el estado de autenticación
@@ -222,9 +238,15 @@ function AppContent() {
         return (
           <StudentDashboard
             onNavigate={(screen) => {
-              if (screen.startsWith("activity-")) {
-                setSelectedActivityType(screen.replace("activity-", ""))
-                setCurrentScreen("student-activity")
+              if (screen.startsWith("course-")) {
+                // course-{id}|{name} — navigate to course lessons
+                const rest = screen.replace("course-", "")
+                const sepIdx = rest.indexOf("|")
+                const cId   = sepIdx > -1 ? rest.slice(0, sepIdx) : rest
+                const cName = sepIdx > -1 ? rest.slice(sepIdx + 1) : ""
+                setStudentCourseId(cId)
+                setStudentCourseName(cName)
+                setCurrentScreen("student-course")
               } else {
                 handleNavigate(screen)
               }
@@ -233,12 +255,39 @@ function AppContent() {
           />
         )
 
+      case "student-course":
+        return (
+          <StudentCourse
+            courseId={studentCourseId}
+            courseName={studentCourseName}
+            onSelectLesson={(id, name) => {
+              setStudentLessonId(id)
+              setStudentLessonName(name)
+              setCurrentScreen("student-lesson")
+            }}
+            onBack={() => setCurrentScreen("student-dashboard")}
+          />
+        )
+
+      case "student-lesson":
+        return (
+          <StudentLesson
+            lessonId={studentLessonId}
+            lessonName={studentLessonName}
+            onSelectActivity={(id) => {
+              setStudentActivityId(id)
+              setCurrentScreen("student-activity")
+            }}
+            onBack={() => setCurrentScreen("student-course")}
+          />
+        )
+
       case "student-activity":
         return (
           <StudentActivity
-            activityType={selectedActivityType}
-            onBack={() => setCurrentScreen("student-dashboard")}
-            onComplete={() => setCurrentScreen("student-dashboard")}
+            activityId={studentActivityId}
+            onBack={() => setCurrentScreen("student-lesson")}
+            onComplete={() => setCurrentScreen("student-lesson")}
             onVoiceActivity={() => setCurrentScreen("voice-activity")}
           />
         )
@@ -262,6 +311,27 @@ function AppContent() {
         return (
           <StudentProgress
             onBack={() => setCurrentScreen("student-dashboard")}
+          />
+        )
+
+      case "student-calendar":
+        return (
+          <StudentCalendar
+            onBack={() => setCurrentScreen("student-dashboard")}
+          />
+        )
+
+      case "join-group":
+        return (
+          <JoinGroup
+            onNavigate={handleNavigate}
+          />
+        )
+
+      case "group-management":
+        return (
+          <GroupManagement
+            onNavigate={handleNavigate}
           />
         )
 

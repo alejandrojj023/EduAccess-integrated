@@ -55,6 +55,7 @@ export async function PUT(request, { params }) {
         instrucciones: act.instrucciones || null,
         nivel_dificultad: act.nivel_dificultad ? (difficultyMap[act.nivel_dificultad] ?? 1) : null,
         orden: index + 1,
+        publicado: true,
       }))
 
       const { error: actError } = await supabaseAdmin

@@ -80,6 +80,7 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
         </Button>
 
         {/* Course List */}
+        <section aria-label="Lista de cursos">
         {courses.length === 0 ? (
           <Card className="border-2 border-dashed">
             <CardContent className="p-12 text-center">
@@ -95,10 +96,11 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-6">
+          <ul className="grid gap-6 list-none p-0">
             {courses.map((course) => (
+              <li key={course.id}>
+              <article aria-label={`Curso: ${course.name}`}>
               <Card
-                key={course.id}
                 className={`border-2 shadow-lg transition-all hover:border-primary/50 ${
                   selectedCourse === course.id ? "border-primary ring-2 ring-primary/20" : ""
                 }`}
@@ -106,8 +108,8 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
                 <CardContent className="p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-start gap-5">
-                      <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
-                        <BookOpen className="w-8 h-8 text-primary" aria-hidden="true" />
+                      <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0" aria-hidden="true">
+                        <BookOpen className="w-8 h-8 text-primary" />
                       </div>
                       <div>
                         <h3 className="text-xl font-bold text-foreground">{course.name}</h3>
@@ -128,7 +130,7 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 sm:flex-col lg:flex-row">
+                    <nav aria-label={`Acciones del curso ${course.name}`} className="flex items-center gap-3 sm:flex-col lg:flex-row">
                       <Button
                         variant="outline"
                         size="lg"
@@ -152,17 +154,21 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
                         size="lg"
                         className="h-12 px-6 border-2 text-destructive hover:bg-destructive/10 hover:border-destructive"
                         onClick={() => handleDeleteCourse(course.id)}
+                        aria-label={`Eliminar curso ${course.name}`}
                       >
                         <Trash2 className="w-5 h-5 mr-2" aria-hidden="true" />
                         Eliminar
                       </Button>
-                    </div>
+                    </nav>
                   </div>
                 </CardContent>
               </Card>
+              </article>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
+        </section>
       </main>
     </div>
   )

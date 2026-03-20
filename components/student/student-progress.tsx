@@ -75,7 +75,8 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Profile Summary */}
-        <Card className="border-2 shadow-xl mb-8 overflow-hidden">
+        <section aria-label="Perfil del estudiante" className="mb-8">
+        <Card className="border-2 shadow-xl overflow-hidden">
           <CardContent className="p-0">
             <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-6">
               <div className="flex items-center gap-6">
@@ -99,138 +100,152 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
             </div>
           </CardContent>
         </Card>
+        </section>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card className="border-2 shadow-lg">
-            <CardContent className="p-5 flex flex-col items-center text-center">
-              <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mb-3">
-                <BookOpen className="w-7 h-7 text-primary" aria-hidden="true" />
-              </div>
-              <p className="text-3xl font-bold text-foreground">{completedLessons}</p>
-              <p className="text-sm text-muted-foreground">Lecciones Completadas</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 shadow-lg">
-            <CardContent className="p-5 flex flex-col items-center text-center">
-              <div className="w-14 h-14 bg-success/10 rounded-2xl flex items-center justify-center mb-3">
-                <Target className="w-7 h-7 text-success" aria-hidden="true" />
-              </div>
-              <p className="text-3xl font-bold text-foreground">{averageScore}%</p>
-              <p className="text-sm text-muted-foreground">Puntaje Promedio</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 shadow-lg">
-            <CardContent className="p-5 flex flex-col items-center text-center">
-              <div className="w-14 h-14 bg-accent/20 rounded-2xl flex items-center justify-center mb-3">
-                <Star className="w-7 h-7 text-accent-foreground" aria-hidden="true" />
-              </div>
-              <p className="text-3xl font-bold text-foreground">45</p>
-              <p className="text-sm text-muted-foreground">Estrellas Ganadas</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 shadow-lg">
-            <CardContent className="p-5 flex flex-col items-center text-center">
-              <div className="w-14 h-14 bg-chart-4/20 rounded-2xl flex items-center justify-center mb-3">
-                <Clock className="w-7 h-7 text-chart-4" aria-hidden="true" />
-              </div>
-              <p className="text-3xl font-bold text-foreground">{totalAttempts}</p>
-              <p className="text-sm text-muted-foreground">Total Intentos</p>
-            </CardContent>
-          </Card>
-        </div>
+        <section aria-label="Estadísticas del estudiante" className="mb-8">
+          <ul className="grid grid-cols-2 lg:grid-cols-4 gap-4 list-none p-0">
+            <li>
+              <Card className="border-2 shadow-lg h-full">
+                <CardContent className="p-5 flex flex-col items-center text-center">
+                  <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mb-3" aria-hidden="true">
+                    <BookOpen className="w-7 h-7 text-primary" />
+                  </div>
+                  <p className="text-3xl font-bold text-foreground">{completedLessons}</p>
+                  <p className="text-sm text-muted-foreground">Lecciones Completadas</p>
+                </CardContent>
+              </Card>
+            </li>
+            <li>
+              <Card className="border-2 shadow-lg h-full">
+                <CardContent className="p-5 flex flex-col items-center text-center">
+                  <div className="w-14 h-14 bg-success/10 rounded-2xl flex items-center justify-center mb-3" aria-hidden="true">
+                    <Target className="w-7 h-7 text-success" />
+                  </div>
+                  <p className="text-3xl font-bold text-foreground">{averageScore}%</p>
+                  <p className="text-sm text-muted-foreground">Puntaje Promedio</p>
+                </CardContent>
+              </Card>
+            </li>
+            <li>
+              <Card className="border-2 shadow-lg h-full">
+                <CardContent className="p-5 flex flex-col items-center text-center">
+                  <div className="w-14 h-14 bg-accent/20 rounded-2xl flex items-center justify-center mb-3" aria-hidden="true">
+                    <Star className="w-7 h-7 text-accent-foreground" />
+                  </div>
+                  <p className="text-3xl font-bold text-foreground">45</p>
+                  <p className="text-sm text-muted-foreground">Estrellas Ganadas</p>
+                </CardContent>
+              </Card>
+            </li>
+            <li>
+              <Card className="border-2 shadow-lg h-full">
+                <CardContent className="p-5 flex flex-col items-center text-center">
+                  <div className="w-14 h-14 bg-chart-4/20 rounded-2xl flex items-center justify-center mb-3" aria-hidden="true">
+                    <Clock className="w-7 h-7 text-chart-4" />
+                  </div>
+                  <p className="text-3xl font-bold text-foreground">{totalAttempts}</p>
+                  <p className="text-sm text-muted-foreground">Total Intentos</p>
+                </CardContent>
+              </Card>
+            </li>
+          </ul>
+        </section>
 
         {/* Overall Progress */}
-        <Card className="border-2 shadow-lg mb-8">
-          <CardHeader>
-            <CardTitle className="text-xl flex items-center gap-3">
-              <TrendingUp className="w-6 h-6 text-primary" aria-hidden="true" />
-              Progreso General
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-6">
-              <div className="flex-1">
-                <Progress value={overallProgress} className="h-6" />
+        <section aria-label="Progreso general">
+          <Card className="border-2 shadow-lg mb-8">
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-3">
+                <TrendingUp className="w-6 h-6 text-primary" aria-hidden="true" />
+                Progreso General
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-6">
+                <div className="flex-1">
+                  <Progress value={overallProgress} className="h-6" aria-label={`${overallProgress}% completado`} />
+                </div>
+                <span className="text-3xl font-bold text-primary" aria-hidden="true">{overallProgress}%</span>
               </div>
-              <span className="text-3xl font-bold text-primary">{overallProgress}%</span>
-            </div>
-            <p className="text-muted-foreground mt-4">
-              Has completado {completedLessons} de {totalLessons} lecciones. Sigue asi!
-            </p>
-          </CardContent>
-        </Card>
+              <p className="text-muted-foreground mt-4">
+                Has completado {completedLessons} de {totalLessons} lecciones. Sigue asi!
+              </p>
+            </CardContent>
+          </Card>
+        </section>
 
         {/* Lessons List */}
-        <Card className="border-2 shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl">Detalle por Leccion</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <ul className="divide-y divide-border">
-              {lessonProgressData.map((lesson, index) => (
-                <li key={lesson.id} className="p-5 hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                          lesson.completed ? "bg-success/10" : "bg-muted"
-                        }`}
-                      >
-                        {lesson.completed ? (
-                          <CheckCircle className="w-6 h-6 text-success" aria-hidden="true" />
-                        ) : (
-                          <span className="text-lg font-bold text-muted-foreground">
-                            {index + 1}
-                          </span>
-                        )}
-                      </div>
-                      <div>
-                        <h4 className="text-lg font-semibold text-foreground">{lesson.name}</h4>
-                        {lesson.completed ? (
-                          <p className="text-sm text-muted-foreground">
-                            Completada en {lesson.attempts} intento
-                            {lesson.attempts > 1 ? "s" : ""}
-                          </p>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">Pendiente</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {lesson.completed && (
-                      <div className="text-right">
-                        <p
-                          className={`text-2xl font-bold ${
-                            lesson.score >= 90
-                              ? "text-success"
-                              : lesson.score >= 70
-                              ? "text-accent-foreground"
-                              : "text-foreground"
+        <section aria-label="Detalle por lección">
+          <Card className="border-2 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl">Detalle por Leccion</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ul className="divide-y divide-border" aria-label="Lista de lecciones con progreso">
+                {lessonProgressData.map((lesson, index) => (
+                  <li key={lesson.id} className="p-5 hover:bg-muted/50 transition-colors">
+                    <article aria-label={`${lesson.name}${lesson.completed ? `, puntaje ${lesson.score}%` : ", pendiente"}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                            lesson.completed ? "bg-success/10" : "bg-muted"
                           }`}
+                          aria-hidden="true"
                         >
-                          {lesson.score}%
-                        </p>
-                        <div className="flex items-center gap-1 justify-end">
-                          {[...Array(Math.floor(lesson.score / 20))].map((_, i) => (
-                            <Star
-                              key={i}
-                              className="w-4 h-4 text-accent fill-accent"
-                              aria-hidden="true"
-                            />
-                          ))}
+                          {lesson.completed ? (
+                            <CheckCircle className="w-6 h-6 text-success" />
+                          ) : (
+                            <span className="text-lg font-bold text-muted-foreground">
+                              {index + 1}
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-semibold text-foreground">{lesson.name}</h4>
+                          {lesson.completed ? (
+                            <p className="text-sm text-muted-foreground">
+                              Completada en {lesson.attempts} intento
+                              {lesson.attempts > 1 ? "s" : ""}
+                            </p>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Pendiente</p>
+                          )}
                         </div>
                       </div>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+
+                      {lesson.completed && (
+                        <div className="text-right" aria-label={`Puntaje: ${lesson.score}%`}>
+                          <p
+                            className={`text-2xl font-bold ${
+                              lesson.score >= 90
+                                ? "text-success"
+                                : lesson.score >= 70
+                                ? "text-accent-foreground"
+                                : "text-foreground"
+                            }`}
+                          >
+                            {lesson.score}%
+                          </p>
+                          <div className="flex items-center gap-1 justify-end" aria-hidden="true">
+                            {[...Array(Math.floor(lesson.score / 20))].map((_, i) => (
+                              <Star
+                                key={i}
+                                className="w-4 h-4 text-accent fill-accent"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    </article>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </section>
       </main>
     </div>
   )

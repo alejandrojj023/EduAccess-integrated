@@ -60,6 +60,7 @@ export async function POST(request) {
         instrucciones: instrucciones || null,
         nivel_dificultad: nivel_dificultad ? (difficultyMap[nivel_dificultad] ?? 1) : null,
         orden,
+        publicado: true,
       })
       .select("id_actividad")
       .single()
