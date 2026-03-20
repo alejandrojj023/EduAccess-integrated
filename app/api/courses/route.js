@@ -65,6 +65,7 @@ export async function POST(request) {
         titulo,
         descripcion,
         id_grupo: idGrupo,
+        publicado: true,
       })
       .select("id_curso")
       .single()

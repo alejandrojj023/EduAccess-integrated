@@ -25,6 +25,7 @@ interface UseTeacherDashboardReturn {
   stats: DashboardStats
   recentActivity: RecentActivity[]
   loading: boolean
+  refetch: () => void
 }
 
 export function useTeacherDashboard(): UseTeacherDashboardReturn {
@@ -36,6 +37,15 @@ export function useTeacherDashboard(): UseTeacherDashboardReturn {
   })
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
   const [loading, setLoading] = useState(true)
+  const [tick, setTick] = useState(0)
+
+  const refetch = () => setTick(t => t + 1)
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 30_000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -120,7 +130,7 @@ export function useTeacherDashboard(): UseTeacherDashboardReturn {
     }
 
     fetchData()
-  }, [user])
+  }, [user, tick])
 
-  return { stats, recentActivity, loading }
+  return { stats, recentActivity, loading, refetch }
 }

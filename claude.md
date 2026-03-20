@@ -52,7 +52,8 @@ components/
     voice-activity.tsx
     initial-test.tsx
     student-progress.tsx
-  accessibility-settings.tsx
+    student-calendar.tsx          — Calendario mensual con actividades completadas por dia
+  accessibility-settings.tsx      — Pagina "Ajustes" con 3 pestanas: Perfil, Notificaciones, Accesibilidad
 
 hooks/teacher/
   use-courses.ts                  — Fetch cursos + conteo lecciones/alumnos
@@ -65,8 +66,11 @@ lib/
   supabase.ts                     — Cliente publico (respeta RLS)
   supabase-admin.ts               — Cliente service_role (solo API routes)
   auth-context.tsx                — AuthProvider: login, register, logout, user state
-  accessibility-context.tsx       — Configuracion de accesibilidad + TTS
+  accessibility-context.tsx       — Configuracion de accesibilidad + TTS (ver tipos ContrastLevel, TooltipMode)
   activity-config.ts              — parseActivityConfig / serializeActivityConfig (JSON en instrucciones)
+
+components/ui/
+  accessible-tooltip.tsx          — Wrapper tooltip/TTS segun tooltipMode del usuario
 ```
 
 ## Navegacion (app/page.tsx)
@@ -84,7 +88,7 @@ login → teacher-dashboard
   → activities  (constructor: grid + "Ver existentes" + config por tipo)
   → students
   → analytics
-  → accessibility
+  → accessibility  (pagina "Ajustes" con 3 tabs: Perfil, Notificaciones, Accesibilidad)
 ```
 
 ### Flujo estudiante
@@ -93,7 +97,8 @@ login → initial-test (si no lo ha completado)
       → student-dashboard
           → student-activity → voice-activity
           → student-progress
-          → accessibility
+          → student-calendar   (nuevo: calendario mensual de actividades)
+          → accessibility       (pagina "Ajustes" con 3 tabs)
 ```
 
 ### Estado global de navegacion
@@ -226,19 +231,139 @@ del formulario (nombre, email, role ya conocidos) — elimina 1 round-trip a la 
 
 ## Accesibilidad (lib/accessibility-context.tsx)
 
-### Mapeo DB a Frontend
-| DB | Frontend |
-|----|---------|
-| `contraste: 'normal'/'alto'/'muy_alto'` | `highContrast: boolean` |
+### Tipos exportados
+```typescript
+type ContrastLevel = 'normal' | 'alto' | 'muy_alto'
+type TooltipMode   = 'off' | 'voice' | 'visual' | 'both'
+```
+
+### Mapeo DB → Frontend
+| DB (`configuracion_accesibilidad`) | Frontend (`AccessibilitySettings`) |
+|------------------------------------|-------------------------------------|
+| `contraste: 'normal'/'alto'/'muy_alto'` | `contrastLevel: ContrastLevel` + `highContrast: boolean` (derivado) |
 | `tamano_fuente: 16/24/32` | `textSize: 'normal'/'large'/'extra-large'` |
 | `texto_a_voz_activo` | `voiceEnabled: boolean` |
 | `interfaz_simplificada` | `simplifiedInterface: boolean` |
 
-### TTS
-Usa Web Speech API (`window.speechSynthesis`), idioma `es-ES`, velocidad `0.9`.
-Solo habla si `settings.voiceEnabled === true`.
+### Campos solo en localStorage (no DB)
+| Key localStorage | Campo en settings | Default |
+|-----------------|-------------------|---------|
+| `ea_tooltipMode` | `tooltipMode` | `'off'` |
+| `ea_voiceRate`   | `voiceRate`   | `0.9`   |
+| `ea_voiceName`   | `voiceName`   | `''`    |
 
-## Variables de entorno (.env.local)
+### TTS
+Usa Web Speech API (`window.speechSynthesis`), idioma `es-ES`.
+- Velocidad configurable via `voiceRate` (0.5–2.0), default 0.9
+- Voz seleccionable via `voiceName` (nombre de SpeechSynthesisVoice)
+- Solo habla si `settings.voiceEnabled === true`
+
+### Listener global hover-to-speak (en AccessibilityProvider)
+Escucha `mouseover`/`mouseout` a nivel `document`. Funciona en TODA la app
+automáticamente sin tocar componentes individuales.
+- Tags leídos: `P, H1–H6, SPAN, LI, LABEL, TD, TH, CAPTION`
+- Excluye: botones, links, inputs y sus descendientes
+- Debounce de 180ms para evitar lecturas al mover el cursor rápido
+- Indicador visual: `data-tts-hover="true"` → subrayado punteado primario (CSS global)
+- Usa `settingsRef` (ref al settings actual) para evitar stale closures sin re-crear el listener
+- Modos:
+  - `off`    → listener no hace nada
+  - `voice`  → lee el texto (si `voiceEnabled`)
+  - `visual` → pone `data-tts-hover` en el elemento
+  - `both`   → ambos
+
+### CSS de contraste
+- `normal`    → sin clase CSS
+- `alto`      → clase `high-contrast` (fondo oscuro, texto blanco)
+- `muy_alto`  → clase `very-high-contrast` (fondo negro, primario amarillo)
+
+### AccessibleTooltip (components/ui/accessible-tooltip.tsx)
+Tres exports para cubrir todos los casos de TTS en la UI:
+
+1. **`<AccessibleTooltip label="..." position="top|bottom|left|right">`**
+   Para botones de solo icono. Muestra tooltip visual y/o lee en voz.
+
+2. **`useSpeakOnHover(label)`**
+   Hook para botones con texto visible. Solo activa la voz al hover.
+   Uso: `<Button {...useSpeakOnHover("Ir a Mi Progreso")}>Mi Progreso</Button>`
+
+3. **`<SpeakableText as="p|h1|h2|h3|span|li" speakText="..." className="...">`**
+   Para bloques de texto de contenido (instrucciones, párrafos, títulos, nombres de cursos).
+   Al hover en modo `voice`/`both`: lee el texto en voz alta.
+   Al hover en modo `visual`/`both`: muestra subrayado punteado color primario.
+   `speakText` es opcional — si se omite, usa el texto de `children` (si es string).
+   Aplicado en: `student-activity.tsx` (instrucciones, pregunta, opciones, feedback),
+   `student-dashboard.tsx` (saludo, nombre de cursos, lección siguiente, progreso).
+
+Comportamiento según `tooltipMode`:
+- `off`    → nada (sin voz ni indicador visual)
+- `visual` → tooltip/subrayado al hover
+- `voice`  → `speak(label)` al hover (requiere `voiceEnabled === true`)
+- `both`   → visual + voz simultáneamente
+
+### Pagina de Ajustes (accessibility-settings.tsx — ahora "Ajustes")
+3 pestanas con `role="tablist/tab/tabpanel"` + `title` + `aria-label` descriptivos en cada tab:
+- **Perfil**: avatar con iniciales, editar nombre (PUT a `perfil.nombre`), correo y rol (read-only)
+- **Notificaciones**: 3 toggles guardados en localStorage (`ea_notif_lesson/activity/teacher`)
+- **Accesibilidad**: contraste (3 niveles), tamano texto, TTS (toggle + velocidad + voz), tooltips, interfaz simplificada, vista previa en tiempo real
+
+## HTML Semántico y SEO
+
+### Etiquetas semánticas usadas por componente
+| Etiqueta | Dónde | Propósito |
+|---|---|---|
+| `<header>` | Todos los dashboards | Barra de navegación superior |
+| `<main>` | Todos los dashboards | Contenido principal de la página |
+| `<section aria-label="...">` | Secciones lógicas (bienvenida, stats, cursos, progreso, calendario) | Agrupa contenido con significado |
+| `<nav aria-label="...">` | Menú principal docente, acciones rápidas estudiante, acciones de curso/lección | Navegación entre pantallas |
+| `<article>` | Tarjeta de curso, lección, actividad reciente, pregunta, entrada de día | Contenido autónomo reutilizable |
+| `<aside>` | Acciones rápidas del docente, leyenda del calendario | Contenido complementario |
+| `<ul>/<li>` | Listas de stats, cursos, lecciones, menú de navegación, resumen del mes | Listas semánticas en lugar de divs |
+| `<figure>/<figcaption>` | Imagen en student-activity | Imagen con descripción accesible |
+| `<fieldset>/<legend>` | Opciones de respuesta en actividad | Agrupa controles de formulario relacionados |
+| `<time>` | Timestamps en actividad reciente | Fecha/hora semántica |
+| `<abbr title="...">` | Días de la semana en el calendario | Abreviaturas con nombre completo |
+| `role="tablist/tab/tabpanel"` | Pestañas de accessibility-settings | Semántica ARIA de pestañas con id/aria-controls |
+| `role="grid/gridcell"` | Grilla del calendario mensual | Semántica de cuadrícula interactiva |
+| `aria-live="polite"` | Resultado de respuesta en actividad, mes seleccionado en calendario | Anuncia cambios dinámicos a lectores de pantalla |
+| `aria-current="date"` | Día actual en el calendario | Identifica el día de hoy |
+| `aria-pressed` | Día seleccionado en el calendario | Estado de botón togglable |
+| `aria-label` | Secciones, botones, listas, artículos | Describe el propósito cuando no hay texto visible |
+| `aria-hidden="true"` | Iconos decorativos, indicadores de puntos | Oculta de lectores de pantalla |
+
+### Componentes con HTML semántico aplicado
+- `teacher-dashboard.tsx` — `<section>`, `<nav>`, `<ul>/<li>`, `<article>`, `<time>`, `<aside>`
+- `student-dashboard.tsx` — `<section>`, `<nav>`, `<ul>/<li>`, `<article>`
+- `student-activity.tsx` — `<section>`, `<article>`, `<figure>`, `<fieldset>/<legend>`, `aria-live`
+- `course-list.tsx` — `<section>`, `<ul>/<li>`, `<article>`, `<nav>` por curso
+- `lesson-management.tsx` — `<section>`, `<ul>/<li>`, `<article>`, `<nav>` por lección
+- `student-progress.tsx` — `<section>` (perfil, stats, progreso general, detalle), `<ul>/<li>`, `<article>` por lección
+- `student-calendar.tsx` — `<section>`, `<nav>` (meses), `<aside>` (leyenda), `<ul>/<li>` (resumen), `role="grid/gridcell"`, `aria-current="date"`
+- `accessibility-settings.tsx` — `role="tablist/tab/tabpanel"` con `id`/`aria-controls` + `title`/`aria-label` descriptivos en las 3 pestañas
+- `students-list.tsx` — `<section>` (resumen, lista), `<ul>/<li>`, `<article>` por alumno, `<time>` en última actividad; botón "Volver" → `aria-label="Regresar al panel principal"`; `useSpeakOnHover` en las 3 tarjetas de stats
+- `teacher-analytics.tsx` — `<section>` para stats generales, `<ul>/<li>` para tarjetas; `useSpeakOnHover` en cada stat card con descripción contextual; botón "Volver" → `aria-label="Regresar al panel principal"`
+- `teacher-dashboard.tsx` (hover adicionales) — `useSpeakOnHover` en las 3 tarjetas de stats (Estudiantes, Cursos, Progreso General) con valor dinámico; `useSpeakOnHover` en el header de "Actividad Reciente"; estado vacío en "Actividad Reciente" con icono `History` y mensaje descriptivo cuando `recentActivity.length === 0`
+
+### Bug corregido: NaN% en Progreso Promedio (students-list.tsx)
+`Math.round(students.reduce(...) / students.length)` producía `NaN` cuando `students.length === 0`.
+Corregido extrayendo la variable `averageProgress` con guardia: `students.length > 0 ? Math.round(...) : 0`.
+
+### useSpeakOnHover en tarjetas de estadísticas
+Las tarjetas de resumen numérico en `students-list.tsx` y `teacher-analytics.tsx` usan `useSpeakOnHover`
+con descripciones contextuales que incluyen el valor actual. Ejemplo:
+```
+useSpeakOnHover(`Progreso promedio: porcentaje de avance de todos tus alumnos. Actualmente ${averageProgress}%`)
+```
+Esto permite que al pasar el cursor, el TTS explique qué significa el número, no solo lo repita.
+
+### Metadata SEO (app/layout.tsx)
+- `lang="es"` en `<html>` para idioma correcto
+- `description` completa con contexto de accesibilidad
+- `keywords` con términos relevantes
+- `openGraph` con tipo, título y descripción
+- `robots: noindex` mientras la app es SPA sin SSR
+
+### Variables de entorno (.env.local)
 ```
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...   # clave publica, usar en cliente
@@ -301,4 +426,43 @@ SUPABASE_SERVICE_ROLE_KEY=...       # clave privada, SOLO en API routes, nunca e
     Usar `params.id` directamente (sin await) da `undefined`, que al template-stringear
     produce la URL `/api/.../undefined` y Supabase devuelve error UUID inválido.
     Afecta: `lessons/[id]`, `courses/[id]`, `activities/[id]`.
-11. **prueva**
+
+11. **Animaciones e interacciones** (`globals.css`): transiciones globales en todos los `button`:
+    - `hover`        → `brightness(1.06)`
+    - `active`       → `scale(0.96)` (efecto táctil de pulsación)
+    - `focus-visible` → outline de 3px con `--ring`
+    Clase CSS nueva: `.very-high-contrast` (fondo negro, primario amarillo) para contraste máximo.
+
+12. **AccessibleTooltip + useSpeakOnHover** (`components/ui/accessible-tooltip.tsx`):
+    - `<AccessibleTooltip>`: para botones de solo icono — muestra tooltip visual y/o habla
+    - `useSpeakOnHover(label)`: hook para botones con texto — solo activa la voz al hover
+    - Ambos respetan `settings.tooltipMode` y `settings.voiceEnabled`
+    - Aplicados en `teacher-dashboard.tsx` y `student-dashboard.tsx`
+    - Patrón: icono → wrapper; texto → `{...useSpeakOnHover(...)}`
+
+13. **Página de Ajustes** (`accessibility-settings.tsx`): renombrada de "Accesibilidad" a
+    "Ajustes". Dividida en 3 pestañas:
+    - **Perfil**: color de avatar (12 colores, `ea_avatar_color` en localStorage), editar nombre
+      (PUT a `perfil.nombre`), correo read-only, y **cambiar contraseña** (nueva + confirmar,
+      validación mínimo 6 chars + coincidencia, usa `supabase.auth.updateUser({ password })`).
+      Feedback inline: banner verde (éxito) o rojo (error) con auto-dismiss a 3 s.
+    - **Notificaciones**: 3 toggles en localStorage (`ea_notif_lesson`, `ea_notif_activity`, `ea_notif_teacher`)
+    - **Accesibilidad**: contraste 3 niveles (Normal/Alto/Muy Alto), tamaño texto, TTS con
+      velocidad (slider 0.5–2.0x) y selector de voz del sistema, modo de tooltips (4 opciones),
+      interfaz simplificada, **vista previa en tiempo real** con resumen de config activa
+
+15. **Sistema de color de avatar** (`ea_avatar_color` en localStorage): 12 colores predefinidos
+    (`AVATAR_COLORS[]` en `accessibility-settings.tsx`). Persistido como hex string en
+    `localStorage("ea_avatar_color")`. Se muestra en:
+    - `accessibility-settings.tsx` (pestaña Perfil): modal con grid 4×3 de círculos de color
+      mostrando las iniciales del usuario. Click en el avatar abre el selector.
+    - `student-dashboard.tsx`: card de bienvenida — fondo del círculo con la inicial.
+    - `teacher-dashboard.tsx`: sección "Hola" — fondo del cuadrado con la inicial.
+    Los 3 componentes leen `ea_avatar_color` en `useEffect` y usan `hsl(var(--primary))` como fallback.
+
+14. **Calendario de estudiante** (`student-calendar.tsx`): calendario mensual con navegación
+    por meses. Consulta `intento_actividad` filtrando por `id_alumno` y rango del mes.
+    - Dots de color por puntaje: verde ≥80%, naranja 50–79%, rojo <50%, gris sin calificación
+    - Click en un día muestra lista detallada de actividades completadas ese día
+    - Resumen del mes: total completadas, promedio de puntaje, días activos
+    - Accesible desde `student-dashboard` → botón "Mi Calendario"

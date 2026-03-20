@@ -94,6 +94,7 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
         </Button>
 
         {/* Lessons List */}
+        <section aria-label="Lista de lecciones">
         {lessons.length === 0 ? (
           <Card className="border-2 border-dashed">
             <CardContent className="p-12 text-center">
@@ -109,16 +110,17 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-6">
+          <ul className="grid gap-6 list-none p-0">
             {lessons.map((lesson, index) => (
+              <li key={lesson.id}>
+              <article aria-label={`Lección ${index + 1}: ${lesson.title}`}>
               <Card
-                key={lesson.id}
                 className="border-2 shadow-lg transition-all hover:border-primary/50"
               >
                 <CardContent className="p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-start gap-5">
-                      <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
+                      <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0" aria-hidden="true">
                         <span className="text-2xl font-bold text-primary">{index + 1}</span>
                       </div>
                       <div className="flex-1">
@@ -130,6 +132,7 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
                                 ? "bg-success/10 text-success"
                                 : "bg-muted text-muted-foreground"
                             }`}
+                            aria-label={lesson.status === "published" ? "Estado: Publicada" : "Estado: Borrador"}
                           >
                             {lesson.status === "published" ? (
                               <CheckCircle className="w-4 h-4" aria-hidden="true" />
@@ -149,7 +152,7 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <nav aria-label={`Acciones de la lección ${lesson.title}`} className="flex items-center gap-3">
                       <Button
                         variant="outline"
                         size="lg"
@@ -164,17 +167,21 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
                         size="lg"
                         className="h-12 px-6 border-2 text-destructive hover:bg-destructive/10 hover:border-destructive"
                         onClick={() => handleDeleteLesson(lesson.id)}
+                        aria-label={`Eliminar lección ${lesson.title}`}
                       >
                         <Trash2 className="w-5 h-5 mr-2" aria-hidden="true" />
                         Eliminar
                       </Button>
-                    </div>
+                    </nav>
                   </div>
                 </CardContent>
               </Card>
+              </article>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
+        </section>
       </main>
     </div>
   )

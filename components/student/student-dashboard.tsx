@@ -1,11 +1,14 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/lib/auth-context"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useStudentDashboard } from "@/hooks/student/use-student-dashboard"
+import { AccessibleTooltip, SpeakableText, useSpeakOnHover } from "@/components/ui/accessible-tooltip"
+
 import {
   BookOpen,
   Play,
@@ -17,6 +20,8 @@ import {
   ChevronRight,
   Sparkles,
   BarChart3,
+  Calendar,
+  Users,
 } from "lucide-react"
 
 interface StudentDashboardProps {
@@ -28,6 +33,18 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
   const { user } = useAuth()
   const { speak, settings } = useAccessibility()
   const { courses, gamification, loading } = useStudentDashboard()
+
+  const [avatarColor, setAvatarColor] = useState<string | null>(null)
+  useEffect(() => {
+    setAvatarColor(localStorage.getItem("ea_avatar_color"))
+  }, [])
+
+  // Hover-to-speak para botones con texto visible
+  const hoverContinuar   = useSpeakOnHover("Continuar Aprendiendo")
+  const hoverProgreso    = useSpeakOnHover("Mi Progreso: ver tu avance en los cursos")
+  const hoverCalendario  = useSpeakOnHover("Mi Calendario: actividades completadas por día")
+  const hoverAjustes     = useSpeakOnHover("Ajustes: cambiar accesibilidad y perfil")
+  const hoverUnirse      = useSpeakOnHover("Unirse a un Grupo: ingresar código de clase o aceptar invitación")
 
   const { totalStars, currentLevel, streakDays } = gamification
 
@@ -63,82 +80,102 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
                 <span className="hidden sm:inline">Escuchar</span>
               </Button>
             )}
-            <Button
-              variant="secondary"
-              size="lg"
-              onClick={() => onNavigate("accessibility")}
-              className="h-12 w-12 p-0"
-              aria-label="Configuracion"
-            >
-              <Settings className="w-5 h-5" />
-            </Button>
-            <Button
-              variant="secondary"
-              size="lg"
-              onClick={onLogout}
-              className="h-12 w-12 p-0"
-              aria-label="Cerrar sesion"
-            >
-              <LogOut className="w-5 h-5" />
-            </Button>
+            <AccessibleTooltip label="Ajustes de accesibilidad y perfil">
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={() => onNavigate("accessibility")}
+                className="h-12 w-12 p-0"
+                aria-label="Configuracion"
+              >
+                <Settings className="w-5 h-5" />
+              </Button>
+            </AccessibleTooltip>
+            <AccessibleTooltip label="Cerrar sesión">
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={onLogout}
+                className="h-12 w-12 p-0"
+                aria-label="Cerrar sesion"
+              >
+                <LogOut className="w-5 h-5" />
+              </Button>
+            </AccessibleTooltip>
           </div>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Welcome Section */}
-        <Card className="border-2 shadow-xl mb-8 overflow-hidden">
-          <CardContent className="p-0">
-            <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-8">
-              <div className="flex flex-col sm:flex-row items-center gap-6">
-                <div className="w-24 h-24 bg-primary rounded-3xl flex items-center justify-center text-4xl font-bold text-primary-foreground shadow-lg">
-                  {user?.name?.charAt(0) || "E"}
-                </div>
-                <div className="text-center sm:text-left">
-                  <h2 className="text-3xl font-bold text-foreground mb-2">
-                    Hola, {user?.name?.split(" ")[0]}!
-                  </h2>
-                  <p className="text-xl text-muted-foreground">
-                    Que bueno verte de nuevo. Sigamos aprendiendo!
-                  </p>
+        <section aria-label="Bienvenida">
+          <Card className="border-2 shadow-xl mb-8 overflow-hidden">
+            <CardContent className="p-0">
+              <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-8">
+                <div className="flex flex-col sm:flex-row items-center gap-6">
+                  <div
+                    className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-lg"
+                    style={{ backgroundColor: avatarColor ?? "hsl(var(--primary))" }}
+                    aria-hidden="true"
+                  >
+                    {(user?.name ?? "E").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="text-center sm:text-left">
+                    <SpeakableText
+                      as="h2"
+                      className="text-3xl font-bold text-foreground mb-2"
+                      speakText={`Hola, ${user?.name?.split(" ")[0]}! Bienvenido a EduAccess.`}
+                    >
+                      Hola, {user?.name?.split(" ")[0]}!
+                    </SpeakableText>
+                    <SpeakableText as="p" className="text-xl text-muted-foreground">
+                      Que bueno verte de nuevo. Sigamos aprendiendo!
+                    </SpeakableText>
+                  </div>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </section>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 gap-6 mb-8">
-          <Card className="border-2 shadow-lg">
-            <CardContent className="p-6 flex items-center gap-5">
-              <div className="w-16 h-16 bg-accent rounded-2xl flex items-center justify-center">
-                <Star className="w-8 h-8 text-primary-foreground" aria-hidden="true" />
-              </div>
-              <div>
-                <p className="text-4xl font-bold text-foreground">{totalStars}</p>
-                <p className="text-lg text-muted-foreground">Estrellas</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 shadow-lg">
-            <CardContent className="p-6 flex items-center gap-5">
-              <div className="w-16 h-16 bg-success rounded-2xl flex items-center justify-center">
-                <Trophy className="w-8 h-8 text-success-foreground" aria-hidden="true" />
-              </div>
-              <div>
-                <p className="text-4xl font-bold text-foreground">Nivel {currentLevel}</p>
-                <p className="text-lg text-muted-foreground">Explorador</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <section aria-label="Tu progreso y logros" className="mb-8">
+          <ul className="grid grid-cols-2 gap-6 list-none p-0">
+            <li>
+              <Card className="border-2 shadow-lg h-full">
+                <CardContent className="p-6 flex items-center gap-5">
+                  <div className="w-16 h-16 bg-accent rounded-2xl flex items-center justify-center" aria-hidden="true">
+                    <Star className="w-8 h-8 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-4xl font-bold text-foreground">{totalStars}</p>
+                    <p className="text-lg text-muted-foreground">Estrellas</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </li>
+            <li>
+              <Card className="border-2 shadow-lg h-full">
+                <CardContent className="p-6 flex items-center gap-5">
+                  <div className="w-16 h-16 bg-success rounded-2xl flex items-center justify-center" aria-hidden="true">
+                    <Trophy className="w-8 h-8 text-success-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-4xl font-bold text-foreground">Nivel {currentLevel}</p>
+                    <p className="text-lg text-muted-foreground">Explorador</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </li>
+          </ul>
+        </section>
 
         {/* Main Action Button */}
         <Button
           size="lg"
           className="w-full h-20 text-2xl mb-8 shadow-lg"
           onClick={() => onNavigate("activity-image")}
+          {...hoverContinuar}
         >
           <Play className="w-8 h-8 mr-4" aria-hidden="true" />
           Continuar Aprendiendo
@@ -146,13 +183,38 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
         </Button>
 
         {/* Courses */}
-        <h3 className="text-2xl font-bold text-foreground mb-6">Mis Cursos</h3>
-        <div className="grid gap-6 mb-8">
+        <section aria-label="Mis cursos">
+          <h3 className="text-2xl font-bold text-foreground mb-6">Mis Cursos</h3>
+
+          {!loading && courses.length === 0 && (
+            <Card className="border-2 border-dashed mb-8">
+              <CardContent className="py-10 flex flex-col items-center gap-3 text-center">
+                <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center" aria-hidden="true">
+                  <Users className="w-8 h-8 text-primary" />
+                </div>
+                <p className="text-xl font-semibold text-foreground">Aún no tienes cursos</p>
+                <p className="text-base text-muted-foreground max-w-xs">
+                  Pídele a tu docente el código de clase y únete a un grupo para ver tus cursos aquí.
+                </p>
+                <Button
+                  variant="outline"
+                  className="mt-2 border-2"
+                  onClick={() => onNavigate("join-group")}
+                >
+                  <Users className="w-4 h-4 mr-2" aria-hidden="true" />
+                  Unirme a un Grupo
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          <ul className="grid gap-6 mb-8 list-none p-0">
           {courses.map((course) => (
+            <li key={course.id}>
+            <article aria-label={`Curso: ${course.name}`}>
             <Card
-              key={course.id}
               className="border-2 shadow-lg hover:border-primary/50 transition-all cursor-pointer"
-              onClick={() => onNavigate(`activity-${course.id}`)}
+              onClick={() => onNavigate(`course-${course.id}|${course.name}`)}
             >
               <CardContent className="p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -161,13 +223,23 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
                       <BookOpen className="w-8 h-8 text-primary" aria-hidden="true" />
                     </div>
                     <div>
-                      <h4 className="text-xl font-bold text-foreground">{course.name}</h4>
-                      <p className="text-base text-muted-foreground mt-1">
+                      <SpeakableText as="h4" className="text-xl font-bold text-foreground">
+                        {course.name}
+                      </SpeakableText>
+                      <SpeakableText
+                        as="p"
+                        className="text-base text-muted-foreground mt-1"
+                        speakText={`Siguiente lección: ${course.currentLesson}`}
+                      >
                         Siguiente: {course.currentLesson}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
+                      </SpeakableText>
+                      <SpeakableText
+                        as="p"
+                        className="text-sm text-muted-foreground"
+                        speakText={`${course.completedLessons} de ${course.totalLessons} lecciones completadas`}
+                      >
                         {course.completedLessons} de {course.totalLessons} lecciones
-                      </p>
+                      </SpeakableText>
                     </div>
                   </div>
 
@@ -184,16 +256,21 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
                 </div>
               </CardContent>
             </Card>
+            </article>
+            </li>
           ))}
-        </div>
+          </ul>
+        </section>
 
         {/* Quick Actions */}
+        <nav aria-label="Acciones rápidas del estudiante">
         <div className="grid grid-cols-2 gap-4">
           <Button
             variant="outline"
             size="lg"
             className="h-16 text-lg border-2"
             onClick={() => onNavigate("student-progress")}
+            {...hoverProgreso}
           >
             <BarChart3 className="w-6 h-6 mr-3" aria-hidden="true" />
             Mi Progreso
@@ -202,12 +279,34 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
             variant="outline"
             size="lg"
             className="h-16 text-lg border-2"
+            onClick={() => onNavigate("student-calendar")}
+            {...hoverCalendario}
+          >
+            <Calendar className="w-6 h-6 mr-3" aria-hidden="true" />
+            Mi Calendario
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            className="h-16 text-lg border-2"
             onClick={() => onNavigate("accessibility")}
+            {...hoverAjustes}
           >
             <Settings className="w-6 h-6 mr-3" aria-hidden="true" />
             Ajustes
           </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            className="h-16 text-lg border-2 col-span-2"
+            onClick={() => onNavigate("join-group")}
+            {...hoverUnirse}
+          >
+            <Users className="w-6 h-6 mr-3" aria-hidden="true" />
+            Unirme a un Grupo
+          </Button>
         </div>
+        </nav>
       </main>
     </div>
   )

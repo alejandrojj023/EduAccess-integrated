@@ -1,108 +1,149 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
+import { Input } from "@/components/ui/input"
+import { useAuth } from "@/lib/auth-context"
 import { useAccessibility } from "@/lib/accessibility-context"
+import { supabase } from "@/lib/supabase"
+import { parseActivityConfig } from "@/lib/activity-config"
+import { SpeakableText } from "@/components/ui/accessible-tooltip"
 import {
-  ArrowLeft,
-  Volume2,
-  RefreshCw,
-  Check,
-  X,
-  Star,
-  ChevronRight,
-  Mic,
-  Image as ImageIcon,
-  HelpCircle,
+  ArrowLeft, Volume2, Check, X, Star, ChevronRight,
+  Mic, HelpCircle, Loader2,
 } from "lucide-react"
 
 interface StudentActivityProps {
-  activityType: string | null
+  activityId: string | null
   onBack: () => void
   onComplete: () => void
   onVoiceActivity: () => void
 }
 
-interface ActivityOption {
-  id: string
-  label: string
-  imageUrl?: string
-  isCorrect: boolean
+interface DBActivity {
+  id_actividad: string
+  titulo: string
+  tipo: string
+  instrucciones: string | null
+  id_leccion: string
 }
 
-const sampleActivities = {
-  image: {
-    instruction: "Mira la imagen y selecciona el animal que ves",
-    question: "Que animal es este?",
-    options: [
-      { id: "1", label: "Perro", isCorrect: true },
-      { id: "2", label: "Gato", isCorrect: false },
-      { id: "3", label: "Conejo", isCorrect: false },
-      { id: "4", label: "Pajaro", isCorrect: false },
-    ],
-  },
-  multiple: {
-    instruction: "Lee la pregunta y selecciona la respuesta correcta",
-    question: "Cuanto es 2 + 3?",
-    options: [
-      { id: "1", label: "4", isCorrect: false },
-      { id: "2", label: "5", isCorrect: true },
-      { id: "3", label: "6", isCorrect: false },
-      { id: "4", label: "7", isCorrect: false },
-    ],
-  },
-}
+type Phase = "loading" | "question" | "result" | "done"
 
-export function StudentActivity({
-  activityType,
-  onBack,
-  onComplete,
-  onVoiceActivity,
-}: StudentActivityProps) {
-  const [currentQuestion, setCurrentQuestion] = useState(1)
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
-  const [showResult, setShowResult] = useState(false)
-  const [isCorrect, setIsCorrect] = useState(false)
-  const [score, setScore] = useState(0)
-  const totalQuestions = 5
+export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivity }: StudentActivityProps) {
+  const { user }           = useAuth()
   const { speak, settings } = useAccessibility()
 
-  const activity = sampleActivities.image
+  const [activity,       setActivity]       = useState<DBActivity | null>(null)
+  const [phase,          setPhase]          = useState<Phase>("loading")
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
+  const [textAnswer,     setTextAnswer]     = useState("")
+  const [isCorrect,      setIsCorrect]      = useState(false)
+  const [score,          setScore]          = useState(0)           // 0 or 100
+  const [error,          setError]          = useState<string | null>(null)
 
-  const handleReadInstructions = () => {
-    speak(`${activity.instruction}. ${activity.question}`)
-  }
+  // Load activity from DB
+  useEffect(() => {
+    if (!user || !activityId) return
+    loadActivity()
+  }, [user, activityId])
 
-  const handleSelectAnswer = (option: ActivityOption) => {
-    if (showResult) return
-    
-    setSelectedAnswer(option.id)
-    setShowResult(true)
-    setIsCorrect(option.isCorrect)
-    
-    if (option.isCorrect) {
-      setScore(score + 1)
-      speak("Muy bien! Respuesta correcta!")
-    } else {
-      speak("Intentalo de nuevo. La respuesta no es correcta.")
+  async function loadActivity() {
+    setPhase("loading")
+    setError(null)
+
+    // 1. Fetch activity
+    const { data: act, error: actErr } = await supabase
+      .from("actividad")
+      .select("id_actividad, titulo, tipo, instrucciones, id_leccion")
+      .eq("id_actividad", activityId!)
+      .single()
+
+    if (actErr || !act) { setError("No se pudo cargar la actividad."); return }
+
+    // Redirect voice activity type
+    if (act.tipo === "respuesta_oral") {
+      onVoiceActivity()
+      return
+    }
+
+    setActivity(act)
+    setPhase("question")
+
+    // Auto-speak instructions if TTS on
+    if (settings.voiceEnabled) {
+      const cfg = parseActivityConfig(act.instrucciones)
+      if (cfg.instrucciones) setTimeout(() => speak(cfg.instrucciones), 400)
     }
   }
 
-  const handleNextQuestion = () => {
-    if (currentQuestion < totalQuestions) {
-      setCurrentQuestion(currentQuestion + 1)
-      setSelectedAnswer(null)
-      setShowResult(false)
-    } else {
-      speak(`Felicidades! Completaste la actividad con ${score} de ${totalQuestions} respuestas correctas.`)
-      onComplete()
-    }
+  const config = activity ? parseActivityConfig(activity.instrucciones) : null
+  const opciones = config?.opciones ?? []
+  const hasOptions = opciones.length > 0
+  const isShortAnswer = activity?.tipo === "respuesta_corta"
+
+  function handleSelectOption(texto: string, correcta: boolean) {
+    if (phase !== "question") return
+    setSelectedAnswer(texto)
+    setIsCorrect(correcta)
+    setScore(correcta ? 100 : 0)
+    setPhase("result")
+    speak(correcta ? "¡Muy bien! Respuesta correcta." : "Inténtalo de nuevo. Esa no es la respuesta correcta.")
   }
 
-  const handleRepeatInstructions = () => {
-    speak(activity.instruction)
+  function handleSubmitText() {
+    if (!textAnswer.trim()) return
+    const expected = (config?.respuesta_correcta ?? "").trim().toLowerCase()
+    const given    = textAnswer.trim().toLowerCase()
+    const correct  = expected ? given.includes(expected) || expected.includes(given) : true
+    setIsCorrect(correct)
+    setScore(correct ? 100 : 0)
+    setPhase("result")
+    speak(correct ? "¡Muy bien! Respuesta correcta." : "Respuesta incorrecta. Sigue intentando.")
+  }
+
+  async function handleFinish() {
+    // Save attempt via API route (uses admin to resolve id_grupo reliably)
+    if (user && activityId) {
+      const { data: { session } } = await supabase.auth.getSession()
+      await fetch("/api/attempts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ activityId, puntaje: score }),
+      })
+    }
+    speak(`¡Actividad completada! Obtuviste ${score} puntos.`)
+    onComplete()
+  }
+
+  // ── Render ──────────────────────────────────────────────────
+  if (phase === "loading") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto" />
+          <p className="text-muted-foreground">Cargando actividad…</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <Card className="border-2 max-w-md w-full">
+          <CardContent className="py-10 text-center space-y-4">
+            <p className="text-destructive font-semibold">{error}</p>
+            <Button onClick={onBack}>Volver</Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -110,161 +151,168 @@ export function StudentActivity({
       {/* Header */}
       <header className="bg-primary text-primary-foreground sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <Button
               variant="secondary"
               size="lg"
               onClick={onBack}
               className="h-12 w-12 p-0"
-              aria-label="Volver"
+              aria-label="Volver a las actividades"
             >
               <ArrowLeft className="w-6 h-6" />
             </Button>
+            <div className="flex-1 text-center px-4">
+              <p className="font-bold text-lg line-clamp-1">{activity?.titulo}</p>
+            </div>
             <div className="flex items-center gap-2">
               <Star className="w-6 h-6 text-accent" aria-hidden="true" />
               <span className="text-xl font-bold">{score}</span>
             </div>
           </div>
-          
-          {/* Progress */}
-          <div className="flex items-center gap-4">
-            <span className="text-lg font-medium">
-              Pregunta {currentQuestion} de {totalQuestions}
-            </span>
-            <Progress
-              value={(currentQuestion / totalQuestions) * 100}
-              className="flex-1 h-4 bg-primary-foreground/20"
-            />
-          </div>
+          <Progress
+            value={phase === "done" ? 100 : phase === "result" ? 66 : 33}
+            className="h-3 bg-primary-foreground/20"
+          />
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-8">
-        {/* Instructions */}
-        <Card className="border-2 shadow-xl mb-8">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4 mb-6">
-              <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
-                <HelpCircle className="w-7 h-7 text-primary" aria-hidden="true" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-foreground mb-2">Instrucciones</h2>
-                <p className="text-xl text-muted-foreground">{activity.instruction}</p>
-              </div>
-            </div>
+      <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
 
-            <div className="flex flex-wrap gap-3">
-              {settings.voiceEnabled && (
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="h-14 text-lg border-2"
-                  onClick={handleReadInstructions}
-                >
-                  <Volume2 className="w-6 h-6 mr-3" aria-hidden="true" />
-                  Escuchar instrucciones
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="lg"
-                className="h-14 text-lg border-2"
-                onClick={handleRepeatInstructions}
-              >
-                <RefreshCw className="w-6 h-6 mr-3" aria-hidden="true" />
-                Repetir
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Visual Example / Question */}
-        <Card className="border-2 shadow-xl mb-8">
-          <CardContent className="p-8">
-            {/* Image placeholder */}
-            <div className="w-full h-48 bg-muted rounded-2xl flex items-center justify-center mb-6">
-              <ImageIcon className="w-20 h-20 text-muted-foreground" aria-hidden="true" />
-            </div>
-            <h3 className="text-2xl font-bold text-center text-foreground">
-              {activity.question}
-            </h3>
-          </CardContent>
-        </Card>
-
-        {/* Answer Options */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          {activity.options.map((option) => {
-            const isSelected = selectedAnswer === option.id
-            const showCorrect = showResult && option.isCorrect
-            const showWrong = showResult && isSelected && !option.isCorrect
-
-            return (
-              <button
-                key={option.id}
-                onClick={() => handleSelectAnswer(option)}
-                disabled={showResult}
-                className={`p-6 rounded-2xl border-4 text-2xl font-bold transition-all ${
-                  showCorrect
-                    ? "bg-success/10 border-success text-success"
-                    : showWrong
-                    ? "bg-destructive/10 border-destructive text-destructive"
-                    : isSelected
-                    ? "bg-primary/10 border-primary text-primary"
-                    : "bg-card border-border text-foreground hover:border-primary/50 hover:bg-muted"
-                }`}
-                aria-label={option.label}
-              >
-                <div className="flex items-center justify-center gap-3">
-                  {showCorrect && <Check className="w-8 h-8" aria-hidden="true" />}
-                  {showWrong && <X className="w-8 h-8" aria-hidden="true" />}
-                  {option.label}
+        {/* Instructions card */}
+        <section aria-label="Instrucciones de la actividad">
+          <Card className="border-2 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
+                  <HelpCircle className="w-6 h-6 text-primary" aria-hidden="true" />
                 </div>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Result and Next */}
-        {showResult && (
-          <Card className={`border-4 shadow-xl mb-8 ${isCorrect ? "border-success bg-success/5" : "border-destructive bg-destructive/5"}`}>
-            <CardContent className="p-6 text-center">
-              <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4 ${isCorrect ? "bg-success" : "bg-destructive"}`}>
-                {isCorrect ? (
-                  <Check className="w-10 h-10 text-success-foreground" aria-hidden="true" />
-                ) : (
-                  <X className="w-10 h-10 text-destructive-foreground" aria-hidden="true" />
-                )}
+                <div className="flex-1">
+                  <SpeakableText as="h2" className="text-xl font-bold text-foreground mb-1">
+                    Instrucciones
+                  </SpeakableText>
+                  <SpeakableText as="p" className="text-lg text-muted-foreground">
+                    {config?.instrucciones || "Lee y responde la siguiente pregunta."}
+                  </SpeakableText>
+                  {settings.voiceEnabled && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      onClick={() => speak(config?.instrucciones ?? "")}
+                    >
+                      <Volume2 className="w-4 h-4 mr-2" aria-hidden="true" />
+                      Escuchar
+                    </Button>
+                  )}
+                </div>
               </div>
-              <h3 className={`text-3xl font-bold mb-4 ${isCorrect ? "text-success" : "text-destructive"}`}>
-                {isCorrect ? "Excelente!" : "Intentalo de nuevo"}
-              </h3>
-              <p className="text-xl text-muted-foreground mb-6">
-                {isCorrect
-                  ? "Has ganado una estrella!"
-                  : "No te preocupes, sigue practicando!"}
-              </p>
-              <Button
-                size="lg"
-                className="h-16 text-xl px-12"
-                onClick={handleNextQuestion}
-              >
-                {currentQuestion < totalQuestions ? "Siguiente Pregunta" : "Terminar"}
-                <ChevronRight className="w-6 h-6 ml-3" aria-hidden="true" />
-              </Button>
             </CardContent>
           </Card>
+        </section>
+
+        {/* Question / options */}
+        {phase === "question" && (
+          <section aria-label="Pregunta y opciones de respuesta">
+            {/* Multiple choice / image / sound */}
+            {hasOptions && (
+              <fieldset className="border-0 p-0 m-0">
+                <legend className="sr-only">Opciones de respuesta</legend>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {opciones.map((op, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleSelectOption(op.texto, op.correcta)}
+                      onMouseEnter={() => {
+                        if ((settings.tooltipMode === "voice" || settings.tooltipMode === "both") && settings.voiceEnabled) {
+                          speak(`Opción: ${op.texto}`)
+                        }
+                      }}
+                      className="p-6 rounded-2xl border-4 border-border text-xl font-semibold text-foreground bg-card hover:border-primary/50 hover:bg-muted transition-all text-left"
+                      aria-label={`Opción ${i + 1}: ${op.texto}`}
+                    >
+                      <span className="text-primary font-bold mr-3">{String.fromCharCode(65 + i)}.</span>
+                      {op.texto}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+
+            {/* Short answer */}
+            {isShortAnswer && (
+              <Card className="border-2">
+                <CardContent className="p-6 space-y-4">
+                  <label className="text-lg font-medium text-foreground" htmlFor="short-answer">
+                    Escribe tu respuesta:
+                  </label>
+                  <Input
+                    id="short-answer"
+                    value={textAnswer}
+                    onChange={e => setTextAnswer(e.target.value)}
+                    placeholder="Tu respuesta…"
+                    className="h-14 text-lg"
+                    onKeyDown={e => e.key === "Enter" && handleSubmitText()}
+                    autoFocus
+                  />
+                  <Button
+                    size="lg"
+                    className="w-full h-14 text-lg"
+                    onClick={handleSubmitText}
+                    disabled={!textAnswer.trim()}
+                  >
+                    Confirmar respuesta
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* No config — show oral fallback */}
+            {!hasOptions && !isShortAnswer && (
+              <Card className="border-2">
+                <CardContent className="py-10 text-center space-y-4">
+                  <Mic className="w-12 h-12 text-primary mx-auto" aria-hidden="true" />
+                  <p className="text-lg text-muted-foreground">Esta actividad se responde de forma oral.</p>
+                  <Button size="lg" onClick={onVoiceActivity}>
+                    Iniciar actividad oral
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </section>
         )}
 
-        {/* Voice Activity Button */}
-        <Button
-          variant="outline"
-          size="lg"
-          className="w-full h-16 text-xl border-2"
-          onClick={onVoiceActivity}
-        >
-          <Mic className="w-6 h-6 mr-3" aria-hidden="true" />
-          Actividad con Voz
-        </Button>
+        {/* Result */}
+        {phase === "result" && (
+          <section aria-live="polite" aria-label="Resultado de tu respuesta">
+            <Card className={`border-4 shadow-xl ${isCorrect ? "border-green-400 bg-green-50/40" : "border-destructive bg-destructive/5"}`}>
+              <CardContent className="p-8 text-center space-y-4">
+                <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center ${isCorrect ? "bg-green-500" : "bg-destructive"}`}>
+                  {isCorrect
+                    ? <Check className="w-10 h-10 text-white" aria-hidden="true" />
+                    : <X    className="w-10 h-10 text-white" aria-hidden="true" />}
+                </div>
+                <SpeakableText as="h3" className={`text-3xl font-bold ${isCorrect ? "text-green-700" : "text-destructive"}`}>
+                  {isCorrect ? "¡Excelente!" : "Inténtalo de nuevo"}
+                </SpeakableText>
+                <SpeakableText as="p" className="text-lg text-muted-foreground">
+                  {isCorrect
+                    ? "¡Muy bien! Has respondido correctamente."
+                    : config?.respuesta_correcta
+                    ? `La respuesta correcta era: ${config.respuesta_correcta}`
+                    : "No te preocupes, sigue practicando."}
+                </SpeakableText>
+                <Button
+                  size="lg"
+                  className="h-16 text-xl px-12"
+                  onClick={handleFinish}
+                >
+                  Terminar actividad
+                  <ChevronRight className="w-6 h-6 ml-3" aria-hidden="true" />
+                </Button>
+              </CardContent>
+            </Card>
+          </section>
+        )}
       </main>
     </div>
   )
