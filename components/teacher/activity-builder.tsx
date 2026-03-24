@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -25,6 +25,8 @@ import {
   FileText,
   List,
   Settings2,
+  Upload,
+  AlignLeft,
 } from "lucide-react"
 import { parseActivityConfig, serializeActivityConfig } from "@/lib/activity-config"
 
@@ -33,7 +35,7 @@ interface ActivityBuilderProps {
   onSave: () => void
 }
 
-type ActivityType = "image" | "sound" | "sequence" | "multiple" | "short" | "voice" | null
+type ActivityType = "image" | "sound" | "sequence" | "multiple" | "short" | "voice" | "fill" | null
 type BuilderView = "grid" | "existing" | "config"
 
 interface Option {
@@ -48,6 +50,8 @@ interface ExistingActivity {
   typeLabel: string
   instrucciones: string | null
   nivel_dificultad: number | null
+  imagen_url: string | null
+  audio_url: string | null
   lessonId: string
   lessonTitle: string
   courseTitle: string
@@ -59,6 +63,14 @@ interface LessonOption {
   courseTitle: string
 }
 
+interface SequenceStep {
+  file: File | null
+  previewUrl: string
+  existingUrl: string
+  description: string
+  preguntaId: string
+}
+
 const activityTypes = [
   { id: "image" as const,    label: "Identificacion de imagenes", icon: Image,        color: "bg-chart-1" },
   { id: "sound" as const,    label: "Reconocimiento de sonidos",  icon: Music,        color: "bg-chart-2" },
@@ -66,6 +78,7 @@ const activityTypes = [
   { id: "multiple" as const, label: "Opcion multiple",            icon: CheckSquare,  color: "bg-chart-4" },
   { id: "short" as const,    label: "Respuesta corta escrita",    icon: PenLine,      color: "bg-chart-5" },
   { id: "voice" as const,    label: "Respuesta por voz",          icon: Mic,          color: "bg-primary" },
+  { id: "fill" as const,     label: "Completar oracion",          icon: AlignLeft,    color: "bg-teal-500" },
 ]
 
 const difficultyLevels = [
@@ -81,6 +94,7 @@ const dbToFormType: Record<string, ActivityType> = {
   seleccion_guiada:       "multiple",
   respuesta_corta:        "short",
   respuesta_oral:         "voice",
+  completar_oracion:      "fill",
 }
 
 const dbToTypeLabel: Record<string, string> = {
@@ -90,6 +104,7 @@ const dbToTypeLabel: Record<string, string> = {
   seleccion_guiada:       "Opcion multiple",
   respuesta_corta:        "Respuesta corta escrita",
   respuesta_oral:         "Respuesta por voz",
+  completar_oracion:      "Completar oracion",
 }
 
 const difficultyFromInt = (n: number | null): string => {
@@ -116,6 +131,28 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
     { id: "2", text: "", isCorrect: false },
   ])
   const [correctAnswer, setCorrectAnswer] = useState("")
+
+  // Image state
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string>("")
+  const [existingImageUrl, setExistingImageUrl] = useState<string>("")
+  const [imageDeleted, setImageDeleted] = useState(false)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+
+  // Sound-specific config state
+  const [palabrasDistractoras, setPalabrasDistractoras] = useState("")
+  const [soundPreguntaId, setSoundPreguntaId] = useState("")
+  // Voice-specific config state
+  const [voiceEnunciado, setVoiceEnunciado] = useState("")
+
+  // Fill-specific config state
+  const [fillContextSentences, setFillContextSentences] = useState<string[]>([""])
+  const [fillEnunciado, setFillEnunciado] = useState("")
+
+  // Sequence-specific config state
+  const [sequenceCount, setSequenceCount] = useState<3 | 4 | 5>(3)
+  const [sequenceSteps, setSequenceSteps] = useState<SequenceStep[]>([])
+  const seqInputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   // Remote data
   const [existingActivities, setExistingActivities] = useState<ExistingActivity[]>([])
@@ -179,7 +216,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
 
     const { data: actividadesRaw } = await supabase
       .from("actividad")
-      .select("id_actividad, tipo, instrucciones, nivel_dificultad, id_leccion, orden")
+      .select("id_actividad, tipo, instrucciones, nivel_dificultad, id_leccion, orden, imagen_url, audio_url")
       .in("id_leccion", leccionIds)
       .order("orden", { ascending: true })
 
@@ -189,6 +226,8 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
       typeLabel: dbToTypeLabel[a.tipo] ?? a.tipo,
       instrucciones: a.instrucciones,
       nivel_dificultad: a.nivel_dificultad,
+      imagen_url: a.imagen_url ?? null,
+      audio_url: a.audio_url ?? null,
       lessonId: a.id_leccion,
       lessonTitle: leccionTitleMap[a.id_leccion] ?? "",
       courseTitle: cursoMap[leccionCursoMap[a.id_leccion]] ?? "",
@@ -196,6 +235,26 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
 
     setExistingActivities(mapped)
     setLoadingData(false)
+  }
+
+  // ── Image handlers ───────────────────────────────────────────
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (imagePreviewUrl.startsWith("blob:")) URL.revokeObjectURL(imagePreviewUrl)
+    setImageFile(file)
+    setImagePreviewUrl(URL.createObjectURL(file))
+    setImageDeleted(false)
+    // Reset input so the same file can be re-selected if needed
+    e.target.value = ""
+  }
+
+  const handleImageDelete = () => {
+    if (imagePreviewUrl.startsWith("blob:")) URL.revokeObjectURL(imagePreviewUrl)
+    setImageFile(null)
+    setImagePreviewUrl("")
+    setExistingImageUrl("")
+    setImageDeleted(true)
   }
 
   // ── Option handlers ──────────────────────────────────────────
@@ -222,22 +281,114 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
     setCorrectAnswer("")
     setSelectedLessonId(lessons[0]?.id ?? "")
     setSaveError("")
+    if (imagePreviewUrl.startsWith("blob:")) URL.revokeObjectURL(imagePreviewUrl)
+    setImageFile(null)
+    setImagePreviewUrl("")
+    setExistingImageUrl("")
+    setImageDeleted(false)
+    setPalabrasDistractoras("")
+    setSoundPreguntaId("")
+    setVoiceEnunciado("")
+    setFillContextSentences([""])
+    setFillEnunciado("")
+    // Sequence steps initialization
+    if (type === "sequence") {
+      const empty = (): SequenceStep => ({ file: null, previewUrl: "", existingUrl: "", description: "", preguntaId: "" })
+      setSequenceCount(3)
+      setSequenceSteps([empty(), empty(), empty()])
+    } else {
+      setSequenceCount(3)
+      setSequenceSteps([])
+    }
     setView("config")
   }
 
-  const openConfigForEdit = (activity: ExistingActivity) => {
+  const openConfigForEdit = async (activity: ExistingActivity) => {
     setEditingActivity(activity)
     setSelectedType(activity.type)
-    const config = parseActivityConfig(activity.instrucciones)
-    setInstrucciones(config.instrucciones)
     setDificultad(difficultyFromInt(activity.nivel_dificultad))
-    if (config.opciones && config.opciones.length > 0) {
-      setOptions(config.opciones.map((o, i) => ({ id: String(i + 1), text: o.texto, isCorrect: o.correcta })))
-    } else {
-      setOptions([{ id: "1", text: "", isCorrect: false }, { id: "2", text: "", isCorrect: false }])
-    }
-    setCorrectAnswer(config.respuesta_correcta ?? "")
     setSaveError("")
+    if (imagePreviewUrl.startsWith("blob:")) URL.revokeObjectURL(imagePreviewUrl)
+    setImageFile(null)
+    setImagePreviewUrl("")
+    setExistingImageUrl(activity.imagen_url ?? "")
+    setImageDeleted(false)
+
+    if (activity.type === "sound" || activity.type === "voice" || activity.type === "fill") {
+      // For sound/voice/fill: instrucciones is plain text; data lives in pregunta table
+      setInstrucciones(activity.instrucciones ?? "")
+      setOptions([{ id: "1", text: "", isCorrect: false }, { id: "2", text: "", isCorrect: false }])
+      const { data: pq } = await supabase
+        .from("pregunta")
+        .select("id_pregunta, enunciado, respuesta_esperada, palabras_distractoras, oraciones_contexto")
+        .eq("id_actividad", activity.id)
+        .order("orden", { ascending: true })
+        .limit(1)
+        .maybeSingle()
+      if (activity.type === "fill") {
+        setFillEnunciado(pq?.enunciado ?? "")
+        setCorrectAnswer(pq?.respuesta_esperada ?? "")
+        setPalabrasDistractoras(
+          pq?.palabras_distractoras?.split("|").filter(Boolean).join(", ") ?? ""
+        )
+        const ctxArr = pq?.oraciones_contexto?.split("|").filter(Boolean) ?? []
+        setFillContextSentences(ctxArr.length > 0 ? ctxArr : [""])
+        setVoiceEnunciado("")
+      } else if (activity.type === "voice") {
+        // Voice: enunciado = question shown/spoken; respuesta_esperada = pipe-separated options → comma
+        setVoiceEnunciado(pq?.enunciado ?? "")
+        setCorrectAnswer(
+          pq?.respuesta_esperada?.split("|").map((s: string) => s.trim()).filter(Boolean).join(", ") ?? ""
+        )
+        setPalabrasDistractoras("")
+        setFillEnunciado("")
+        setFillContextSentences([""])
+      } else {
+        setVoiceEnunciado("")
+        setFillEnunciado("")
+        setFillContextSentences([""])
+        setCorrectAnswer(pq?.respuesta_esperada ?? "")
+        // Display distractors as comma-separated (only used for sound)
+        setPalabrasDistractoras(
+          pq?.palabras_distractoras?.split("|").filter(Boolean).join(", ") ?? ""
+        )
+      }
+      setSoundPreguntaId(pq?.id_pregunta ?? "")
+    } else if (activity.type === "sequence") {
+      setInstrucciones(activity.instrucciones ?? "")
+      setOptions([{ id: "1", text: "", isCorrect: false }, { id: "2", text: "", isCorrect: false }])
+      setCorrectAnswer("")
+      setPalabrasDistractoras("")
+      setSoundPreguntaId("")
+      setVoiceEnunciado("")
+      setFillEnunciado("")
+      setFillContextSentences([""])
+      const { data: preguntas } = await supabase
+        .from("pregunta")
+        .select("id_pregunta, enunciado, orden, imagen_url")
+        .eq("id_actividad", activity.id)
+        .order("orden", { ascending: true })
+      const cnt = Math.min(5, Math.max(3, preguntas?.length ?? 3)) as 3 | 4 | 5
+      setSequenceCount(cnt)
+      const steps: SequenceStep[] = (preguntas ?? []).slice(0, cnt).map((pq: any) => ({
+        file: null, previewUrl: "", existingUrl: pq.imagen_url ?? "", description: pq.enunciado ?? "", preguntaId: pq.id_pregunta,
+      }))
+      while (steps.length < cnt) steps.push({ file: null, previewUrl: "", existingUrl: "", description: "", preguntaId: "" })
+      setSequenceSteps(steps)
+    } else {
+      const config = parseActivityConfig(activity.instrucciones)
+      setInstrucciones(config.instrucciones)
+      if (config.opciones && config.opciones.length > 0) {
+        setOptions(config.opciones.map((o, i) => ({ id: String(i + 1), text: o.texto, isCorrect: o.correcta })))
+      } else {
+        setOptions([{ id: "1", text: "", isCorrect: false }, { id: "2", text: "", isCorrect: false }])
+      }
+      setCorrectAnswer(config.respuesta_correcta ?? "")
+      setPalabrasDistractoras(config.palabras_distractoras ?? "")
+      setSoundPreguntaId("")
+      setSequenceSteps([])
+      setSequenceCount(3)
+    }
     setView("config")
   }
 
@@ -248,32 +399,135 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
     setSaveError("")
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        setSaveError("No hay sesión activa.")
+      // ── Upload image (only for "image" type) ─────────────────
+      let imagen_url: string | null | undefined = undefined
+      if (imageFile) {
+        const ext = imageFile.name.split(".").pop() ?? "jpg"
+        const path = `${user!.id}/${Date.now()}.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from("actividades")
+          .upload(path, imageFile, { upsert: true })
+        if (uploadError) {
+          setSaveError("Error al subir la imagen: " + uploadError.message)
+          setIsSaving(false)
+          return
+        }
+        const { data: urlData } = supabase.storage.from("actividades").getPublicUrl(path)
+        imagen_url = urlData.publicUrl
+      } else if (imageDeleted) {
+        imagen_url = null
+      }
+
+      // ── Refresh session to always get a valid access_token ────
+      const { data: refreshData, error: sessionError } = await supabase.auth.refreshSession()
+      const session = refreshData.session
+      if (!session || sessionError) {
+        setSaveError("Tu sesión ha expirado. Recarga la página e intenta de nuevo.")
         setIsSaving(false)
         return
       }
 
-      const typeShowsOptions = selectedType === "multiple" || selectedType === "image" || selectedType === "sound"
-      const typeShowsCorrect = selectedType === "short" || selectedType === "voice"
-      const serialized = serializeActivityConfig({
-        instrucciones,
-        opciones: typeShowsOptions
-          ? options.filter((o) => o.text.trim()).map((o) => ({ texto: o.text, correcta: o.isCorrect }))
-          : undefined,
-        respuesta_correcta: typeShowsCorrect && correctAnswer ? correctAnswer : undefined,
-      })
+      const typeShowsOptions = selectedType === "multiple" || selectedType === "image"
+      const typeShowsCorrect = selectedType === "short"
+      const typeIsSound     = selectedType === "sound"
+      const typeIsVoice     = selectedType === "voice"
+      const typeIsFill      = selectedType === "fill"
+      const typeIsSequence  = selectedType === "sequence"
+
+      // ── Upload sequence images ────────────────────────────────
+      let sequenceStepsPayload: { orden: number; imagen_url: string | null; enunciado: string }[] | undefined
+      if (typeIsSequence && sequenceSteps.length > 0) {
+        const uploaded: typeof sequenceStepsPayload = []
+        for (let idx = 0; idx < sequenceSteps.length; idx++) {
+          const step = sequenceSteps[idx]
+          let url: string | null = step.existingUrl || null
+          if (step.file) {
+            const ext = step.file.name.split(".").pop() ?? "jpg"
+            const path = `secuencias/${user!.id}_${Date.now()}_${idx + 1}.${ext}`
+            const { error: uploadError } = await supabase.storage
+              .from("actividades").upload(path, step.file, { upsert: true })
+            if (uploadError) {
+              setSaveError(`Error al subir imagen ${idx + 1}: ${uploadError.message}`)
+              setIsSaving(false)
+              return
+            }
+            const { data: urlData } = supabase.storage.from("actividades").getPublicUrl(path)
+            url = urlData.publicUrl
+          }
+          uploaded!.push({ orden: idx + 1, imagen_url: url, enunciado: step.description || `Paso ${idx + 1}` })
+        }
+        sequenceStepsPayload = uploaded
+      }
+
+      // ── Build instrucciones payload ───────────────────────────
+      let instruccionesPayload: string | null
+      let preguntaPayload: { id?: string; enunciado?: string; respuesta_esperada: string; palabras_distractoras: string | null; tipo_respuesta_esperada: string; oraciones_contexto?: string | null } | undefined
+
+      if (typeIsSound || typeIsVoice || typeIsFill) {
+        // Sound/Voice/Fill: instrucciones is plain text; data goes to pregunta table
+        instruccionesPayload = instrucciones || null
+        if (typeIsSound) {
+          const distractorasFormatted = palabrasDistractoras.split(",").map((w) => w.trim()).filter(Boolean).join("|")
+          preguntaPayload = {
+            id: soundPreguntaId || undefined,
+            respuesta_esperada: correctAnswer,
+            palabras_distractoras: distractorasFormatted || null,
+            tipo_respuesta_esperada: "texto",
+          }
+        } else if (typeIsVoice) {
+          const respuestaFormatted = correctAnswer.split(",").map((s) => s.trim()).filter(Boolean).join("|")
+          preguntaPayload = {
+            id: soundPreguntaId || undefined,
+            enunciado: voiceEnunciado || undefined,
+            respuesta_esperada: respuestaFormatted,
+            palabras_distractoras: null,
+            tipo_respuesta_esperada: "voz",
+          }
+        } else {
+          // Fill
+          const distractorasFormatted = palabrasDistractoras.split(",").map((w) => w.trim()).filter(Boolean).join("|")
+          const oracionesStr = fillContextSentences.filter((s) => s.trim()).join("|") || null
+          preguntaPayload = {
+            id: soundPreguntaId || undefined,
+            enunciado: fillEnunciado,
+            respuesta_esperada: correctAnswer.trim(),
+            palabras_distractoras: distractorasFormatted || null,
+            oraciones_contexto: oracionesStr,
+            tipo_respuesta_esperada: "texto",
+          }
+        }
+      } else if (typeIsSequence) {
+        instruccionesPayload = instrucciones || null
+        preguntaPayload = undefined
+      } else {
+        instruccionesPayload = serializeActivityConfig({
+          instrucciones,
+          opciones: typeShowsOptions
+            ? options.filter((o) => o.text.trim()).map((o) => ({ texto: o.text, correcta: o.isCorrect }))
+            : undefined,
+          respuesta_correcta: typeShowsCorrect && correctAnswer ? correctAnswer : undefined,
+        })
+        preguntaPayload = undefined
+      }
 
       if (editingActivity) {
         // PUT existing activity
+        const putBody: Record<string, unknown> = {
+          instrucciones: instruccionesPayload,
+          nivel_dificultad: dificultad,
+        }
+        if (typeIsSequence) putBody.type = "sequence"
+        if (sequenceStepsPayload) putBody.steps = sequenceStepsPayload
+        if (imagen_url !== undefined) putBody.imagen_url = imagen_url
+        if (preguntaPayload) putBody.pregunta = preguntaPayload
+
         const response = await fetch(`/api/activities/${editingActivity.id}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ instrucciones: serialized, nivel_dificultad: dificultad }),
+          body: JSON.stringify(putBody),
         })
         if (!response.ok) {
           const data = await response.json()
@@ -282,10 +536,11 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
           return
         }
         const diffInt = dificultad === "facil" ? 1 : dificultad === "medio" ? 2 : 3
+        const newImageUrl = imagen_url !== undefined ? imagen_url : editingActivity.imagen_url
         setExistingActivities((prev) =>
           prev.map((a) =>
             a.id === editingActivity.id
-              ? { ...a, instrucciones: serialized, nivel_dificultad: diffInt }
+              ? { ...a, instrucciones: instruccionesPayload, nivel_dificultad: diffInt, imagen_url: newImageUrl }
               : a
           )
         )
@@ -298,18 +553,23 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
           setIsSaving(false)
           return
         }
+        const postBody: Record<string, unknown> = {
+          lessonId: selectedLessonId,
+          type: selectedType,
+          instrucciones: instruccionesPayload,
+          nivel_dificultad: dificultad,
+        }
+        if (imagen_url !== undefined) postBody.imagen_url = imagen_url
+        if (preguntaPayload) postBody.pregunta = preguntaPayload
+        if (sequenceStepsPayload) postBody.steps = sequenceStepsPayload
+
         const response = await fetch("/api/activities", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({
-            lessonId: selectedLessonId,
-            type: selectedType,
-            instrucciones: serialized,
-            nivel_dificultad: dificultad,
-          }),
+          body: JSON.stringify(postBody),
         })
         if (!response.ok) {
           const data = await response.json()
@@ -452,8 +712,12 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
   // ═══════════════════════════════════════════════════════════════
   if (view === "config") {
     const isEditing = editingActivity !== null
-    const showOptions = selectedType === "multiple" || selectedType === "image" || selectedType === "sound"
-    const showCorrectAnswer = selectedType === "short" || selectedType === "voice"
+    const showOptions = selectedType === "multiple" || selectedType === "image"
+    const showCorrectAnswer = selectedType === "short"
+    const showSoundConfig    = selectedType === "sound"
+    const showVoiceConfig    = selectedType === "voice"
+    const showFillConfig     = selectedType === "fill"
+    const showSequenceConfig = selectedType === "sequence"
 
     return (
       <div className="min-h-screen bg-background">
@@ -529,6 +793,478 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
               </Card>
             )}
 
+            {/* Image upload — only for "Identificacion de imagenes" */}
+            {selectedType === "image" && (
+              <Card className="border-2 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-xl">Imagen de la Actividad</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {(imagePreviewUrl || existingImageUrl) ? (
+                    <div>
+                      <img
+                        src={imagePreviewUrl || existingImageUrl}
+                        alt="Vista previa de la imagen"
+                        className="w-full max-h-64 object-contain rounded-xl border-2 border-border bg-muted"
+                      />
+                      <div className="flex gap-3 mt-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="flex-1 h-11 border-2"
+                          onClick={() => imageInputRef.current?.click()}
+                        >
+                          <Upload className="w-4 h-4 mr-2" aria-hidden="true" />
+                          Cambiar imagen
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-11 px-4 border-2 text-destructive hover:bg-destructive/10"
+                          onClick={handleImageDelete}
+                          aria-label="Eliminar imagen"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => imageInputRef.current?.click()}
+                      className="w-full h-44 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-3 hover:border-primary hover:bg-primary/5 transition-colors"
+                    >
+                      <Image className="w-10 h-10 text-muted-foreground" aria-hidden="true" />
+                      <p className="text-base font-medium text-muted-foreground">
+                        Haz clic para subir una imagen
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        PNG, JPG, WEBP o GIF · Máx 5 MB
+                      </p>
+                    </button>
+                  )}
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    className="hidden"
+                    onChange={handleImageSelect}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Sound config — sentence (Web Speech) + distractors */}
+            {showSoundConfig && (
+              <>
+                {/* Oración correcta */}
+                <Card className="border-2 shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="text-xl">Oración Correcta</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex gap-3">
+                      <Input
+                        value={correctAnswer}
+                        onChange={(e) => setCorrectAnswer(e.target.value)}
+                        placeholder="Ej: Los gatos son bonitos"
+                        className="h-14 text-lg border-2 flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-14 px-5 border-2 shrink-0 gap-2"
+                        onClick={() => correctAnswer.trim() && speak(correctAnswer.trim())}
+                        aria-label="Escuchar oración"
+                        disabled={!correctAnswer.trim()}
+                      >
+                        <Volume2 className="w-5 h-5" aria-hidden="true" />
+                        Escuchar
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      El sistema reproducirá esta oración en voz alta al alumno usando el sintetizador de voz del navegador.
+                    </p>
+                    {correctAnswer.trim() && (
+                      <div className="flex flex-wrap gap-2 p-3 bg-muted rounded-xl">
+                        {correctAnswer.trim().split(/\s+/).map((word, i) => (
+                          <span key={i} className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-sm font-medium">
+                            {word}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Palabras distractoras */}
+                <Card className="border-2 shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="text-xl">
+                      Palabras Distractoras{" "}
+                      <span className="text-muted-foreground text-base font-normal">(opcional)</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Input
+                      value={palabrasDistractoras}
+                      onChange={(e) => setPalabrasDistractoras(e.target.value)}
+                      placeholder="Ej: nube, famoso, mesa"
+                      className="h-14 text-lg border-2"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Separa las palabras con <strong>comas</strong>. Se mezclarán con la oración para aumentar la dificultad.
+                    </p>
+                    {palabrasDistractoras.trim() && (
+                      <div className="flex flex-wrap gap-2 p-3 bg-muted rounded-xl">
+                        {palabrasDistractoras.split(",").filter((w) => w.trim()).map((word, i) => (
+                          <span key={i} className="px-3 py-1 bg-destructive/10 text-destructive rounded-lg text-sm font-medium">
+                            {word.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {/* Voice config — question (enunciado) + correct answers (comma-separated) */}
+            {showVoiceConfig && (
+              <>
+                {/* Pregunta */}
+                <Card className="border-2 shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="text-xl">Pregunta</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex gap-3">
+                      <Input
+                        value={voiceEnunciado}
+                        onChange={(e) => setVoiceEnunciado(e.target.value)}
+                        placeholder="Ej: ¿De qué color es el cielo?"
+                        className="h-14 text-lg border-2 flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-14 px-5 border-2 shrink-0 gap-2"
+                        onClick={() => voiceEnunciado.trim() && speak(voiceEnunciado.trim())}
+                        disabled={!voiceEnunciado.trim()}
+                        aria-label="Escuchar pregunta"
+                      >
+                        <Volume2 className="w-5 h-5" aria-hidden="true" />
+                        Escuchar
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Esta pregunta se mostrará y se leerá en voz alta al alumno.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Respuesta correcta (multi-opcion) */}
+                <Card className="border-2 shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="text-xl">Respuesta Correcta</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Input
+                      value={correctAnswer}
+                      onChange={(e) => setCorrectAnswer(e.target.value)}
+                      placeholder="Ej: azul, celeste, azul claro"
+                      className="h-14 text-lg border-2"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Separa con <strong>comas</strong> si hay varias respuestas válidas. Se acepta cualquiera.
+                    </p>
+                    {correctAnswer.trim() && (
+                      <div className="flex flex-wrap gap-2 p-3 bg-muted rounded-xl">
+                        {correctAnswer.split(",").filter((s) => s.trim()).map((ans, i) => (
+                          <span key={i} className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-sm font-medium">
+                            {ans.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {/* Sequence config — count selector + image slots */}
+            {showSequenceConfig && (
+              <>
+                {/* Count selector */}
+                <Card className="border-2 shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="text-xl">¿Cuántas imágenes?</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 gap-4">
+                      {([3, 4, 5] as const).map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => {
+                            setSequenceCount(n)
+                            const cur = [...sequenceSteps]
+                            while (cur.length < n) cur.push({ file: null, previewUrl: "", existingUrl: "", description: "", preguntaId: "" })
+                            setSequenceSteps(cur.slice(0, n))
+                          }}
+                          className={`p-5 rounded-xl border-2 text-center transition-all ${
+                            sequenceCount === n
+                              ? "border-primary bg-primary/10 ring-2 ring-primary"
+                              : "border-border hover:border-primary/50"
+                          }`}
+                          aria-pressed={sequenceCount === n}
+                        >
+                          <span className="text-3xl font-bold text-foreground block">{n}</span>
+                          <span className="text-sm text-muted-foreground">imágenes</span>
+                        </button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Image slots */}
+                <Card className="border-2 shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="text-xl">Imágenes de la secuencia</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-5">
+                    <p className="text-sm text-muted-foreground">
+                      Sube las imágenes <strong>en el orden correcto</strong>. El alumno deberá reordenarlas.
+                    </p>
+                    {sequenceSteps.map((step, idx) => (
+                      <div key={idx} className="border-2 rounded-xl p-4 space-y-3">
+                        <div className="flex items-center gap-3">
+                          <span className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shrink-0">
+                            {idx + 1}
+                          </span>
+                          <h4 className="font-semibold text-foreground">Paso {idx + 1}</h4>
+                        </div>
+
+                        {(step.previewUrl || step.existingUrl) ? (
+                          <div className="space-y-3">
+                            <img
+                              src={step.previewUrl || step.existingUrl}
+                              alt={`Paso ${idx + 1}`}
+                              className="w-full max-h-44 object-contain rounded-xl border-2 border-border bg-muted"
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="border-2 h-10 gap-2"
+                                onClick={() => seqInputRefs.current[idx]?.click()}
+                              >
+                                <Upload className="w-4 h-4" aria-hidden="true" />
+                                Cambiar
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="border-2 h-10 text-destructive hover:bg-destructive/10"
+                                onClick={() => {
+                                  const steps = [...sequenceSteps]
+                                  if (steps[idx].previewUrl.startsWith("blob:")) URL.revokeObjectURL(steps[idx].previewUrl)
+                                  steps[idx] = { ...steps[idx], file: null, previewUrl: "", existingUrl: "" }
+                                  setSequenceSteps(steps)
+                                }}
+                                aria-label="Eliminar imagen"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => seqInputRefs.current[idx]?.click()}
+                            className="w-full h-36 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 hover:border-primary hover:bg-primary/5 transition-colors"
+                          >
+                            <Image className="w-8 h-8 text-muted-foreground" aria-hidden="true" />
+                            <p className="text-sm text-muted-foreground font-medium">Subir imagen del paso {idx + 1}</p>
+                            <p className="text-xs text-muted-foreground">PNG, JPG, WEBP · Máx 5 MB</p>
+                          </button>
+                        )}
+
+                        <input
+                          ref={(el) => { seqInputRefs.current[idx] = el }}
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            const steps = [...sequenceSteps]
+                            if (steps[idx].previewUrl.startsWith("blob:")) URL.revokeObjectURL(steps[idx].previewUrl)
+                            steps[idx] = { ...steps[idx], file, previewUrl: URL.createObjectURL(file) }
+                            setSequenceSteps(steps)
+                            e.target.value = ""
+                          }}
+                        />
+
+                        <Input
+                          value={step.description}
+                          onChange={(e) => {
+                            const steps = [...sequenceSteps]
+                            steps[idx] = { ...steps[idx], description: e.target.value }
+                            setSequenceSteps(steps)
+                          }}
+                          placeholder={`Descripción del paso ${idx + 1} (opcional)`}
+                          className="h-10 border-2"
+                        />
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {/* Fill config — context sentences + target sentence + correct answer + distractors */}
+            {showFillConfig && (
+              <>
+                {/* Oraciones de contexto */}
+                <Card className="border-2 shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="text-xl">
+                      Oraciones de Contexto{" "}
+                      <span className="text-muted-foreground text-base font-normal">(opcional)</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {fillContextSentences.map((sentence, idx) => (
+                      <div key={idx} className="flex gap-2">
+                        <Input
+                          value={sentence}
+                          onChange={(e) => {
+                            const next = [...fillContextSentences]
+                            next[idx] = e.target.value
+                            setFillContextSentences(next)
+                          }}
+                          placeholder={`Ej: Yo tengo tres mascotas.`}
+                          className="h-12 text-base border-2 flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-12 px-3 border-2 text-destructive hover:bg-destructive/10 shrink-0"
+                          onClick={() => {
+                            if (fillContextSentences.length > 1) {
+                              setFillContextSentences(fillContextSentences.filter((_, i) => i !== idx))
+                            } else {
+                              setFillContextSentences([""])
+                            }
+                          }}
+                          aria-label="Eliminar oración"
+                          disabled={fillContextSentences.length === 1 && !sentence.trim()}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-11 border-2 border-dashed"
+                      onClick={() => setFillContextSentences([...fillContextSentences, ""])}
+                    >
+                      <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
+                      Agregar oración de ejemplo
+                    </Button>
+                    <p className="text-sm text-muted-foreground">
+                      Estas oraciones aparecen como ejemplos para que el alumno comprenda el patrón antes de completar.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Oración a completar */}
+                <Card className="border-2 shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="text-xl">Oración a Completar</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Input
+                      value={fillEnunciado}
+                      onChange={(e) => setFillEnunciado(e.target.value)}
+                      placeholder="Ej: Yo tengo tres ___."
+                      className="h-14 text-lg border-2"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Usa <strong>___</strong> (tres guiones bajos) para marcar el espacio en blanco.
+                    </p>
+                    {fillEnunciado.includes("___") && (
+                      <div className="p-3 bg-muted rounded-xl text-base font-medium text-foreground">
+                        Vista previa:{" "}
+                        {fillEnunciado.split("___").map((part, i) => (
+                          <span key={i}>
+                            {part}
+                            {i < fillEnunciado.split("___").length - 1 && (
+                              <span className="inline-block min-w-[60px] mx-1 border-b-2 border-dashed border-primary text-primary">
+                                {correctAnswer.trim() || "___"}
+                              </span>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Respuesta correcta */}
+                <Card className="border-2 shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="text-xl">Respuesta Correcta</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Input
+                      value={correctAnswer}
+                      onChange={(e) => setCorrectAnswer(e.target.value)}
+                      placeholder="Ej: gatos"
+                      className="h-14 text-lg border-2"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      La palabra exacta que completa el espacio en blanco.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Palabras distractoras */}
+                <Card className="border-2 shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="text-xl">
+                      Palabras Distractoras{" "}
+                      <span className="text-muted-foreground text-base font-normal">(opciones incorrectas)</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Input
+                      value={palabrasDistractoras}
+                      onChange={(e) => setPalabrasDistractoras(e.target.value)}
+                      placeholder="Ej: gato, perros, pez"
+                      className="h-14 text-lg border-2"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Separa con <strong>comas</strong>. Se mezclarán con la respuesta correcta como opciones.
+                    </p>
+                    {palabrasDistractoras.trim() && (
+                      <div className="flex flex-wrap gap-2 p-3 bg-muted rounded-xl">
+                        {palabrasDistractoras.split(",").filter((w) => w.trim()).map((word, i) => (
+                          <span key={i} className="px-3 py-1 bg-destructive/10 text-destructive rounded-lg text-sm font-medium">
+                            {word.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
             {/* Instructions */}
             <Card className="border-2 shadow-lg">
               <CardHeader>
@@ -540,7 +1276,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                   onChange={(e) => setInstrucciones(e.target.value)}
                   placeholder="Escribe instrucciones claras y simples. Ejemplo: Mira la imagen y selecciona el animal que ves."
                   className="w-full min-h-[120px] p-4 text-lg border-2 border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  required
+                  required={!showSoundConfig && !showVoiceConfig && !showFillConfig && !showSequenceConfig}
                 />
               </CardContent>
             </Card>
@@ -670,7 +1406,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                 type="submit"
                 size="lg"
                 className="flex-1 h-16 text-xl"
-                disabled={isSaving || !instrucciones || (!isEditing && lessons.length === 0)}
+                disabled={isSaving || (showSoundConfig ? !correctAnswer.trim() : showVoiceConfig ? !voiceEnunciado.trim() || !correctAnswer.trim() : showFillConfig ? !fillEnunciado.trim() || !correctAnswer.trim() : showSequenceConfig ? !sequenceSteps.every((s) => s.file || s.existingUrl) : !instrucciones) || (!isEditing && lessons.length === 0)}
               >
                 <Save className="w-6 h-6 mr-3" aria-hidden="true" />
                 {isSaving ? "Guardando..." : isEditing ? "Guardar Cambios" : "Guardar Actividad"}

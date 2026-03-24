@@ -8,6 +8,7 @@ const activityTypeMap = {
   multiple: "seleccion_guiada",
   short: "respuesta_corta",
   voice: "respuesta_oral",
+  fill: "completar_oracion",
 }
 
 const difficultyMap = {
@@ -22,6 +23,7 @@ const activityTitleMap = {
   multiple: "Opcion multiple",
   short: "Respuesta corta escrita",
   voice: "Respuesta por voz",
+  fill: "Completar oracion",
 }
 
 export async function POST(request) {
@@ -38,7 +40,7 @@ export async function POST(request) {
     }
 
     const body = await request.json()
-    const { lessonId, type, instrucciones, nivel_dificultad } = body
+    const { lessonId, type, instrucciones, nivel_dificultad, imagen_url, audio_url, pregunta, steps } = body
 
     if (!lessonId || !type) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
@@ -59,6 +61,8 @@ export async function POST(request) {
         titulo: activityTitleMap[type] ?? type,
         instrucciones: instrucciones || null,
         nivel_dificultad: nivel_dificultad ? (difficultyMap[nivel_dificultad] ?? 1) : null,
+        imagen_url: imagen_url ?? null,
+        audio_url: audio_url ?? null,
         orden,
         publicado: true,
       })
@@ -70,6 +74,41 @@ export async function POST(request) {
         { error: actError?.message ?? "Error al crear actividad" },
         { status: 500 }
       )
+    }
+
+    // For sequence activities: insert one pregunta per step
+    if (type === "sequence" && steps?.length > 0 && actividad) {
+      const preguntaRows = steps.map((step) => ({
+        id_actividad: actividad.id_actividad,
+        enunciado: step.enunciado || `Paso ${step.orden}`,
+        orden: step.orden,
+        imagen_url: step.imagen_url ?? null,
+        tipo_respuesta_esperada: "opcion",
+        puntaje_maximo: 1,
+      }))
+      const { error: pqError } = await supabaseAdmin.from("pregunta").insert(preguntaRows)
+      if (pqError) {
+        return NextResponse.json({ error: pqError.message }, { status: 500 })
+      }
+    }
+
+    // For sound/voice/fill activities: insert a pregunta row
+    if ((type === "sound" || type === "voice" || type === "fill") && pregunta && actividad) {
+      const defaultEnunciado = type === "voice" ? "Escucha y responde" : type === "fill" ? "Completa la oración" : "Escucha y arma la oración"
+      const enunciado = pregunta.enunciado || instrucciones || defaultEnunciado
+      const { error: pqError } = await supabaseAdmin.from("pregunta").insert({
+        id_actividad: actividad.id_actividad,
+        enunciado,
+        respuesta_esperada: pregunta.respuesta_esperada,
+        palabras_distractoras: pregunta.palabras_distractoras ?? null,
+        oraciones_contexto: pregunta.oraciones_contexto ?? null,
+        tipo_respuesta_esperada: pregunta.tipo_respuesta_esperada ?? (type === "voice" ? "voz" : "texto"),
+        orden: 1,
+        puntaje_maximo: 100,
+      })
+      if (pqError) {
+        return NextResponse.json({ error: pqError.message }, { status: 500 })
+      }
     }
 
     return NextResponse.json({ success: true, id_actividad: actividad.id_actividad })

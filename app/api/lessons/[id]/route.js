@@ -54,6 +54,8 @@ export async function PUT(request, { params }) {
         titulo: act.title,
         instrucciones: act.instrucciones || null,
         nivel_dificultad: act.nivel_dificultad ? (difficultyMap[act.nivel_dificultad] ?? 1) : null,
+        imagen_url: act.imagen_url ?? null,
+        audio_url: act.audio_url ?? null,
         orden: index + 1,
         publicado: true,
       }))

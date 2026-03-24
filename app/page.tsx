@@ -295,8 +295,9 @@ function AppContent() {
       case "voice-activity":
         return (
           <VoiceActivity
-            onBack={() => setCurrentScreen("student-activity")}
-            onComplete={() => setCurrentScreen("student-dashboard")}
+            activityId={studentActivityId}
+            onBack={() => setCurrentScreen("student-lesson")}
+            onComplete={() => setCurrentScreen("student-lesson")}
           />
         )
 
