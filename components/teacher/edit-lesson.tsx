@@ -21,6 +21,8 @@ interface ActivityItem {
   title: string
   instrucciones: string
   nivel_dificultad: string
+  imagen_url?: string | null
+  audio_url?: string | null
   opciones?: { texto: string; correcta: boolean }[]
   respuesta_correcta?: string
 }
@@ -87,7 +89,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
           .single(),
         supabase
           .from("actividad")
-          .select("id_actividad, tipo, titulo, instrucciones, nivel_dificultad, orden")
+          .select("id_actividad, tipo, titulo, instrucciones, nivel_dificultad, orden, imagen_url, audio_url")
           .eq("id_leccion", lessonId)
           .order("orden", { ascending: true }),
       ])
@@ -118,6 +120,8 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
           nivel_dificultad: typeof a.nivel_dificultad === "number"
             ? diffFromInt(a.nivel_dificultad)
             : (a.nivel_dificultad ?? "facil"),
+          imagen_url: a.imagen_url ?? null,
+          audio_url: a.audio_url ?? null,
           opciones: config.opciones,
           respuesta_correcta: config.respuesta_correcta,
         }
@@ -196,6 +200,8 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
             title: a.title,
             instrucciones: a.instrucciones,
             nivel_dificultad: a.nivel_dificultad,
+            imagen_url: a.imagen_url ?? null,
+            audio_url: a.audio_url ?? null,
           })),
         }),
       })
