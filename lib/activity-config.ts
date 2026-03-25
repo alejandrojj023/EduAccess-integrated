@@ -12,7 +12,8 @@ export interface ActivityConfig {
   opciones?: { texto: string; correcta: boolean }[]
   respuesta_correcta?: string
   /** Palabras separadas por | para actividades de reconocimiento de sonidos */
-  palabras_distractoras?: string
+  palabras_distractoras?: string  /** Palabras a encontrar en la sopa de letras */
+  palabras_sopa?: string[]
 }
 
 export function parseActivityConfig(raw: string | null | undefined): ActivityConfig {
@@ -25,6 +26,7 @@ export function parseActivityConfig(raw: string | null | undefined): ActivityCon
         opciones: Array.isArray(parsed.opciones) ? parsed.opciones : undefined,
         respuesta_correcta: parsed.respuesta_correcta ?? undefined,
         palabras_distractoras: parsed.palabras_distractoras ?? undefined,
+        palabras_sopa: Array.isArray(parsed.palabras_sopa) ? parsed.palabras_sopa : undefined,
       }
     }
     // Legacy: plain text
@@ -39,5 +41,6 @@ export function serializeActivityConfig(config: ActivityConfig): string {
   if (config.opciones && config.opciones.length > 0) obj.opciones = config.opciones
   if (config.respuesta_correcta) obj.respuesta_correcta = config.respuesta_correcta
   if (config.palabras_distractoras) obj.palabras_distractoras = config.palabras_distractoras
+  if (config.palabras_sopa && config.palabras_sopa.length > 0) obj.palabras_sopa = config.palabras_sopa
   return JSON.stringify(obj)
 }

@@ -37,50 +37,99 @@ function shuffle<T>(arr: T[]): T[] {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
-    ;[a[i], a[j]] = [a[j], a[i]]
+      ;[a[i], a[j]] = [a[j], a[i]]
   }
   return a
+}
+
+// ── Word search grid generator ─────────────────────────────────
+const WS_DIRECTIONS = [
+  { dr: 0, dc: 1 },   // horizontal →
+  { dr: 1, dc: 0 },   // vertical ↓
+  { dr: 1, dc: 1 },   // diagonal ↘
+  { dr: 1, dc: -1 },  // diagonal ↙
+]
+function generateWordSearchGrid(words: string[]): string[][] {
+  const longest = words.reduce((m, w) => Math.max(m, w.length), 0)
+  const size = Math.max(12, longest + 4)
+  const grid: string[][] = Array.from({ length: size }, () => Array(size).fill(""))
+  for (const word of words) {
+    let placed = false
+    let attempts = 0
+    while (!placed && attempts < 300) {
+      attempts++
+      const dir = WS_DIRECTIONS[Math.floor(Math.random() * WS_DIRECTIONS.length)]
+      const row = Math.floor(Math.random() * size)
+      const col = Math.floor(Math.random() * size)
+      const endRow = row + dir.dr * (word.length - 1)
+      const endCol = col + dir.dc * (word.length - 1)
+      if (endRow < 0 || endRow >= size || endCol < 0 || endCol >= size) continue
+      let canPlace = true
+      for (let i = 0; i < word.length; i++) {
+        const r = row + dir.dr * i
+        const c = col + dir.dc * i
+        if (grid[r][c] !== "" && grid[r][c] !== word[i]) { canPlace = false; break }
+      }
+      if (canPlace) {
+        for (let i = 0; i < word.length; i++) grid[row + dir.dr * i][col + dir.dc * i] = word[i]
+        placed = true
+      }
+    }
+  }
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  for (let r = 0; r < size; r++)
+    for (let c = 0; c < size; c++)
+      if (grid[r][c] === "") grid[r][c] = letters[Math.floor(Math.random() * letters.length)]
+  return grid
 }
 
 type Phase = "loading" | "question" | "result" | "done"
 
 export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivity }: StudentActivityProps) {
-  const { user }           = useAuth()
+  const { user } = useAuth()
   const { speak, settings } = useAccessibility()
 
-  const [activity,       setActivity]       = useState<DBActivity | null>(null)
-  const [phase,          setPhase]          = useState<Phase>("loading")
+  const [activity, setActivity] = useState<DBActivity | null>(null)
+  const [phase, setPhase] = useState<Phase>("loading")
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
-  const [textAnswer,     setTextAnswer]     = useState("")
-  const [isCorrect,      setIsCorrect]      = useState(false)
-  const [score,          setScore]          = useState(0)           // 0 or 100
-  const [error,          setError]          = useState<string | null>(null)
+  const [textAnswer, setTextAnswer] = useState("")
+  const [isCorrect, setIsCorrect] = useState(false)
+  const [score, setScore] = useState(0)           // 0 or 100
+  const [error, setError] = useState<string | null>(null)
 
   // Sound activity (Duolingo-style) state
   type WordToken = { id: string; text: string }
-  const [wordBank,         setWordBank]         = useState<WordToken[]>([])
+  const [wordBank, setWordBank] = useState<WordToken[]>([])
   const [constructionZone, setConstructionZone] = useState<WordToken[]>([])
-  const [soundError,      setSoundError]      = useState<string | null>(null)
-  const [soundPregunta,   setSoundPregunta]   = useState<{ respuesta_esperada: string; palabras_distractoras: string | null } | null>(null)
+  const [soundError, setSoundError] = useState<string | null>(null)
+  const [soundPregunta, setSoundPregunta] = useState<{ respuesta_esperada: string; palabras_distractoras: string | null } | null>(null)
 
   // Fill activity (completar_oracion) state
-  const [fillPregunta,   setFillPregunta]   = useState<{ enunciado: string; respuesta_esperada: string; palabras_distractoras: string | null; oraciones_contexto: string | null } | null>(null)
-  const [fillBank,       setFillBank]       = useState<WordToken[]>([])
-  const [fillSelected,   setFillSelected]   = useState<WordToken | null>(null)
-  const [fillError,      setFillError]      = useState<string | null>(null)
-  const [fillAttempts,   setFillAttempts]   = useState(0)
+  const [fillPregunta, setFillPregunta] = useState<{ enunciado: string; respuesta_esperada: string; palabras_distractoras: string | null; oraciones_contexto: string | null } | null>(null)
+  const [fillBank, setFillBank] = useState<WordToken[]>([])
+  const [fillSelected, setFillSelected] = useState<WordToken | null>(null)
+  const [fillError, setFillError] = useState<string | null>(null)
+  const [fillAttempts, setFillAttempts] = useState(0)
   const [fillHighlighted, setFillHighlighted] = useState<string | null>(null)
   const fillAnimatingRef = useRef(false)   // bloquea clics durante la animación layout
 
   // Sequence activity (secuenciacion) state
   type SeqItem = { id_pregunta: string; enunciado: string; orden: number; imagen_url: string | null }
-  const [seqItems,    setSeqItems]    = useState<SeqItem[]>([])
-  const [seqZones,    setSeqZones]    = useState<(SeqItem | null)[]>([])
+  const [seqItems, setSeqItems] = useState<SeqItem[]>([])
+  const [seqZones, setSeqZones] = useState<(SeqItem | null)[]>([])
   const [seqDragging, setSeqDragging] = useState<SeqItem | null>(null)
   const [seqDragOver, setSeqDragOver] = useState<number | null>(null)
-  const [seqChecked,  setSeqChecked]  = useState(false)
-  const [seqResult,   setSeqResult]   = useState<boolean[]>([])
+  const [seqChecked, setSeqChecked] = useState(false)
+  const [seqResult, setSeqResult] = useState<boolean[]>([])
   const [seqAttempts, setSeqAttempts] = useState(0)
+
+  // Word search (sopa_letras) state
+  const [wsGrid, setWsGrid] = useState<string[][]>([])
+  const [wsPalabras, setWsPalabras] = useState<string[]>([])
+  const [wsStart, setWsStart] = useState<{ row: number; col: number } | null>(null)
+  const [wsFoundWords, setWsFoundWords] = useState<Set<string>>(new Set())
+  const [wsFoundCells, setWsFoundCells] = useState<Set<string>>(new Set())
+  const [wsWrongFlash, setWsWrongFlash] = useState(false)
 
 
   // Load activity from DB
@@ -111,8 +160,8 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
     setActivity(act)
     setPhase("question")
 
-    // Auto-speak instructions if TTS on (skip sound/fill/sequence — spoken after pregunta loads)
-    if (settings.voiceEnabled && act.tipo !== "reconocimiento_sonidos" && act.tipo !== "completar_oracion" && act.tipo !== "secuenciacion") {
+    // Auto-speak instructions if TTS on (skip sound/fill/sequence/wordsearch — spoken in their own useEffect)
+    if (settings.voiceEnabled && act.tipo !== "reconocimiento_sonidos" && act.tipo !== "completar_oracion" && act.tipo !== "secuenciacion" && act.tipo !== "sopa_letras") {
       const cfg = parseActivityConfig(act.instrucciones)
       if (cfg.instrucciones) setTimeout(() => speak(cfg.instrucciones), 400)
     }
@@ -147,6 +196,76 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
         if (settings.voiceEnabled) setTimeout(() => speak(pq.respuesta_esperada), 600)
       })
   }, [activity])
+
+  // Initialize word search when activity loads
+  useEffect(() => {
+    if (!activity || activity.tipo !== "sopa_letras") return
+    const cfg = parseActivityConfig(activity.instrucciones)
+    const words = (cfg.palabras_sopa ?? []).map(w => w.toUpperCase()).filter(Boolean)
+    setWsPalabras(words)
+    setWsFoundWords(new Set())
+    setWsFoundCells(new Set())
+    setWsStart(null)
+    setWsWrongFlash(false)
+    setWsGrid(generateWordSearchGrid(words))
+    if (settings.voiceEnabled) setTimeout(() => speak(cfg.instrucciones ?? "Encuentra las palabras en la sopa de letras"), 400)
+  }, [activity])
+
+  function handleWsCellClick(row: number, col: number) {
+    if (phase !== "question") return
+    const key = `${row}-${col}`
+    if (!wsStart) {
+      setWsStart({ row, col })
+      return
+    }
+    // Same cell → deselect
+    if (wsStart.row === row && wsStart.col === col) {
+      setWsStart(null)
+      return
+    }
+    // Check if selection is a straight line
+    const dr = row - wsStart.row
+    const dc = col - wsStart.col
+    const isStraight = dr === 0 || dc === 0 || Math.abs(dr) === Math.abs(dc)
+    if (!isStraight) {
+      setWsStart({ row, col })
+      return
+    }
+    // Extract letters along path
+    const len = Math.max(Math.abs(dr), Math.abs(dc))
+    const stepR = dr === 0 ? 0 : dr / Math.abs(dr)
+    const stepC = dc === 0 ? 0 : dc / Math.abs(dc)
+    let letters = ""
+    const pathCells: string[] = []
+    for (let i = 0; i <= len; i++) {
+      const r = wsStart.row + stepR * i
+      const c = wsStart.col + stepC * i
+      if (r < 0 || r >= wsGrid.length || c < 0 || c >= wsGrid[0].length) { setWsStart({ row, col }); return }
+      letters += wsGrid[r][c]
+      pathCells.push(`${r}-${c}`)
+    }
+    const reversed = letters.split("").reverse().join("")
+    const matched = wsPalabras.find(w => !wsFoundWords.has(w) && (letters === w || reversed === w))
+    if (matched) {
+      const newFound = new Set(wsFoundWords).add(matched)
+      const newCells = new Set(wsFoundCells)
+      pathCells.forEach(k => newCells.add(k))
+      setWsFoundWords(newFound)
+      setWsFoundCells(newCells)
+      setWsStart(null)
+      if (settings.voiceEnabled) speak(`¡Encontraste ${matched}!`)
+      // Check if all words found
+      if (newFound.size === wsPalabras.length) {
+        setIsCorrect(true)
+        setScore(100)
+        setTimeout(() => setPhase("result"), 400)
+        speak("¡Felicidades! Encontraste todas las palabras.")
+      }
+    } else {
+      setWsWrongFlash(true)
+      setTimeout(() => { setWsWrongFlash(false); setWsStart(null) }, 600)
+    }
+  }
 
   // Fetch pregunta and initialize fill bank when a fill activity loads
   useEffect(() => {
@@ -407,8 +526,8 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
   function handleSubmitText() {
     if (!textAnswer.trim()) return
     const expected = (config?.respuesta_correcta ?? "").trim().toLowerCase()
-    const given    = textAnswer.trim().toLowerCase()
-    const correct  = expected ? given.includes(expected) || expected.includes(given) : true
+    const given = textAnswer.trim().toLowerCase()
+    const correct = expected ? given.includes(expected) || expected.includes(given) : true
     setIsCorrect(correct)
     setScore(correct ? 100 : 0)
     setPhase("result")
@@ -759,7 +878,7 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
                   {fillPregunta && (() => {
                     const parts = fillPregunta.enunciado.split("___")
                     const before = parts[0] ?? ""
-                    const after  = parts.slice(1).join("___")
+                    const after = parts.slice(1).join("___")
                     return (
                       <Card className="border-2 shadow-lg rounded-3xl">
                         <CardContent className="p-6">
@@ -886,13 +1005,12 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
                             draggable={!isPlaced}
                             onDragStart={() => !isPlaced && setSeqDragging(item)}
                             onDragEnd={() => setSeqDragging(null)}
-                            className={`rounded-2xl border-2 overflow-hidden shadow-md select-none transition-all duration-200 ${
-                              isPlaced
+                            className={`rounded-2xl border-2 overflow-hidden shadow-md select-none transition-all duration-200 ${isPlaced
                                 ? "opacity-30 cursor-default"
                                 : seqDragging?.id_pregunta === item.id_pregunta
-                                ? "opacity-40 scale-95 cursor-grabbing"
-                                : "cursor-grab hover:shadow-lg hover:scale-[1.02] border-border"
-                            }`}
+                                  ? "opacity-40 scale-95 cursor-grabbing"
+                                  : "cursor-grab hover:shadow-lg hover:scale-[1.02] border-border"
+                              }`}
                             aria-label={isPlaced ? `${item.enunciado} ya colocada` : `Arrastra ${item.enunciado}`}
                           >
                             {item.imagen_url ? (
@@ -923,26 +1041,24 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
                             onDragOver={(e) => { e.preventDefault(); setSeqDragOver(idx) }}
                             onDragLeave={() => setSeqDragOver(null)}
                             onDrop={() => handleSeqDropOnZone(idx)}
-                            className={`relative rounded-2xl border-4 overflow-hidden transition-all duration-200 ${
-                              slotOk === true
+                            className={`relative rounded-2xl border-4 overflow-hidden transition-all duration-200 ${slotOk === true
                                 ? "border-green-400 bg-green-50/20"
                                 : slotOk === false
-                                ? "border-destructive bg-destructive/5"
-                                : zoneItem
-                                ? "border-primary/60 bg-card shadow-md"
-                                : isOver
-                                ? "border-primary border-solid bg-primary/10 scale-[1.02]"
-                                : "border-dashed border-border bg-muted/40"
-                            }`}
+                                  ? "border-destructive bg-destructive/5"
+                                  : zoneItem
+                                    ? "border-primary/60 bg-card shadow-md"
+                                    : isOver
+                                      ? "border-primary border-solid bg-primary/10 scale-[1.02]"
+                                      : "border-dashed border-border bg-muted/40"
+                              }`}
                             style={{ minHeight: "11rem" }}
                             aria-label={`Zona ${idx + 1}${zoneItem ? `: ${zoneItem.enunciado}` : " vacía"}`}
                           >
                             {/* Zone number badge */}
-                            <div className={`absolute top-2 left-2 z-10 w-8 h-8 rounded-full flex items-center justify-center font-black text-base shadow ${
-                              slotOk === true ? "bg-green-500 text-white"
-                              : slotOk === false ? "bg-destructive text-white"
-                              : "bg-primary text-primary-foreground"
-                            }`}>
+                            <div className={`absolute top-2 left-2 z-10 w-8 h-8 rounded-full flex items-center justify-center font-black text-base shadow ${slotOk === true ? "bg-green-500 text-white"
+                                : slotOk === false ? "bg-destructive text-white"
+                                  : "bg-primary text-primary-foreground"
+                              }`}>
                               {idx + 1}
                             </div>
 
@@ -1018,8 +1134,88 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
               )
             })()}
 
+            {/* Word search activity — sopa de letras */}
+            {activity?.tipo === "sopa_letras" && wsGrid.length > 0 && (
+              <div className="space-y-5">
+                {/* Word list */}
+                <Card className="border-2">
+                  <CardContent className="p-5">
+                    <p className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+                      Palabras a encontrar ({wsFoundWords.size}/{wsPalabras.length})
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {wsPalabras.map(word => (
+                        <span
+                          key={word}
+                          className={`px-3 py-1.5 rounded-lg border-2 font-bold text-base transition-all ${wsFoundWords.has(word)
+                              ? "bg-green-100 border-green-400 text-green-700 line-through"
+                              : "bg-muted border-border text-foreground"
+                            }`}
+                        >
+                          {word}
+                        </span>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+                {/* Grid */}
+                <Card className={`border-2 transition-all ${wsWrongFlash ? "border-destructive" : "border-border"}`}>
+                  <CardContent className="p-3 overflow-x-auto">
+                    <div
+                      className="inline-grid gap-0.5"
+                      style={{ gridTemplateColumns: `repeat(${wsGrid[0]?.length ?? 12}, minmax(0, 1fr))` }}
+                      aria-label="Cuadrícula de sopa de letras"
+                    >
+                      {wsGrid.map((rowArr, r) =>
+                        rowArr.map((letter, c) => {
+                          const key = `${r}-${c}`
+                          const isFound = wsFoundCells.has(key)
+                          const isStart = wsStart?.row === r && wsStart?.col === c
+                          return (
+                            <button
+                              key={key}
+                              onClick={() => handleWsCellClick(r, c)}
+                              className={`w-7 h-7 sm:w-8 sm:h-8 text-xs sm:text-sm font-bold rounded flex items-center justify-center transition-all select-none ${isFound
+                                  ? "bg-green-400 text-white"
+                                  : isStart
+                                    ? "bg-primary text-primary-foreground scale-110 z-10 relative"
+                                    : wsWrongFlash
+                                      ? "bg-destructive/20 text-foreground"
+                                      : "bg-muted hover:bg-primary/20 text-foreground"
+                                }`}
+                              aria-label={`Letra ${letter}`}
+                            >
+                              {letter}
+                            </button>
+                          )
+                        })
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+                <p className="text-center text-sm text-muted-foreground">
+                  Toca la primera y última letra de cada palabra para encontrarla
+                </p>
+                {/* Give up button */}
+                {wsFoundWords.size < wsPalabras.length && (
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full h-12 border-2"
+                    onClick={() => {
+                      setIsCorrect(wsFoundWords.size >= Math.ceil(wsPalabras.length / 2))
+                      setScore(Math.round((wsFoundWords.size / wsPalabras.length) * 100))
+                      setPhase("result")
+                    }}
+                  >
+                    Terminar con {wsFoundWords.size} de {wsPalabras.length} palabras
+                  </Button>
+                )}
+              </div>
+            )}
+
             {/* No config — show oral fallback */}
-            {!hasOptions && !isShortAnswer && activity?.tipo !== "reconocimiento_sonidos" && activity?.tipo !== "completar_oracion" && activity?.tipo !== "secuenciacion" && (
+            {!hasOptions && !isShortAnswer && activity?.tipo !== "reconocimiento_sonidos" && activity?.tipo !== "completar_oracion" && activity?.tipo !== "secuenciacion" && activity?.tipo !== "sopa_letras" && (
               <Card className="border-2">
                 <CardContent className="py-10 text-center space-y-4">
                   <Mic className="w-12 h-12 text-primary mx-auto" aria-hidden="true" />
@@ -1041,21 +1237,40 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
                 <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center ${isCorrect ? "bg-green-500" : "bg-destructive"}`}>
                   {isCorrect
                     ? <Check className="w-10 h-10 text-white" aria-hidden="true" />
-                    : <X    className="w-10 h-10 text-white" aria-hidden="true" />}
+                    : <X className="w-10 h-10 text-white" aria-hidden="true" />}
                 </div>
                 <SpeakableText as="h3" className={`text-3xl font-bold ${isCorrect ? "text-green-700" : "text-destructive"}`}>
                   {isCorrect ? "¡Excelente!" : "Inténtalo de nuevo"}
                 </SpeakableText>
                 <SpeakableText as="p" className="text-lg text-muted-foreground">
                   {isCorrect
-                    ? "¡Muy bien! Has respondido correctamente."
-                    : activity?.tipo === "secuenciacion"
-                    ? "Puedes ver el orden correcto arriba. ¡Sigue practicando!"
-                    : activity?.tipo === "completar_oracion" && fillPregunta
-                    ? `La respuesta correcta era: "${fillPregunta.respuesta_esperada}"`
-                    : config?.respuesta_correcta
-                    ? `La respuesta correcta era: ${config.respuesta_correcta}`
-                    : "No te preocupes, sigue practicando."}
+                    ? activity?.tipo === "sopa_letras"
+                      ? `¡Encontraste todas las palabras! ${wsPalabras.length} de ${wsPalabras.length}.`
+                      : "¡Muy bien! Has respondido correctamente."
+                    : activity?.tipo === "sopa_letras"
+                      ? `Encontraste ${wsFoundWords.size} de ${wsPalabras.length} palabras. ¡Sigue practicando!`
+                      : activity?.tipo === "secuenciacion"
+                        ? "Puedes ver el orden correcto arriba. ¡Sigue practicando!"
+                        : activity?.tipo === "completar_oracion" && fillPregunta
+                          ? `La respuesta correcta era: "${fillPregunta.respuesta_esperada}"`
+                          : config?.respuesta_correcta
+                            ? `La respuesta correcta era: ${config.respuesta_correcta}`
+                            : "No te preocupes, sigue practicando."}
+                </SpeakableText>
+                <SpeakableText as="p" className="text-lg text-muted-foreground">
+                  {isCorrect
+                    ? activity?.tipo === "sopa_letras"
+                      ? `¡Encontraste todas las palabras! ${wsPalabras.length} de ${wsPalabras.length}.`
+                      : "¡Muy bien! Has respondido correctamente."
+                    : activity?.tipo === "sopa_letras"
+                      ? `Encontraste ${wsFoundWords.size} de ${wsPalabras.length} palabras. ¡Sigue practicando!`
+                      : activity?.tipo === "secuenciacion"
+                        ? "Puedes ver el orden correcto arriba. ¡Sigue practicando!"
+                        : activity?.tipo === "completar_oracion" && fillPregunta
+                          ? `La respuesta correcta era: "${fillPregunta.respuesta_esperada}"`
+                          : config?.respuesta_correcta
+                            ? `La respuesta correcta era: ${config.respuesta_correcta}`
+                            : "No te preocupes, sigue practicando."}
                 </SpeakableText>
                 <Button
                   size="lg"

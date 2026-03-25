@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { supabase } from "@/lib/supabase"
-import { ArrowLeft, Save, Volume2, FileText, Plus, Trash2, GripVertical, ChevronLeft } from "lucide-react"
+import { ArrowLeft, Save, Volume2, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip } from "lucide-react"
 import { serializeActivityConfig } from "@/lib/activity-config"
 
 interface CreateLessonProps {
@@ -26,23 +26,28 @@ interface ActivityItem {
 }
 
 const activityTypes = [
-  { id: "image",    label: "Identificacion de imagenes",  icon: "🖼️" },
-  { id: "sound",    label: "Reconocimiento de sonidos",   icon: "🔊" },
-  { id: "sequence", label: "Ordenar secuencias",          icon: "📊" },
-  { id: "multiple", label: "Opcion multiple",             icon: "☑️" },
-  { id: "short",    label: "Respuesta corta escrita",     icon: "✏️" },
-  { id: "voice",    label: "Respuesta por voz",           icon: "🎤" },
+  { id: "image", label: "Identificacion de imagenes", icon: "🖼️" },
+  { id: "sound", label: "Reconocimiento de sonidos", icon: "🔊" },
+  { id: "sequence", label: "Ordenar secuencias", icon: "📊" },
+  { id: "multiple", label: "Opcion multiple", icon: "☑️" },
+  { id: "short", label: "Respuesta corta escrita", icon: "✏️" },
+  { id: "voice", label: "Respuesta por voz", icon: "🎤" },
+  { id: "wordsearch", label: "Sopa de letras", icon: "🔤" },
 ]
 
 const difficultyLevels = [
-  { id: "facil",  label: "Fácil",   description: "Para comenzar" },
-  { id: "medio",  label: "Medio",   description: "Un poco más difícil" },
-  { id: "dificil",label: "Difícil", description: "Para avanzados" },
+  { id: "facil", label: "Fácil", description: "Para comenzar" },
+  { id: "medio", label: "Medio", description: "Un poco más difícil" },
+  { id: "dificil", label: "Difícil", description: "Para avanzados" },
 ]
 
 export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
   const [title, setTitle] = useState("")
   const [instructions, setInstructions] = useState("")
+  const [materialLectura, setMaterialLectura] = useState("")
+  const [materialAudiovisual, setMaterialAudiovisual] = useState("")
+  const [materialPdfUrl, setMaterialPdfUrl] = useState("")
+  const [materialPdfTitulo, setMaterialPdfTitulo] = useState("")
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -56,7 +61,8 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
     { id: "2", text: "", isCorrect: false },
   ])
   const [actCorrectAnswer, setActCorrectAnswer] = useState("")
-
+  const [actPalabrasSopa, setActPalabrasSopa] = useState<string[]>([])
+  const [actPalabraInput, setActPalabraInput] = useState("")
   const { speak, settings } = useAccessibility()
 
   const handleSelectType = (type: string, label: string) => {
@@ -65,6 +71,17 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
     setActDificultad("facil")
     setActOptions([{ id: "1", text: "", isCorrect: false }, { id: "2", text: "", isCorrect: false }])
     setActCorrectAnswer("")
+    setActPalabrasSopa([])
+    setActPalabraInput("")
+  }
+  const handleAddPalabraSopa = () => {
+    const word = actPalabraInput.trim().toUpperCase()
+    if (!word || actPalabrasSopa.includes(word)) return
+    setActPalabrasSopa([...actPalabrasSopa, word])
+    setActPalabraInput("")
+  }
+  const handleRemovePalabraSopa = (word: string) => {
+    setActPalabrasSopa(actPalabrasSopa.filter((w) => w !== word))
   }
 
   const handleConfirmActivity = () => {
@@ -73,7 +90,8 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
     const showRespuesta = configuringType.type === "short" || configuringType.type === "voice"
     const opciones = showOpciones ? actOptions.filter((o) => o.text.trim()).map((o) => ({ texto: o.text, correcta: o.isCorrect })) : undefined
     const respuesta_correcta = showRespuesta && actCorrectAnswer ? actCorrectAnswer : undefined
-    const serialized = serializeActivityConfig({ instrucciones: actInstrucciones, opciones, respuesta_correcta })
+    const palabras_sopa = configuringType.type === "wordsearch" && actPalabrasSopa.length > 0 ? actPalabrasSopa : undefined
+    const serialized = serializeActivityConfig({ instrucciones: actInstrucciones, opciones, respuesta_correcta, palabras_sopa })
     const newActivity: ActivityItem = {
       id: Date.now().toString(),
       type: configuringType.type,
@@ -122,6 +140,10 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
           courseId,
           titulo: title,
           contenido: instructions,
+          material_lectura: materialLectura || null,
+          material_audiovisual: materialAudiovisual || null,
+          material_pdf_url: materialPdfUrl || null,
+          material_pdf_titulo: materialPdfTitulo || null,
           activities: activities.map((a) => ({
             type: a.type,
             title: a.title,
@@ -195,11 +217,10 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                     <button
                       type="button"
                       onClick={() => setActOptions(actOptions.map((o) => ({ ...o, isCorrect: o.id === option.id })))}
-                      className={`w-12 h-12 rounded-xl border-2 flex items-center justify-center shrink-0 transition-all ${
-                        option.isCorrect
-                          ? "bg-green-500 border-green-500 text-white"
-                          : "border-border hover:border-primary"
-                      }`}
+                      className={`w-12 h-12 rounded-xl border-2 flex items-center justify-center shrink-0 transition-all ${option.isCorrect
+                        ? "bg-green-500 border-green-500 text-white"
+                        : "border-border hover:border-primary"
+                        }`}
                       aria-label={option.isCorrect ? "Respuesta correcta" : "Marcar como correcta"}
                     >
                       {option.isCorrect ? "✓" : String.fromCharCode(65 + index)}
@@ -255,6 +276,62 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
             </Card>
           )}
 
+          {configuringType?.type === "wordsearch" && (
+            <Card className="border-2 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <Search className="w-5 h-5 text-primary" aria-hidden="true" />
+                  Palabras a Encontrar
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Agrega las palabras que los estudiantes deben encontrar en la sopa de letras. Se convertirán a mayúsculas automáticamente. Máximo 10 palabras.
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    value={actPalabraInput}
+                    onChange={(e) => setActPalabraInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddPalabraSopa())}
+                    placeholder="Ej: GATO"
+                    className="h-12 text-lg border-2 flex-1"
+                    maxLength={15}
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleAddPalabraSopa}
+                    className="h-12 px-5"
+                    disabled={actPalabrasSopa.length >= 10 || !actPalabraInput.trim()}
+                  >
+                    <Plus className="w-5 h-5" />
+                  </Button>
+                </div>
+                {actPalabrasSopa.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {actPalabrasSopa.map((word) => (
+                      <span
+                        key={word}
+                        className="inline-flex items-center gap-2 bg-primary/10 text-primary font-bold px-3 py-1.5 rounded-lg border border-primary/30"
+                      >
+                        {word}
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePalabraSopa(word)}
+                          className="text-primary hover:text-destructive transition-colors"
+                          aria-label={`Eliminar ${word}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {actPalabrasSopa.length === 0 && (
+                  <p className="text-sm text-muted-foreground italic">Agrega al menos una palabra.</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
           <Card className="border-2 shadow-lg">
             <CardHeader>
               <CardTitle className="text-xl">Nivel de Dificultad</CardTitle>
@@ -266,11 +343,10 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                     key={level.id}
                     type="button"
                     onClick={() => setActDificultad(level.id)}
-                    className={`p-5 rounded-xl border-2 text-center transition-all ${
-                      actDificultad === level.id
-                        ? "border-primary bg-primary/10 ring-2 ring-primary"
-                        : "border-border hover:border-primary/50"
-                    }`}
+                    className={`p-5 rounded-xl border-2 text-center transition-all ${actDificultad === level.id
+                      ? "border-primary bg-primary/10 ring-2 ring-primary"
+                      : "border-border hover:border-primary/50"
+                      }`}
                     aria-pressed={actDificultad === level.id}
                   >
                     <p className={`text-lg font-bold ${actDificultad === level.id ? "text-primary" : "text-foreground"}`}>
@@ -389,7 +465,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                 Agregar Actividades
               </CardTitle>
             </CardHeader>
-            <CardContent>
+              <CardContent>
               <p className="text-muted-foreground mb-6">
                 Selecciona un tipo para configurar y agregar la actividad
               </p>
@@ -455,6 +531,98 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
             </Card>
           )}
 
+          {/* Material de Lectura */}
+          <Card className="border-2 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-3">
+                <BookOpen className="w-6 h-6 text-primary" aria-hidden="true" />
+                Material de Lectura
+                <span className="text-sm font-normal text-muted-foreground">(opcional)</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-3">
+                Texto de lectura que los estudiantes verán antes de las actividades. Sirve como base para las preguntas.
+              </p>
+              <textarea
+                id="material-lectura"
+                value={materialLectura}
+                onChange={(e) => setMaterialLectura(e.target.value)}
+                placeholder="Escribe aquí el texto de lectura para los estudiantes. Ej: El sistema solar está formado por el Sol y los ocho planetas que giran a su alrededor..."
+                className="w-full min-h-[180px] p-4 text-lg border-2 border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </CardContent>
+          </Card>
+          {/* Material Audiovisual */}
+          <Card className="border-2 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-3">
+                <Youtube className="w-6 h-6 text-red-500" aria-hidden="true" />
+                Material Audiovisual
+                <span className="text-sm font-normal text-muted-foreground">(opcional)</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-3">
+                Pega el enlace de un video de YouTube. Los estudiantes podrán verlo en la lección antes de las actividades.
+              </p>
+              <Input
+                id="material-audiovisual"
+                type="url"
+                value={materialAudiovisual}
+                onChange={(e) => setMaterialAudiovisual(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="h-14 text-lg border-2"
+              />
+              {materialAudiovisual && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  El video se mostrará embebido en la lección del estudiante.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+          {/* Material PDF / Adjunto */}
+          <Card className="border-2 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-3">
+                <Paperclip className="w-6 h-6 text-primary" aria-hidden="true" />
+                Material Adjunto (PDF)
+                <span className="text-sm font-normal text-muted-foreground">(opcional)</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Puedes pegar un enlace público de PDF (Supabase Storage, Drive público, etc.) para que el estudiante lo abra desde la lección.
+              </p>
+              <div className="space-y-2">
+                <label htmlFor="material-pdf-titulo" className="text-sm font-semibold text-foreground block">
+                  Título del material
+                </label>
+                <Input
+                  id="material-pdf-titulo"
+                  type="text"
+                  value={materialPdfTitulo}
+                  onChange={(e) => setMaterialPdfTitulo(e.target.value)}
+                  placeholder="Ej: Guía de trabajo - Unidad 1"
+                  className="h-12 text-base border-2"
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="material-pdf-url" className="text-sm font-semibold text-foreground block">
+                  Enlace del PDF
+                </label>
+                <Input
+                  id="material-pdf-url"
+                  type="url"
+                  value={materialPdfUrl}
+                  onChange={(e) => setMaterialPdfUrl(e.target.value)}
+                  placeholder="https://.../archivo.pdf"
+                  className="h-12 text-base border-2"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           {error && (
             <p className="text-destructive text-base font-medium" role="alert">
               {error}
@@ -462,7 +630,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
           )}
 
           {/* Actions */}
-          <div className="flex gap-4">
+            <div className="flex gap-4">
             <Button
               type="button"
               variant="outline"
@@ -484,6 +652,6 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
           </div>
         </form>
       </main>
-    </div>
+            </div>
   )
 }

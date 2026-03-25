@@ -27,6 +27,7 @@ import {
   Settings2,
   Upload,
   AlignLeft,
+  Search,
 } from "lucide-react"
 import { parseActivityConfig, serializeActivityConfig } from "@/lib/activity-config"
 
@@ -35,7 +36,7 @@ interface ActivityBuilderProps {
   onSave: () => void
 }
 
-type ActivityType = "image" | "sound" | "sequence" | "multiple" | "short" | "voice" | "fill" | null
+type ActivityType = "image" | "sound" | "sequence" | "multiple" | "short" | "voice" | "fill" | "wordsearch" | null
 type BuilderView = "grid" | "existing" | "config"
 
 interface Option {
@@ -72,39 +73,42 @@ interface SequenceStep {
 }
 
 const activityTypes = [
-  { id: "image" as const,    label: "Identificacion de imagenes", icon: Image,        color: "bg-chart-1" },
-  { id: "sound" as const,    label: "Reconocimiento de sonidos",  icon: Music,        color: "bg-chart-2" },
-  { id: "sequence" as const, label: "Ordenar secuencias",         icon: ListOrdered,  color: "bg-chart-3" },
-  { id: "multiple" as const, label: "Opcion multiple",            icon: CheckSquare,  color: "bg-chart-4" },
-  { id: "short" as const,    label: "Respuesta corta escrita",    icon: PenLine,      color: "bg-chart-5" },
-  { id: "voice" as const,    label: "Respuesta por voz",          icon: Mic,          color: "bg-primary" },
-  { id: "fill" as const,     label: "Completar oracion",          icon: AlignLeft,    color: "bg-teal-500" },
+  { id: "image" as const, label: "Identificacion de imagenes", icon: Image, color: "bg-chart-1" },
+  { id: "sound" as const, label: "Reconocimiento de sonidos", icon: Music, color: "bg-chart-2" },
+  { id: "sequence" as const, label: "Ordenar secuencias", icon: ListOrdered, color: "bg-chart-3" },
+  { id: "multiple" as const, label: "Opcion multiple", icon: CheckSquare, color: "bg-chart-4" },
+  { id: "short" as const, label: "Respuesta corta escrita", icon: PenLine, color: "bg-chart-5" },
+  { id: "voice" as const, label: "Respuesta por voz", icon: Mic, color: "bg-primary" },
+  { id: "fill" as const, label: "Completar oracion", icon: AlignLeft, color: "bg-teal-500" },
+  { id: "wordsearch" as const, label: "Sopa de letras", icon: Search, color: "bg-pink-500" },
 ]
 
 const difficultyLevels = [
-  { id: "facil",   label: "Facil",   description: "Para comenzar" },
-  { id: "medio",   label: "Medio",   description: "Un poco mas dificil" },
+  { id: "facil", label: "Facil", description: "Para comenzar" },
+  { id: "medio", label: "Medio", description: "Un poco mas dificil" },
   { id: "dificil", label: "Dificil", description: "Para avanzados" },
 ]
 
 const dbToFormType: Record<string, ActivityType> = {
-  identificacion:         "image",
+  identificacion: "image",
   reconocimiento_sonidos: "sound",
-  secuenciacion:          "sequence",
-  seleccion_guiada:       "multiple",
-  respuesta_corta:        "short",
-  respuesta_oral:         "voice",
-  completar_oracion:      "fill",
+  secuenciacion: "sequence",
+  seleccion_guiada: "multiple",
+  respuesta_corta: "short",
+  respuesta_oral: "voice",
+  completar_oracion: "fill",
+  sopa_letras: "wordsearch",
 }
 
 const dbToTypeLabel: Record<string, string> = {
-  identificacion:         "Identificacion de imagenes",
+  identificacion: "Identificacion de imagenes",
   reconocimiento_sonidos: "Reconocimiento de sonidos",
-  secuenciacion:          "Ordenar secuencias",
-  seleccion_guiada:       "Opcion multiple",
-  respuesta_corta:        "Respuesta corta escrita",
-  respuesta_oral:         "Respuesta por voz",
-  completar_oracion:      "Completar oracion",
+  secuenciacion: "Ordenar secuencias",
+  seleccion_guiada: "Opcion multiple",
+  respuesta_corta: "Respuesta corta escrita",
+  respuesta_oral: "Respuesta por voz",
+  completar_oracion: "Completar oracion",
+  sopa_letras: "Sopa de letras",
 }
 
 const difficultyFromInt = (n: number | null): string => {
@@ -148,6 +152,10 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
   // Fill-specific config state
   const [fillContextSentences, setFillContextSentences] = useState<string[]>([""])
   const [fillEnunciado, setFillEnunciado] = useState("")
+
+  // Wordsearch-specific config state
+  const [wsBuilderWords, setWsBuilderWords] = useState<string[]>([])
+  const [wsBuilderInput, setWsBuilderInput] = useState("")
 
   // Sequence-specific config state
   const [sequenceCount, setSequenceCount] = useState<3 | 4 | 5>(3)
@@ -291,6 +299,8 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
     setVoiceEnunciado("")
     setFillContextSentences([""])
     setFillEnunciado("")
+    setWsBuilderWords([])
+    setWsBuilderInput("")
     // Sequence steps initialization
     if (type === "sequence") {
       const empty = (): SequenceStep => ({ file: null, previewUrl: "", existingUrl: "", description: "", preguntaId: "" })
@@ -388,6 +398,8 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
       setSoundPreguntaId("")
       setSequenceSteps([])
       setSequenceCount(3)
+      setWsBuilderWords(config.palabras_sopa ?? [])
+      setWsBuilderInput("")
     }
     setView("config")
   }
@@ -429,10 +441,11 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
 
       const typeShowsOptions = selectedType === "multiple" || selectedType === "image"
       const typeShowsCorrect = selectedType === "short"
-      const typeIsSound     = selectedType === "sound"
-      const typeIsVoice     = selectedType === "voice"
-      const typeIsFill      = selectedType === "fill"
-      const typeIsSequence  = selectedType === "sequence"
+      const typeIsSound = selectedType === "sound"
+      const typeIsVoice = selectedType === "voice"
+      const typeIsFill = selectedType === "fill"
+      const typeIsSequence = selectedType === "sequence"
+      const typeIsWordsearch = selectedType === "wordsearch"
 
       // ── Upload sequence images ────────────────────────────────
       let sequenceStepsPayload: { orden: number; imagen_url: string | null; enunciado: string }[] | undefined
@@ -506,6 +519,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
             ? options.filter((o) => o.text.trim()).map((o) => ({ texto: o.text, correcta: o.isCorrect }))
             : undefined,
           respuesta_correcta: typeShowsCorrect && correctAnswer ? correctAnswer : undefined,
+          palabras_sopa: typeIsWordsearch && wsBuilderWords.length > 0 ? wsBuilderWords : undefined,
         })
         preguntaPayload = undefined
       }
@@ -714,10 +728,11 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
     const isEditing = editingActivity !== null
     const showOptions = selectedType === "multiple" || selectedType === "image"
     const showCorrectAnswer = selectedType === "short"
-    const showSoundConfig    = selectedType === "sound"
-    const showVoiceConfig    = selectedType === "voice"
-    const showFillConfig     = selectedType === "fill"
+    const showSoundConfig = selectedType === "sound"
+    const showVoiceConfig = selectedType === "voice"
+    const showFillConfig = selectedType === "fill"
     const showSequenceConfig = selectedType === "sequence"
+    const showWordSearch = selectedType === "wordsearch"
 
     return (
       <div className="min-h-screen bg-background">
@@ -1012,11 +1027,10 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                             while (cur.length < n) cur.push({ file: null, previewUrl: "", existingUrl: "", description: "", preguntaId: "" })
                             setSequenceSteps(cur.slice(0, n))
                           }}
-                          className={`p-5 rounded-xl border-2 text-center transition-all ${
-                            sequenceCount === n
-                              ? "border-primary bg-primary/10 ring-2 ring-primary"
-                              : "border-border hover:border-primary/50"
-                          }`}
+                          className={`p-5 rounded-xl border-2 text-center transition-all ${sequenceCount === n
+                            ? "border-primary bg-primary/10 ring-2 ring-primary"
+                            : "border-border hover:border-primary/50"
+                            }`}
                           aria-pressed={sequenceCount === n}
                         >
                           <span className="text-3xl font-bold text-foreground block">{n}</span>
@@ -1265,6 +1279,73 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
               </>
             )}
 
+            {/* Wordsearch config — words to find */}
+            {showWordSearch && (
+              <Card className="border-2 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <Search className="w-5 h-5 text-primary" aria-hidden="true" />
+                    Palabras a Encontrar
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Agrega las palabras que los estudiantes deben encontrar. Se convertirán a mayúsculas automáticamente. Máximo 10 palabras.
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      value={wsBuilderInput}
+                      onChange={(e) => setWsBuilderInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          const word = wsBuilderInput.trim().toUpperCase()
+                          if (word && !wsBuilderWords.includes(word) && wsBuilderWords.length < 10) {
+                            setWsBuilderWords([...wsBuilderWords, word])
+                            setWsBuilderInput("")
+                          }
+                        }
+                      }}
+                      placeholder="Ej: GATO"
+                      className="h-12 text-lg border-2 flex-1"
+                      maxLength={15}
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        const word = wsBuilderInput.trim().toUpperCase()
+                        if (word && !wsBuilderWords.includes(word) && wsBuilderWords.length < 10) {
+                          setWsBuilderWords([...wsBuilderWords, word])
+                          setWsBuilderInput("")
+                        }
+                      }}
+                      className="h-12 px-5"
+                      disabled={wsBuilderWords.length >= 10 || !wsBuilderInput.trim()}
+                    >
+                      <Plus className="w-5 h-5" />
+                    </Button>
+                  </div>
+                  {wsBuilderWords.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {wsBuilderWords.map(word => (
+                        <span key={word} className="inline-flex items-center gap-2 bg-primary/10 text-primary font-bold px-3 py-1.5 rounded-lg border border-primary/30">
+                          {word}
+                          <button
+                            type="button"
+                            onClick={() => setWsBuilderWords(wsBuilderWords.filter(w => w !== word))}
+                            className="text-primary hover:text-destructive transition-colors"
+                            aria-label={`Eliminar ${word}`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Instructions */}
             <Card className="border-2 shadow-lg">
               <CardHeader>
@@ -1276,7 +1357,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                   onChange={(e) => setInstrucciones(e.target.value)}
                   placeholder="Escribe instrucciones claras y simples. Ejemplo: Mira la imagen y selecciona el animal que ves."
                   className="w-full min-h-[120px] p-4 text-lg border-2 border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  required={!showSoundConfig && !showVoiceConfig && !showFillConfig && !showSequenceConfig}
+                  required={!showSoundConfig && !showVoiceConfig && !showFillConfig && !showSequenceConfig && !showWordSearch}
                 />
               </CardContent>
             </Card>
@@ -1293,11 +1374,10 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                       <button
                         type="button"
                         onClick={() => handleSetCorrect(option.id)}
-                        className={`w-12 h-12 rounded-xl border-2 flex items-center justify-center shrink-0 transition-all ${
-                          option.isCorrect
-                            ? "bg-success border-success text-success-foreground"
-                            : "border-border hover:border-primary"
-                        }`}
+                        className={`w-12 h-12 rounded-xl border-2 flex items-center justify-center shrink-0 transition-all ${option.isCorrect
+                          ? "bg-success border-success text-success-foreground"
+                          : "border-border hover:border-primary"
+                          }`}
                         aria-label={option.isCorrect ? "Respuesta correcta" : "Marcar como correcta"}
                       >
                         {option.isCorrect ? "✓" : String.fromCharCode(65 + index)}
@@ -1370,11 +1450,10 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                       key={level.id}
                       type="button"
                       onClick={() => setDificultad(level.id)}
-                      className={`p-5 rounded-xl border-2 text-center transition-all ${
-                        dificultad === level.id
-                          ? "border-primary bg-primary/10 ring-2 ring-primary"
-                          : "border-border hover:border-primary/50"
-                      }`}
+                      className={`p-5 rounded-xl border-2 text-center transition-all ${dificultad === level.id
+                        ? "border-primary bg-primary/10 ring-2 ring-primary"
+                        : "border-border hover:border-primary/50"
+                        }`}
                       aria-pressed={dificultad === level.id}
                     >
                       <p className={`text-lg font-bold ${dificultad === level.id ? "text-primary" : "text-foreground"}`}>
