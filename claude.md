@@ -101,6 +101,11 @@ login → initial-test (si no lo ha completado)
           → accessibility       (pagina "Ajustes" con 3 tabs)
 ```
 
+**IMPORTANTE — navegación voice-activity**: `onBack` y `onComplete` en `voice-activity`
+van a `student-lesson` (NO a `student-activity`). Si fueran a `student-activity`,
+se produciría un bucle infinito: `student-activity` detecta `tipo === "respuesta_oral"`
+y llama `onVoiceActivity()` de nuevo, devolviendo al estudiante a `voice-activity`.
+
 ### Estado global de navegacion
 ```typescript
 currentScreen: Screen          // pantalla activa
@@ -341,7 +346,7 @@ Comportamiento según `tooltipMode`:
 - `student-calendar.tsx` — `<section>`, `<nav>` (meses), `<aside>` (leyenda), `<ul>/<li>` (resumen), `role="grid/gridcell"`, `aria-current="date"`
 - `accessibility-settings.tsx` — `role="tablist/tab/tabpanel"` con `id`/`aria-controls` + `title`/`aria-label` descriptivos en las 3 pestañas
 - `students-list.tsx` — `<section>` (resumen, lista), `<ul>/<li>`, `<article>` por alumno, `<time>` en última actividad; botón "Volver" → `aria-label="Regresar al panel principal"`; `useSpeakOnHover` en las 3 tarjetas de stats
-- `teacher-analytics.tsx` — `<section>` para stats generales, `<ul>/<li>` para tarjetas; `useSpeakOnHover` en cada stat card con descripción contextual; botón "Volver" → `aria-label="Regresar al panel principal"`
+- `teacher-analytics.tsx` — `<section>` para stats generales, `<ul>/<li>` para tarjetas; `useSpeakOnHover` en cada stat card; barra de filtros globales + botón "Configurar" con Popover en cada gráfico
 - `teacher-dashboard.tsx` (hover adicionales) — `useSpeakOnHover` en las 3 tarjetas de stats (Estudiantes, Cursos, Progreso General) con valor dinámico; `useSpeakOnHover` en el header de "Actividad Reciente"; estado vacío en "Actividad Reciente" con icono `History` y mensaje descriptivo cuando `recentActivity.length === 0`
 
 ### Bug corregido: NaN% en Progreso Promedio (students-list.tsx)
@@ -362,6 +367,32 @@ Esto permite que al pasar el cursor, el TTS explique qué significa el número, 
 - `keywords` con términos relevantes
 - `openGraph` con tipo, título y descripción
 - `robots: noindex` mientras la app es SPA sin SSR
+
+### Analíticas con filtros y configuración por gráfico (teacher-analytics.tsx + use-analytics.ts)
+
+#### Filtros globales (barra superior)
+- **Grupo**: dropdown → filtra todo. Cambiarlo resetea Curso y Alumno.
+- **Curso**: dropdown dependiente del grupo. Filtra `vw_metricas_alumno` por leccion IDs del curso.
+- **Alumno**: dropdown dependiente del grupo.
+- **Período**: dos `<Input type="date">` (Desde / Hasta). Default: último mes.
+- Al cambiar cualquier filtro, `useAnalytics(filters)` se re-ejecuta automáticamente.
+
+#### Hook `useAnalytics(filters: AnalyticsFilters)`
+- Ahora acepta `AnalyticsFilters { grupoId, cursoId, alumnoId, fechaDesde, fechaHasta }`.
+- `cursoId` se resuelve a IDs de lecciones (`leccion` table) y filtra `vw_metricas_alumno`.
+- `progressData` devuelve hasta 12 semanas (sin slice fijo); el componente aplica el periodo.
+- Interfaces exportadas: `AnalyticsFilters`, `PerformanceData` (incluye `lessonFull`, `total_intentos`), `ProgressData` (incluye `weekStart` ISO para agrupar por mes), `ActivityTypeData` (incluye `tipo` raw), `StudentPerformance` (incluye `tiempoSeconds` e `id`).
+
+#### Botón "Configurar" por gráfico (Popover shadcn)
+Cada card tiene `<Popover>` en el `CardHeader` con RadioGroup/Checkbox:
+- **Rendimiento por Lección**: métrica (correctas/puntaje/intentos), cantidad (5/10/todas), ordenar (nombre/asc/desc).
+- **Progreso Semanal/Mensual**: periodo (4/8/12/todo semanas), métrica (progreso/puntaje/intentos), agrupar (semana/mes).
+- **Tipos de Actividad**: vista (dona/barras), checkboxes por tipo (7 tipos). Vista "barras" → BarChart horizontal con Cell por color.
+- **Desempeño Individual**: ordenar (nombre/correctas/intentos/tiempo), filtrar (todos/<50%/>80%), mostrar (5/10/20/todos).
+- Los configs son estado local (`perfCfg`, `progCfg`, `tipoCfg`, `despCfg`) y se procesan con `useMemo`.
+
+#### PENDIENTE (no implementado aún)
+- Botón "PDF" para exportar gráfico individual.
 
 ### Variables de entorno (.env.local)
 ```
@@ -459,6 +490,16 @@ SUPABASE_SERVICE_ROLE_KEY=...       # clave privada, SOLO en API routes, nunca e
     - `student-dashboard.tsx`: card de bienvenida — fondo del círculo con la inicial.
     - `teacher-dashboard.tsx`: sección "Hola" — fondo del cuadrado con la inicial.
     Los 3 componentes leen `ea_avatar_color` en `useEffect` y usan `hsl(var(--primary))` como fallback.
+
+16. **Actividad "Ordenar secuencias" (`secuenciacion`) — mecánica drag-and-drop a zonas**:
+    - Columna izquierda: imágenes desordenadas como cards arrastrables (sin etiqueta "Paso N" para no revelar el orden).
+    - Columna derecha: zonas numeradas (1, 2, 3…) con borde punteado donde se sueltan las imágenes.
+    - Al arrastrar una imagen a una zona, la imagen aparece dentro de la zona; se atenúa en la columna izquierda.
+    - Click en imagen ya colocada → regresa a la columna izquierda.
+    - "Comprobar orden" se habilita cuando todas las zonas tienen imagen asignada.
+    - Después de 2 intentos fallidos, se revela el orden correcto.
+    - Estado en `student-activity.tsx`: `seqItems`, `seqZones:(SeqItem|null)[]`, `seqDragging`, `seqDragOver`, `seqChecked`, `seqResult`, `seqAttempts`.
+    - Las imágenes usan `object-contain` con altura fija para no aparecer cortadas.
 
 14. **Calendario de estudiante** (`student-calendar.tsx`): calendario mensual con navegación
     por meses. Consulta `intento_actividad` filtrando por `id_alumno` y rango del mes.
