@@ -8,6 +8,7 @@ const activityTypeMap = {
   multiple: "seleccion_guiada",
   short: "respuesta_corta",
   voice: "respuesta_oral",
+  wordsearch: "sopa_letras",
 }
 
 const difficultyMap = {
@@ -29,7 +30,16 @@ export async function POST(request) {
     }
 
     const body = await request.json()
-    const { courseId, titulo, contenido, activities } = body
+    const {
+      courseId,
+      titulo,
+      contenido,
+      activities,
+      material_lectura,
+      material_audiovisual,
+      material_pdf_url,
+      material_pdf_titulo,
+    } = body
 
     if (!courseId || !titulo) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
@@ -42,15 +52,21 @@ export async function POST(request) {
 
     const nextOrden = (leccionCount ?? 0) + 1
 
+    const lessonData = {
+      id_curso: courseId,
+      titulo,
+      contenido: contenido || null,
+      material_lectura: material_lectura || null,
+      material_audiovisual: material_audiovisual || null,
+      material_pdf_url: material_pdf_url || null,
+      material_pdf_titulo: material_pdf_titulo || null,
+      orden: nextOrden,
+      publicado: true,
+    }
+
     const { data: leccion, error: leccionError } = await supabaseAdmin
       .from("leccion")
-      .insert({
-        id_curso: courseId,
-        titulo,
-        contenido: contenido || null,
-        orden: nextOrden,
-        publicado: true,
-      })
+      .insert(lessonData)
       .select("id_leccion")
       .single()
 
