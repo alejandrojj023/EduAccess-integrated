@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { Suspense, useEffect } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { AccessibilityProvider } from "@/lib/accessibility-context"
@@ -423,7 +423,9 @@ export default function Home() {
   return (
     <AuthProvider>
       <AccessibilityProvider>
-        <AppContent />
+        <Suspense fallback={null}>
+          <AppContent />
+        </Suspense>
       </AccessibilityProvider>
     </AuthProvider>
   )

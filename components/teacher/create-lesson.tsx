@@ -465,7 +465,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                 Agregar Actividades
               </CardTitle>
             </CardHeader>
-              <CardContent>
+            <CardContent>
               <p className="text-muted-foreground mb-6">
                 Selecciona un tipo para configurar y agregar la actividad
               </p>
@@ -630,7 +630,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
           )}
 
           {/* Actions */}
-            <div className="flex gap-4">
+          <div className="flex gap-4">
             <Button
               type="button"
               variant="outline"
@@ -652,6 +652,6 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
           </div>
         </form>
       </main>
-            </div>
+    </div>
   )
 }
