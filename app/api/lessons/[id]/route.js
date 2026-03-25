@@ -8,6 +8,7 @@ const activityTypeMap = {
   multiple: "seleccion_guiada",
   short: "respuesta_corta",
   voice: "respuesta_oral",
+  wordsearch: "sopa_letras",
 }
 
 const difficultyMap = {
@@ -30,15 +31,32 @@ export async function PUT(request, { params }) {
 
     const { id: lessonId } = await params
     const body = await request.json()
-    const { titulo, contenido, activities } = body
+    const {
+      titulo,
+      contenido,
+      activities,
+      material_lectura,
+      material_audiovisual,
+      material_pdf_url,
+      material_pdf_titulo,
+    } = body
 
     if (!titulo) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
     }
 
+    const updateFields = {
+      titulo,
+      contenido: contenido || null,
+      material_lectura: material_lectura || null,
+      material_audiovisual: material_audiovisual || null,
+      material_pdf_url: material_pdf_url || null,
+      material_pdf_titulo: material_pdf_titulo || null,
+    }
+
     const { error: updateError } = await supabaseAdmin
       .from("leccion")
-      .update({ titulo, contenido: contenido || null })
+      .update(updateFields)
       .eq("id_leccion", lessonId)
 
     if (updateError) {

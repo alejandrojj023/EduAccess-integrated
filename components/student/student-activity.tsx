@@ -42,6 +42,51 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
+// ── Word search grid generator ─────────────────────────────────
+const WS_DIRECTIONS = [
+  { dr: 0, dc: 1 },   // horizontal →
+  { dr: 1, dc: 0 },   // vertical ↓
+  { dr: 1, dc: 1 },   // diagonal ↘
+  { dr: 1, dc: -1 },  // diagonal ↙
+]
+
+function generateWordSearchGrid(words: string[]): string[][] {
+  const longest = words.reduce((m, w) => Math.max(m, w.length), 0)
+  const size = Math.max(12, longest + 4)
+  const grid: string[][] = Array.from({ length: size }, () => Array(size).fill(""))
+
+  for (const word of words) {
+    let placed = false
+    let attempts = 0
+    while (!placed && attempts < 300) {
+      attempts++
+      const dir = WS_DIRECTIONS[Math.floor(Math.random() * WS_DIRECTIONS.length)]
+      const row = Math.floor(Math.random() * size)
+      const col = Math.floor(Math.random() * size)
+      const endRow = row + dir.dr * (word.length - 1)
+      const endCol = col + dir.dc * (word.length - 1)
+      if (endRow < 0 || endRow >= size || endCol < 0 || endCol >= size) continue
+      let canPlace = true
+      for (let i = 0; i < word.length; i++) {
+        const r = row + dir.dr * i
+        const c = col + dir.dc * i
+        if (grid[r][c] !== "" && grid[r][c] !== word[i]) { canPlace = false; break }
+      }
+      if (canPlace) {
+        for (let i = 0; i < word.length; i++) grid[row + dir.dr * i][col + dir.dc * i] = word[i]
+        placed = true
+      }
+    }
+  }
+
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  for (let r = 0; r < size; r++)
+    for (let c = 0; c < size; c++)
+      if (grid[r][c] === "") grid[r][c] = letters[Math.floor(Math.random() * letters.length)]
+
+  return grid
+}
+
 type Phase = "loading" | "question" | "result" | "done"
 
 export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivity }: StudentActivityProps) {
@@ -82,6 +127,13 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
   const [seqResult,   setSeqResult]   = useState<boolean[]>([])
   const [seqAttempts, setSeqAttempts] = useState(0)
 
+  // Word search (sopa_letras) state
+  const [wsGrid,       setWsGrid]       = useState<string[][]>([])
+  const [wsPalabras,   setWsPalabras]   = useState<string[]>([])
+  const [wsStart,      setWsStart]      = useState<{ row: number; col: number } | null>(null)
+  const [wsFoundWords, setWsFoundWords] = useState<Set<string>>(new Set())
+  const [wsFoundCells, setWsFoundCells] = useState<Set<string>>(new Set())
+  const [wsWrongFlash, setWsWrongFlash] = useState(false)
 
   // Load activity from DB
   useEffect(() => {
@@ -111,8 +163,8 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
     setActivity(act)
     setPhase("question")
 
-    // Auto-speak instructions if TTS on (skip sound/fill/sequence — spoken after pregunta loads)
-    if (settings.voiceEnabled && act.tipo !== "reconocimiento_sonidos" && act.tipo !== "completar_oracion" && act.tipo !== "secuenciacion") {
+    // Auto-speak instructions if TTS on (skip sound/fill/sequence/wordsearch — spoken in their own useEffect)
+    if (settings.voiceEnabled && act.tipo !== "reconocimiento_sonidos" && act.tipo !== "completar_oracion" && act.tipo !== "secuenciacion" && act.tipo !== "sopa_letras") {
       const cfg = parseActivityConfig(act.instrucciones)
       if (cfg.instrucciones) setTimeout(() => speak(cfg.instrucciones), 400)
     }
@@ -274,6 +326,76 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
         if (settings.voiceEnabled) setTimeout(() => speak(activity.instrucciones ?? "Ordena las imágenes arrastrándolas"), 400)
       })
   }, [activity])
+
+  // Initialize word search when activity loads
+  useEffect(() => {
+    if (!activity || activity.tipo !== "sopa_letras") return
+    const cfg = parseActivityConfig(activity.instrucciones)
+    const words = (cfg.palabras_sopa ?? []).map(w => w.toUpperCase()).filter(Boolean)
+    setWsPalabras(words)
+    setWsFoundWords(new Set())
+    setWsFoundCells(new Set())
+    setWsStart(null)
+    setWsWrongFlash(false)
+    setWsGrid(generateWordSearchGrid(words))
+    if (settings.voiceEnabled) setTimeout(() => speak(cfg.instrucciones ?? "Encuentra las palabras en la sopa de letras"), 400)
+  }, [activity])
+
+  function handleWsCellClick(row: number, col: number) {
+    if (phase !== "question") return
+    const key = `${row}-${col}`
+    if (!wsStart) {
+      setWsStart({ row, col })
+      return
+    }
+    // Same cell → deselect
+    if (wsStart.row === row && wsStart.col === col) {
+      setWsStart(null)
+      return
+    }
+    // Check if selection is a straight line
+    const dr = row - wsStart.row
+    const dc = col - wsStart.col
+    const isStraight = dr === 0 || dc === 0 || Math.abs(dr) === Math.abs(dc)
+    if (!isStraight) {
+      setWsStart({ row, col })
+      return
+    }
+    // Extract letters along path
+    const len = Math.max(Math.abs(dr), Math.abs(dc))
+    const stepR = dr === 0 ? 0 : dr / Math.abs(dr)
+    const stepC = dc === 0 ? 0 : dc / Math.abs(dc)
+    let letters = ""
+    const pathCells: string[] = []
+    for (let i = 0; i <= len; i++) {
+      const r = wsStart.row + stepR * i
+      const c = wsStart.col + stepC * i
+      if (r < 0 || r >= wsGrid.length || c < 0 || c >= wsGrid[0].length) { setWsStart({ row, col }); return }
+      letters += wsGrid[r][c]
+      pathCells.push(`${r}-${c}`)
+    }
+    const reversed = letters.split("").reverse().join("")
+    const matched = wsPalabras.find(w => !wsFoundWords.has(w) && (letters === w || reversed === w))
+    if (matched) {
+      const newFound = new Set(wsFoundWords).add(matched)
+      const newCells = new Set(wsFoundCells)
+      pathCells.forEach(k => newCells.add(k))
+      setWsFoundWords(newFound)
+      setWsFoundCells(newCells)
+      setWsStart(null)
+      if (settings.voiceEnabled) speak(`¡Encontraste ${matched}!`)
+      // Check if all words found
+      if (newFound.size === wsPalabras.length) {
+        setIsCorrect(true)
+        setScore(100)
+        setTimeout(() => setPhase("result"), 400)
+        speak("¡Felicidades! Encontraste todas las palabras.")
+      }
+    } else {
+      setWsWrongFlash(true)
+      setTimeout(() => { setWsWrongFlash(false); setWsStart(null) }, 600)
+    }
+  }
 
   function handleSeqDropOnZone(zoneIdx: number) {
     if (!seqDragging) return
@@ -1018,8 +1140,93 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
               )
             })()}
 
+            {/* Word search activity — sopa de letras */}
+            {activity?.tipo === "sopa_letras" && wsGrid.length > 0 && (
+              <div className="space-y-5">
+                {/* Word list */}
+                <Card className="border-2">
+                  <CardContent className="p-5">
+                    <p className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+                      Palabras a encontrar ({wsFoundWords.size}/{wsPalabras.length})
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {wsPalabras.map(word => (
+                        <span
+                          key={word}
+                          className={`px-3 py-1.5 rounded-lg border-2 font-bold text-base transition-all ${
+                            wsFoundWords.has(word)
+                              ? "bg-green-100 border-green-400 text-green-700 line-through"
+                              : "bg-muted border-border text-foreground"
+                          }`}
+                        >
+                          {word}
+                        </span>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Grid */}
+                <Card className={`border-2 transition-all ${wsWrongFlash ? "border-destructive" : "border-border"}`}>
+                  <CardContent className="p-3 overflow-x-auto">
+                    <div
+                      className="inline-grid gap-0.5"
+                      style={{ gridTemplateColumns: `repeat(${wsGrid[0]?.length ?? 12}, minmax(0, 1fr))` }}
+                      aria-label="Cuadrícula de sopa de letras"
+                    >
+                      {wsGrid.map((rowArr, r) =>
+                        rowArr.map((letter, c) => {
+                          const key = `${r}-${c}`
+                          const isFound = wsFoundCells.has(key)
+                          const isStart = wsStart?.row === r && wsStart?.col === c
+                          return (
+                            <button
+                              key={key}
+                              onClick={() => handleWsCellClick(r, c)}
+                              className={`w-7 h-7 sm:w-8 sm:h-8 text-xs sm:text-sm font-bold rounded flex items-center justify-center transition-all select-none ${
+                                isFound
+                                  ? "bg-green-400 text-white"
+                                  : isStart
+                                  ? "bg-primary text-primary-foreground scale-110 z-10 relative"
+                                  : wsWrongFlash
+                                  ? "bg-destructive/20 text-foreground"
+                                  : "bg-muted hover:bg-primary/20 text-foreground"
+                              }`}
+                              aria-label={`Letra ${letter}`}
+                            >
+                              {letter}
+                            </button>
+                          )
+                        })
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <p className="text-center text-sm text-muted-foreground">
+                  Toca la primera y última letra de cada palabra para encontrarla
+                </p>
+
+                {/* Give up button */}
+                {wsFoundWords.size < wsPalabras.length && (
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full h-12 border-2"
+                    onClick={() => {
+                      setIsCorrect(wsFoundWords.size >= Math.ceil(wsPalabras.length / 2))
+                      setScore(Math.round((wsFoundWords.size / wsPalabras.length) * 100))
+                      setPhase("result")
+                    }}
+                  >
+                    Terminar con {wsFoundWords.size} de {wsPalabras.length} palabras
+                  </Button>
+                )}
+              </div>
+            )}
+
             {/* No config — show oral fallback */}
-            {!hasOptions && !isShortAnswer && activity?.tipo !== "reconocimiento_sonidos" && activity?.tipo !== "completar_oracion" && activity?.tipo !== "secuenciacion" && (
+            {!hasOptions && !isShortAnswer && activity?.tipo !== "reconocimiento_sonidos" && activity?.tipo !== "completar_oracion" && activity?.tipo !== "secuenciacion" && activity?.tipo !== "sopa_letras" && (
               <Card className="border-2">
                 <CardContent className="py-10 text-center space-y-4">
                   <Mic className="w-12 h-12 text-primary mx-auto" aria-hidden="true" />
@@ -1048,7 +1255,11 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
                 </SpeakableText>
                 <SpeakableText as="p" className="text-lg text-muted-foreground">
                   {isCorrect
-                    ? "¡Muy bien! Has respondido correctamente."
+                    ? activity?.tipo === "sopa_letras"
+                      ? `¡Encontraste todas las palabras! ${wsPalabras.length} de ${wsPalabras.length}.`
+                      : "¡Muy bien! Has respondido correctamente."
+                    : activity?.tipo === "sopa_letras"
+                    ? `Encontraste ${wsFoundWords.size} de ${wsPalabras.length} palabras. ¡Sigue practicando!`
                     : activity?.tipo === "secuenciacion"
                     ? "Puedes ver el orden correcto arriba. ¡Sigue practicando!"
                     : activity?.tipo === "completar_oracion" && fillPregunta

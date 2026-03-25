@@ -9,6 +9,7 @@ const activityTypeMap = {
   short: "respuesta_corta",
   voice: "respuesta_oral",
   fill: "completar_oracion",
+  wordsearch: "sopa_letras",
 }
 
 const difficultyMap = {
@@ -24,6 +25,7 @@ const activityTitleMap = {
   short: "Respuesta corta escrita",
   voice: "Respuesta por voz",
   fill: "Completar oracion",
+  wordsearch: "Sopa de letras",
 }
 
 export async function POST(request) {

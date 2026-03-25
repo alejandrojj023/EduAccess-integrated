@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { AccessibilityProvider } from "@/lib/accessibility-context"
 import { LoginScreen } from "@/components/auth/login-screen"
@@ -28,82 +29,140 @@ import { StudentCourse } from "@/components/student/student-course"
 import { StudentLesson } from "@/components/student/student-lesson"
 import { BookOpen } from "lucide-react"
 
-type Screen =
-  | "login"
-  | "register"
-  | "teacher-dashboard"
-  | "courses"
-  | "create-course"
-  | "lessons"
-  | "create-lesson"
-  | "edit-lesson"
-  | "edit-course"
-  | "activities"
-  | "students"
-  | "analytics"
-  | "student-dashboard"
-  | "student-activity"
-  | "voice-activity"
-  | "initial-test"
-  | "student-progress"
-  | "student-calendar"
-  | "join-group"
-  | "group-management"
-  | "student-course"
-  | "student-lesson"
-  | "accessibility"
-
 function AppContent() {
-  const [currentScreen, setCurrentScreen] = useState<Screen>("login")
-  const [selectedCourseId,      setSelectedCourseId]      = useState<string | null>(null)
-  const [selectedLessonId,      setSelectedLessonId]      = useState<string | null>(null)
-  const [selectedActivityType,  setSelectedActivityType]  = useState<string | null>(null)
-  const [editCourseBackTo,      setEditCourseBackTo]      = useState<"courses" | "lessons">("courses")
-  // Student navigation state
-  const [studentCourseId,   setStudentCourseId]   = useState<string | null>(null)
-  const [studentCourseName, setStudentCourseName] = useState<string | null>(null)
-  const [studentLessonId,   setStudentLessonId]   = useState<string | null>(null)
-  const [studentLessonName, setStudentLessonName] = useState<string | null>(null)
-  const [studentActivityId, setStudentActivityId] = useState<string | null>(null)
+  const pathname = usePathname()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, logout, isAuthenticated, loading, needsTest } = useAuth()
+  const segments = pathname.split("/").filter(Boolean)
+  const backTo = searchParams.get("back")
+  const queryCourseId = searchParams.get("courseId")
+  const queryCourseName = searchParams.get("courseName")
+  const queryLessonName = searchParams.get("lessonName")
 
-  // Redirigir automáticamente cuando cambia el estado de autenticación
+  const goToRoute = (screen: string) => {
+    if (screen.startsWith("lessons-")) {
+      const courseId = screen.replace("lessons-", "")
+      router.push(`/maestro/cursos/${courseId}/lecciones`)
+      return
+    }
+
+    if (screen.startsWith("edit-course-")) {
+      const courseId = screen.replace("edit-course-", "")
+      const currentIsLessonContext = segments[0] === "maestro" && segments[1] === "cursos" && segments[3] === "lecciones"
+      router.push(`/maestro/cursos/${courseId}/editar?back=${currentIsLessonContext ? "lessons" : "courses"}`)
+      return
+    }
+
+    if (screen.startsWith("edit-lesson-")) {
+      const lessonId = screen.replace("edit-lesson-", "")
+      if (segments[0] === "maestro" && segments[1] === "cursos" && segments[3] === "lecciones" && segments[2]) {
+        router.push(`/maestro/lecciones/${lessonId}/editar?courseId=${segments[2]}`)
+        return
+      }
+      router.push(`/maestro/lecciones/${lessonId}/editar`)
+      return
+    }
+
+    if (screen.startsWith("course-")) {
+      const rest = screen.replace("course-", "")
+      const sepIdx = rest.indexOf("|")
+      const cId = sepIdx > -1 ? rest.slice(0, sepIdx) : rest
+      const cName = sepIdx > -1 ? rest.slice(sepIdx + 1) : ""
+      router.push(`/estudiante/cursos/${cId}?name=${encodeURIComponent(cName)}`)
+      return
+    }
+
+    switch (screen) {
+      case "login":
+        router.push("/iniciar-sesion")
+        return
+      case "register":
+        router.push("/registro")
+        return
+      case "teacher-dashboard":
+        router.push("/maestro")
+        return
+      case "courses":
+        router.push("/maestro/cursos")
+        return
+      case "create-course":
+        router.push("/maestro/cursos/crear")
+        return
+      case "create-lesson":
+        if (segments[0] === "maestro" && segments[1] === "cursos" && segments[3] === "lecciones" && segments[2]) {
+          router.push(`/maestro/cursos/${segments[2]}/lecciones/crear`)
+        } else {
+          router.push("/maestro/cursos")
+        }
+        return
+      case "activities":
+        router.push("/maestro/actividades")
+        return
+      case "students":
+        router.push("/maestro/estudiantes")
+        return
+      case "analytics":
+        router.push("/maestro/analiticas")
+        return
+      case "group-management":
+        router.push("/maestro/grupos")
+        return
+      case "student-dashboard":
+        router.push("/estudiante")
+        return
+      case "student-progress":
+        router.push("/estudiante/progreso")
+        return
+      case "student-calendar":
+        router.push("/estudiante/calendario")
+        return
+      case "join-group":
+        router.push("/estudiante/unirse-grupo")
+        return
+      case "accessibility":
+        router.push("/ajustes")
+        return
+      default:
+        return
+    }
+  }
+
   useEffect(() => {
-    if (loading || !isAuthenticated) return
+    if (loading) return
+
+    if (!isAuthenticated) {
+      if (pathname !== "/iniciar-sesion" && pathname !== "/registro") {
+        router.replace("/iniciar-sesion")
+      }
+      return
+    }
 
     if (user?.role === "teacher") {
-      // Si un docente termina en una pantalla de auth o de estudiante, corregir
-      if (["login", "register", "student-dashboard", "initial-test"].includes(currentScreen)) {
-        setCurrentScreen("teacher-dashboard")
+      if (pathname === "/iniciar-sesion" || pathname === "/registro" || pathname.startsWith("/estudiante")) {
+        router.replace("/maestro")
       }
     } else {
-      // Si un estudiante termina en una pantalla de auth, redirigir
-      if (["login", "register"].includes(currentScreen)) {
-        setCurrentScreen(needsTest ? "initial-test" : "student-dashboard")
+      if (pathname === "/iniciar-sesion" || pathname === "/registro" || pathname.startsWith("/maestro")) {
+        router.replace(needsTest ? "/estudiante/test-inicial" : "/estudiante")
       }
     }
-  }, [loading, isAuthenticated, user, needsTest, currentScreen])
+  }, [loading, isAuthenticated, user, needsTest, pathname, router])
 
   const handleLoginSuccess = () => {
     if (user?.role === "teacher") {
-      setCurrentScreen("teacher-dashboard")
+      router.push("/maestro")
     } else {
-      // Verificación real: ¿el alumno ya completó el test?
-      setCurrentScreen(needsTest ? "initial-test" : "student-dashboard")
+      router.push(needsTest ? "/estudiante/test-inicial" : "/estudiante")
     }
   }
 
   const handleLogout = () => {
     logout()
-    setCurrentScreen("login")
-  }
-
-  const handleNavigate = (screen: string) => {
-    setCurrentScreen(screen as Screen)
+    router.push("/iniciar-sesion")
   }
 
   const renderScreen = () => {
-    // Mostrar pantalla de carga mientras se verifica la sesión
     if (loading) {
       return (
         <div className="min-h-screen bg-background flex items-center justify-center">
@@ -117,246 +176,216 @@ function AppContent() {
       )
     }
 
-    switch (currentScreen) {
-      case "login":
-        return (
-          <LoginScreen
-            onSwitchToRegister={() => setCurrentScreen("register")}
-            onLoginSuccess={handleLoginSuccess}
-          />
-        )
-
-      case "register":
-        return (
-          <RegisterScreen
-            onSwitchToLogin={() => setCurrentScreen("login")}
-            onRegisterSuccess={handleLoginSuccess}
-          />
-        )
-
-      case "teacher-dashboard":
-        return <TeacherDashboard onNavigate={handleNavigate} onLogout={handleLogout} />
-
-      case "courses":
-        return (
-          <CourseList
-            onNavigate={(screen) => {
-              if (screen.startsWith("lessons-")) {
-                setSelectedCourseId(screen.replace("lessons-", ""))
-                setCurrentScreen("lessons")
-              } else if (screen.startsWith("edit-course-")) {
-                setSelectedCourseId(screen.replace("edit-course-", ""))
-                setEditCourseBackTo("courses")
-                setCurrentScreen("edit-course")
-              } else {
-                handleNavigate(screen)
-              }
-            }}
-            onBack={() => setCurrentScreen("teacher-dashboard")}
-          />
-        )
-
-      case "create-course":
-        return (
-          <CreateCourse
-            onBack={() => setCurrentScreen("courses")}
-            onSave={() => setCurrentScreen("courses")}
-          />
-        )
-
-      case "lessons":
-        return (
-          <LessonManagement
-            courseId={selectedCourseId}
-            onNavigate={(screen) => {
-              if (screen.startsWith("edit-lesson-")) {
-                setSelectedLessonId(screen.replace("edit-lesson-", ""))
-                setCurrentScreen("edit-lesson")
-              } else if (screen.startsWith("edit-course-")) {
-                setSelectedCourseId(screen.replace("edit-course-", ""))
-                setEditCourseBackTo("lessons")
-                setCurrentScreen("edit-course")
-              } else {
-                handleNavigate(screen)
-              }
-            }}
-            onBack={() => setCurrentScreen("courses")}
-          />
-        )
-
-      case "edit-lesson":
-        return (
-          <EditLesson
-            lessonId={selectedLessonId}
-            onBack={() => setCurrentScreen("lessons")}
-            onSave={() => setCurrentScreen("lessons")}
-          />
-        )
-
-      case "edit-course":
-        return (
-          <EditCourse
-            courseId={selectedCourseId}
-            onBack={() => setCurrentScreen(editCourseBackTo)}
-            onSave={() => setCurrentScreen(editCourseBackTo)}
-          />
-        )
-
-      case "create-lesson":
-        return (
-          <CreateLesson
-            courseId={selectedCourseId}
-            onBack={() => setCurrentScreen("lessons")}
-            onSave={() => setCurrentScreen("lessons")}
-          />
-        )
-
-      case "activities":
-        return (
-          <ActivityBuilder
-            onBack={() => setCurrentScreen("teacher-dashboard")}
-            onSave={() => setCurrentScreen("teacher-dashboard")}
-          />
-        )
-
-      case "students":
-        return (
-          <StudentsList
-            onNavigate={handleNavigate}
-            onBack={() => setCurrentScreen("teacher-dashboard")}
-          />
-        )
-
-      case "analytics":
-        return (
-          <TeacherAnalytics
-            onBack={() => setCurrentScreen("teacher-dashboard")}
-          />
-        )
-
-      case "student-dashboard":
-        return (
-          <StudentDashboard
-            onNavigate={(screen) => {
-              if (screen.startsWith("course-")) {
-                // course-{id}|{name} — navigate to course lessons
-                const rest = screen.replace("course-", "")
-                const sepIdx = rest.indexOf("|")
-                const cId   = sepIdx > -1 ? rest.slice(0, sepIdx) : rest
-                const cName = sepIdx > -1 ? rest.slice(sepIdx + 1) : ""
-                setStudentCourseId(cId)
-                setStudentCourseName(cName)
-                setCurrentScreen("student-course")
-              } else {
-                handleNavigate(screen)
-              }
-            }}
-            onLogout={handleLogout}
-          />
-        )
-
-      case "student-course":
-        return (
-          <StudentCourse
-            courseId={studentCourseId}
-            courseName={studentCourseName}
-            onSelectLesson={(id, name) => {
-              setStudentLessonId(id)
-              setStudentLessonName(name)
-              setCurrentScreen("student-lesson")
-            }}
-            onBack={() => setCurrentScreen("student-dashboard")}
-          />
-        )
-
-      case "student-lesson":
-        return (
-          <StudentLesson
-            lessonId={studentLessonId}
-            lessonName={studentLessonName}
-            onSelectActivity={(id) => {
-              setStudentActivityId(id)
-              setCurrentScreen("student-activity")
-            }}
-            onBack={() => setCurrentScreen("student-course")}
-          />
-        )
-
-      case "student-activity":
-        return (
-          <StudentActivity
-            activityId={studentActivityId}
-            onBack={() => setCurrentScreen("student-lesson")}
-            onComplete={() => setCurrentScreen("student-lesson")}
-            onVoiceActivity={() => setCurrentScreen("voice-activity")}
-          />
-        )
-
-      case "voice-activity":
-        return (
-          <VoiceActivity
-            activityId={studentActivityId}
-            onBack={() => setCurrentScreen("student-lesson")}
-            onComplete={() => setCurrentScreen("student-lesson")}
-          />
-        )
-
-      case "initial-test":
-        return (
-          <InitialTest
-            onComplete={() => setCurrentScreen("student-dashboard")}
-          />
-        )
-
-      case "student-progress":
-        return (
-          <StudentProgress
-            onBack={() => setCurrentScreen("student-dashboard")}
-          />
-        )
-
-      case "student-calendar":
-        return (
-          <StudentCalendar
-            onBack={() => setCurrentScreen("student-dashboard")}
-          />
-        )
-
-      case "join-group":
-        return (
-          <JoinGroup
-            onNavigate={handleNavigate}
-          />
-        )
-
-      case "group-management":
-        return (
-          <GroupManagement
-            onNavigate={handleNavigate}
-          />
-        )
-
-      case "accessibility":
-        return (
-          <AccessibilitySettings
-            onBack={() => {
-              if (user?.role === "teacher") {
-                setCurrentScreen("teacher-dashboard")
-              } else {
-                setCurrentScreen("student-dashboard")
-              }
-            }}
-          />
-        )
-
-      default:
-        return (
-          <LoginScreen
-            onSwitchToRegister={() => setCurrentScreen("register")}
-            onLoginSuccess={handleLoginSuccess}
-          />
-        )
+    if (pathname === "/iniciar-sesion") {
+      return (
+        <LoginScreen
+          onSwitchToRegister={() => router.push("/registro")}
+          onLoginSuccess={handleLoginSuccess}
+        />
+      )
     }
+
+    if (pathname === "/registro") {
+      return (
+        <RegisterScreen
+          onSwitchToLogin={() => router.push("/iniciar-sesion")}
+          onRegisterSuccess={handleLoginSuccess}
+        />
+      )
+    }
+
+    if (pathname === "/maestro") {
+      return <TeacherDashboard onNavigate={goToRoute} onLogout={handleLogout} />
+    }
+
+    if (pathname === "/maestro/cursos") {
+      return (
+        <CourseList
+          onNavigate={goToRoute}
+          onBack={() => router.push("/maestro")}
+        />
+      )
+    }
+
+    if (pathname === "/maestro/cursos/crear") {
+      return (
+        <CreateCourse
+          onBack={() => router.push("/maestro/cursos")}
+          onSave={() => router.push("/maestro/cursos")}
+        />
+      )
+    }
+
+    if (segments[0] === "maestro" && segments[1] === "cursos" && segments[3] === "lecciones" && segments.length === 4) {
+      const courseId = segments[2]
+      return (
+        <LessonManagement
+          courseId={courseId}
+          onNavigate={goToRoute}
+          onBack={() => router.push("/maestro/cursos")}
+        />
+      )
+    }
+
+    if (segments[0] === "maestro" && segments[1] === "cursos" && segments[3] === "lecciones" && segments[4] === "crear") {
+      const courseId = segments[2]
+      return (
+        <CreateLesson
+          courseId={courseId}
+          onBack={() => router.push(`/maestro/cursos/${courseId}/lecciones`)}
+          onSave={() => router.push(`/maestro/cursos/${courseId}/lecciones`)}
+        />
+      )
+    }
+
+    if (segments[0] === "maestro" && segments[1] === "lecciones" && segments[3] === "editar") {
+      const lessonId = segments[2]
+      const parentCourse = queryCourseId
+      return (
+        <EditLesson
+          lessonId={lessonId}
+          onBack={() => router.push(parentCourse ? `/maestro/cursos/${parentCourse}/lecciones` : "/maestro/cursos")}
+          onSave={() => router.push(parentCourse ? `/maestro/cursos/${parentCourse}/lecciones` : "/maestro/cursos")}
+        />
+      )
+    }
+
+    if (segments[0] === "maestro" && segments[1] === "cursos" && segments[3] === "editar") {
+      const courseId = segments[2]
+      const isLessonsBack = backTo === "lessons"
+      return (
+        <EditCourse
+          courseId={courseId}
+          onBack={() => router.push(isLessonsBack ? `/maestro/cursos/${courseId}/lecciones` : "/maestro/cursos")}
+          onSave={() => router.push(isLessonsBack ? `/maestro/cursos/${courseId}/lecciones` : "/maestro/cursos")}
+        />
+      )
+    }
+
+    if (pathname === "/maestro/actividades") {
+      return (
+        <ActivityBuilder
+          onBack={() => router.push("/maestro")}
+          onSave={() => router.push("/maestro")}
+        />
+      )
+    }
+
+    if (pathname === "/maestro/estudiantes") {
+      return (
+        <StudentsList
+          onNavigate={goToRoute}
+          onBack={() => router.push("/maestro")}
+        />
+      )
+    }
+
+    if (pathname === "/maestro/analiticas") {
+      return <TeacherAnalytics onBack={() => router.push("/maestro")} />
+    }
+
+    if (pathname === "/maestro/grupos") {
+      return <GroupManagement onNavigate={goToRoute} />
+    }
+
+    if (pathname === "/estudiante") {
+      return (
+        <StudentDashboard
+          onNavigate={goToRoute}
+          onLogout={handleLogout}
+        />
+      )
+    }
+
+    if (segments[0] === "estudiante" && segments[1] === "cursos" && segments[2]) {
+      const courseId = segments[2]
+      const courseName = searchParams.get("name")
+      return (
+        <StudentCourse
+          courseId={courseId}
+          courseName={courseName}
+          onSelectLesson={(id, name) => {
+            router.push(`/estudiante/lecciones/${id}?lessonName=${encodeURIComponent(name)}&courseId=${courseId}&courseName=${encodeURIComponent(courseName ?? "")}`)
+          }}
+          onBack={() => router.push("/estudiante")}
+        />
+      )
+    }
+
+    if (segments[0] === "estudiante" && segments[1] === "lecciones" && segments[2]) {
+      const lessonId = segments[2]
+      return (
+        <StudentLesson
+          lessonId={lessonId}
+          lessonName={queryLessonName}
+          onSelectActivity={(id) => {
+            router.push(`/estudiante/actividades/${id}?lessonId=${lessonId}&lessonName=${encodeURIComponent(queryLessonName ?? "")}&courseId=${queryCourseId ?? ""}&courseName=${encodeURIComponent(queryCourseName ?? "")}`)
+          }}
+          onBack={() => {
+            if (queryCourseId) {
+              router.push(`/estudiante/cursos/${queryCourseId}?name=${encodeURIComponent(queryCourseName ?? "")}`)
+              return
+            }
+            router.push("/estudiante")
+          }}
+        />
+      )
+    }
+
+    if (segments[0] === "estudiante" && segments[1] === "actividades" && segments[2] && segments.length === 3) {
+      const activityId = segments[2]
+      const lessonId = searchParams.get("lessonId")
+      const lessonName = searchParams.get("lessonName")
+      return (
+        <StudentActivity
+          activityId={activityId}
+          onBack={() => router.push(`/estudiante/lecciones/${lessonId ?? ""}?lessonName=${encodeURIComponent(lessonName ?? "")}&courseId=${queryCourseId ?? ""}&courseName=${encodeURIComponent(queryCourseName ?? "")}`)}
+          onComplete={() => router.push(`/estudiante/lecciones/${lessonId ?? ""}?lessonName=${encodeURIComponent(lessonName ?? "")}&courseId=${queryCourseId ?? ""}&courseName=${encodeURIComponent(queryCourseName ?? "")}`)}
+          onVoiceActivity={() => router.push(`/estudiante/actividades/${activityId}/voz?lessonId=${lessonId ?? ""}&lessonName=${encodeURIComponent(lessonName ?? "")}&courseId=${queryCourseId ?? ""}&courseName=${encodeURIComponent(queryCourseName ?? "")}`)}
+        />
+      )
+    }
+
+    if (segments[0] === "estudiante" && segments[1] === "actividades" && segments[2] && segments[3] === "voz") {
+      const activityId = segments[2]
+      const lessonId = searchParams.get("lessonId")
+      const lessonName = searchParams.get("lessonName")
+      return (
+        <VoiceActivity
+          activityId={activityId}
+          onBack={() => router.push(`/estudiante/lecciones/${lessonId ?? ""}?lessonName=${encodeURIComponent(lessonName ?? "")}&courseId=${queryCourseId ?? ""}&courseName=${encodeURIComponent(queryCourseName ?? "")}`)}
+          onComplete={() => router.push(`/estudiante/lecciones/${lessonId ?? ""}?lessonName=${encodeURIComponent(lessonName ?? "")}&courseId=${queryCourseId ?? ""}&courseName=${encodeURIComponent(queryCourseName ?? "")}`)}
+        />
+      )
+    }
+
+    if (pathname === "/estudiante/test-inicial") {
+      return <InitialTest onComplete={() => router.push("/estudiante")} />
+    }
+
+    if (pathname === "/estudiante/progreso") {
+      return <StudentProgress onBack={() => router.push("/estudiante")} />
+    }
+
+    if (pathname === "/estudiante/calendario") {
+      return <StudentCalendar onBack={() => router.push("/estudiante")} />
+    }
+
+    if (pathname === "/estudiante/unirse-grupo") {
+      return <JoinGroup onNavigate={goToRoute} />
+    }
+
+    if (pathname === "/ajustes") {
+      return (
+        <AccessibilitySettings
+          onBack={() => {
+            router.push(user?.role === "teacher" ? "/maestro" : "/estudiante")
+          }}
+        />
+      )
+    }
+
+    return <LoginScreen onSwitchToRegister={() => router.push("/registro")} onLoginSuccess={handleLoginSuccess} />
   }
 
   return <>{renderScreen()}</>
