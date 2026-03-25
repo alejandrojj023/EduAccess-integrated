@@ -47,6 +47,18 @@ export function useTeacherDashboard(): UseTeacherDashboardReturn {
     return () => clearInterval(interval)
   }, [])
 
+  // Suscripción en tiempo real: actualiza al instante cuando un alumno completa una actividad
+  useEffect(() => {
+    if (!user) return
+    const channel = supabase
+      .channel("dashboard-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "intento_actividad" }, () => {
+        setTick((t) => t + 1)
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [user])
+
   useEffect(() => {
     if (!user) return
 
