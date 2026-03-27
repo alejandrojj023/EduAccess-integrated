@@ -3,7 +3,8 @@
     "allow": [
       "Bash(\"/c/Users/Asus Rog Zephyrus/Desktop/EduAccess-final/claude.md\")",
       "Bash(npx tsc:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npm run:*)"
     ]
   }
 }

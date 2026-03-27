@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { supabase } from "@/lib/supabase"
-import { ArrowLeft, Save, Volume2, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip } from "lucide-react"
+import { ArrowLeft, Save, Volume2, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip, BookMarked, Pencil } from "lucide-react"
 import { serializeActivityConfig } from "@/lib/activity-config"
 
 interface CreateLessonProps {
@@ -63,6 +63,28 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
   const [actCorrectAnswer, setActCorrectAnswer] = useState("")
   const [actPalabrasSopa, setActPalabrasSopa] = useState<string[]>([])
   const [actPalabraInput, setActPalabraInput] = useState("")
+
+  // Glosario (se guarda después de crear la lección)
+  interface GlosarioItem { palabra: string; definicion: string }
+  const [glosario,        setGlosario]        = useState<GlosarioItem[]>([])
+  const [glosarioPalabra, setGlosarioPalabra] = useState("")
+  const [glosarioDefin,   setGlosarioDefin]   = useState("")
+  const [glosarioError,   setGlosarioError]   = useState("")
+
+  const handleAddGlosario = () => {
+    const pal = glosarioPalabra.trim().toLowerCase()
+    const def = glosarioDefin.trim()
+    if (!pal || !def) { setGlosarioError("Escribe la palabra y la definición."); return }
+    if (glosario.some((g) => g.palabra === pal)) { setGlosarioError("Esa palabra ya está en el glosario."); return }
+    setGlosario([...glosario, { palabra: pal, definicion: def }])
+    setGlosarioPalabra("")
+    setGlosarioDefin("")
+    setGlosarioError("")
+  }
+
+  const handleRemoveGlosario = (pal: string) =>
+    setGlosario(glosario.filter((g) => g.palabra !== pal))
+
   const { speak, settings } = useAccessibility()
 
   const handleSelectType = (type: string, label: string) => {
@@ -158,6 +180,20 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
         setError(data.error ?? "Error al guardar la lección")
         setIsLoading(false)
         return
+      }
+
+      const responseData = await response.json()
+      const idLeccion = responseData.id_leccion
+
+      // Guardar glosario si hay entradas
+      if (idLeccion && glosario.length > 0) {
+        await supabase.from("glosario").insert(
+          glosario.map((g) => ({
+            id_leccion: idLeccion,
+            palabra: g.palabra,
+            definicion: g.definicion,
+          }))
+        )
       }
 
       speak("Leccion creada exitosamente")
@@ -553,6 +589,82 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
               />
             </CardContent>
           </Card>
+          {/* Glosario */}
+          <Card className="border-2 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-3">
+                <BookMarked className="w-6 h-6 text-primary" aria-hidden="true" />
+                Glosario de palabras clave
+                <span className="text-sm font-normal text-muted-foreground">(opcional)</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Agrega palabras difíciles con su definición. Las palabras aparecerán resaltadas en las instrucciones y el material de lectura para que el alumno pueda ver su significado con un toque.
+              </p>
+
+              {/* Lista de palabras ya agregadas */}
+              {glosario.length > 0 && (
+                <ul className="space-y-2 list-none p-0">
+                  {glosario.map((g) => (
+                    <li key={g.palabra} className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+                      <div className="flex-1 min-w-0">
+                        <span className="font-bold text-foreground">{g.palabra}</span>
+                        <span className="text-muted-foreground mx-2">—</span>
+                        <span className="text-foreground text-sm">{g.definicion}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 shrink-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleRemoveGlosario(g.palabra)}
+                        aria-label={`Eliminar "${g.palabra}" del glosario`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Formulario inline para agregar */}
+              <div className="space-y-3 pt-1">
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={glosarioPalabra}
+                    onChange={(e) => setGlosarioPalabra(e.target.value)}
+                    placeholder="Palabra (ej: mascota)"
+                    className="h-11 border-2 flex-1"
+                    aria-label="Palabra del glosario"
+                  />
+                  <Input
+                    type="text"
+                    value={glosarioDefin}
+                    onChange={(e) => setGlosarioDefin(e.target.value)}
+                    placeholder="Definición simple para niños"
+                    className="h-11 border-2 flex-[2]"
+                    aria-label="Definición de la palabra"
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddGlosario())}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 px-4 border-2 shrink-0"
+                    onClick={handleAddGlosario}
+                  >
+                    <Plus className="w-4 h-4 mr-1" aria-hidden="true" />
+                    Agregar
+                  </Button>
+                </div>
+                {glosarioError && (
+                  <p className="text-sm text-destructive" role="alert">{glosarioError}</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Material Audiovisual */}
           <Card className="border-2 shadow-lg">
             <CardHeader>

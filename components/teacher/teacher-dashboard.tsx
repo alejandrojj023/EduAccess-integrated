@@ -21,7 +21,6 @@ import {
   Clock,
   CheckCircle,
   History,
-  KeyRound,
   RefreshCw,
 } from "lucide-react"
 
@@ -47,7 +46,6 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
   const hoverAnaliticas  = useSpeakOnHover("Analíticas: ver el progreso de tus estudiantes")
   const hoverCrearCurso  = useSpeakOnHover("Crear Nuevo Curso")
   const hoverEstudiantes = useSpeakOnHover("Ver la lista de tus estudiantes")
-  const hoverGrupos      = useSpeakOnHover("Gestión de Grupos: ver códigos de clase y enviar invitaciones")
 
   const hoverActividadReciente = useSpeakOnHover("Actividad Reciente: registro de los últimos movimientos de tus alumnos. Aquí puedes ver qué actividades han completado y cuándo.")
   const hoverEstudiantesCard  = useSpeakOnHover(`Estudiantes: total de alumnos inscritos en tus grupos. Actualmente ${dashboardStats.estudiantes}`)
@@ -159,7 +157,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
         {/* Navigation Cards */}
         <nav aria-label="Menú principal del docente">
           <h3 className="text-2xl font-bold text-foreground mb-6">Gestionar</h3>
-          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8 list-none p-0">
+          <ul className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8 list-none p-0">
             <li>
               <Button
                 variant="outline"
@@ -210,19 +208,6 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
                   <BarChart3 className="w-8 h-8 text-chart-4" />
                 </div>
                 <span className="text-xl font-semibold text-foreground">Analiticas</span>
-              </Button>
-            </li>
-            <li>
-              <Button
-                variant="outline"
-                className="w-full h-auto p-8 flex flex-col items-center gap-4 border-2 hover:border-primary hover:bg-primary/5"
-                onClick={() => onNavigate("group-management")}
-                {...hoverGrupos}
-              >
-                <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center" aria-hidden="true">
-                  <KeyRound className="w-8 h-8 text-primary" />
-                </div>
-                <span className="text-xl font-semibold text-foreground">Grupos</span>
               </Button>
             </li>
           </ul>

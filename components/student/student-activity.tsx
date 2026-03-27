@@ -10,6 +10,7 @@ import { useAccessibility } from "@/lib/accessibility-context"
 import { supabase } from "@/lib/supabase"
 import { parseActivityConfig } from "@/lib/activity-config"
 import { SpeakableText } from "@/components/ui/accessible-tooltip"
+import { TextoConGlosario, type GlosarioEntry } from "@/components/ui/texto-con-glosario"
 import {
   ArrowLeft, Volume2, Check, X, Star, ChevronRight,
   Mic, HelpCircle, Loader2, RotateCcw,
@@ -123,6 +124,9 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
   const [seqResult, setSeqResult] = useState<boolean[]>([])
   const [seqAttempts, setSeqAttempts] = useState(0)
 
+  // Glosario de la lección
+  const [glosario, setGlosario] = useState<GlosarioEntry[]>([])
+
   // Word search (sopa_letras) state
   const [wsGrid, setWsGrid] = useState<string[][]>([])
   const [wsPalabras, setWsPalabras] = useState<string[]>([])
@@ -159,6 +163,15 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
 
     setActivity(act)
     setPhase("question")
+
+    // Cargar glosario de la lección
+    if (act.id_leccion) {
+      supabase
+        .from("glosario")
+        .select("palabra, definicion")
+        .eq("id_leccion", act.id_leccion)
+        .then(({ data }) => setGlosario((data as GlosarioEntry[]) ?? []))
+    }
 
     // Auto-speak instructions if TTS on (skip sound/fill/sequence/wordsearch — spoken in their own useEffect)
     if (settings.voiceEnabled && act.tipo !== "reconocimiento_sonidos" && act.tipo !== "completar_oracion" && act.tipo !== "secuenciacion" && act.tipo !== "sopa_letras") {
@@ -621,9 +634,12 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
                     <SpeakableText as="h2" className="text-xl font-bold text-foreground mb-1">
                       Instrucciones
                     </SpeakableText>
-                    <SpeakableText as="p" className="text-lg text-muted-foreground">
-                      {config?.instrucciones || "Lee y responde la siguiente pregunta."}
-                    </SpeakableText>
+                    <p className="text-lg text-muted-foreground leading-relaxed">
+                      <TextoConGlosario
+                        texto={config?.instrucciones || "Lee y responde la siguiente pregunta."}
+                        glosario={glosario}
+                      />
+                    </p>
                   </div>
                   {settings.voiceEnabled && (
                     <Button

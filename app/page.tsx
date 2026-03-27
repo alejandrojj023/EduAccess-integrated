@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = "force-dynamic"
+
 import { Suspense, useEffect } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
@@ -13,6 +15,7 @@ import { LessonManagement } from "@/components/teacher/lesson-management"
 import { CreateLesson } from "@/components/teacher/create-lesson"
 import { EditLesson } from "@/components/teacher/edit-lesson"
 import { EditCourse } from "@/components/teacher/edit-course"
+import { CourseInvite } from "@/components/teacher/course-invite"
 import { ActivityBuilder } from "@/components/teacher/activity-builder"
 import { StudentsList } from "@/components/teacher/students-list"
 import { TeacherAnalytics } from "@/components/teacher/teacher-analytics"
@@ -76,6 +79,12 @@ function AppContent() {
       const courseId = screen.replace("edit-course-", "")
       const currentIsLessonContext = segments[0] === "maestro" && segments[1] === "cursos" && segments[3] === "lecciones"
       router.push(`/maestro/cursos/${courseId}/editar?back=${currentIsLessonContext ? "lessons" : "courses"}`)
+      return
+    }
+    if (screen.startsWith("invite-course-")) {
+      const rest = screen.replace("invite-course-", "")
+      const [courseId, qs] = rest.split("?", 2)
+      router.push(`/maestro/cursos/${courseId}/invitar${qs ? `?${qs}` : ""}`)
       return
     }
     if (screen.startsWith("edit-lesson-")) {
@@ -274,6 +283,17 @@ function AppContent() {
           lessonId={lessonId}
           onBack={() => router.push(parentCourse ? `/maestro/cursos/${parentCourse}/lecciones` : "/maestro/cursos")}
           onSave={() => router.push(parentCourse ? `/maestro/cursos/${parentCourse}/lecciones` : "/maestro/cursos")}
+        />
+      )
+    }
+
+    if (segments[0] === "maestro" && segments[1] === "cursos" && segments[3] === "invitar") {
+      const courseId = segments[2]
+      return (
+        <CourseInvite
+          courseId={courseId}
+          courseName={searchParams.get("name")}
+          onBack={() => router.push("/maestro/cursos")}
         />
       )
     }

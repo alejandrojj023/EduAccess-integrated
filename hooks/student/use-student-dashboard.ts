@@ -5,8 +5,7 @@ import { useAuth } from "@/lib/auth-context"
 // ============================================================
 // Hook: useStudentDashboard
 // ============================================================
-// Reemplaza demoCourses + gamificación mock en student-dashboard
-// Consume: curso, leccion, alumno_grupo, grupo, progresion_alumno,
+// Consume: alumno_curso, curso, leccion, progresion_alumno,
 //          gamificacion
 // ============================================================
 
@@ -56,98 +55,104 @@ export function useStudentDashboard(): UseStudentDashboardReturn {
     const fetchData = async () => {
       setLoading(true)
 
-      // 1. Gamificación
-      const { data: gami } = await supabase
-        .from("gamificacion")
-        .select("puntos_totales, streaks_dias")
-        .eq("id_alumno", user.id)
-        .single()
+      // Level 1 (parallel): gamificación + cursos inscritos
+      const [gamiResult, inscripcionesResult] = await Promise.all([
+        supabase
+          .from("gamificacion")
+          .select("puntos_totales, streaks_dias")
+          .eq("id_alumno", user.id)
+          .single(),
+        supabase
+          .from("alumno_curso")
+          .select("id_curso, curso:id_curso(id_curso, titulo)")
+          .eq("id_alumno", user.id),
+      ])
 
-      if (gami) {
+      if (gamiResult.data) {
         setGamification({
-          totalStars: gami.puntos_totales,
-          currentLevel: calculateLevel(gami.puntos_totales),
-          streakDays: gami.streaks_dias,
+          totalStars: gamiResult.data.puntos_totales,
+          currentLevel: calculateLevel(gamiResult.data.puntos_totales),
+          streakDays: gamiResult.data.streaks_dias,
         })
       }
 
-      // 2. Grupos del alumno
-      const { data: inscripciones } = await supabase
-        .from("alumno_grupo")
-        .select("id_grupo")
-        .eq("id_alumno", user.id)
+      const cursosRaw = inscripcionesResult.data
+        ?.map((i: any) => i.curso)
+        .filter(Boolean) ?? []
 
-      const grupoIds = inscripciones?.map((i) => i.id_grupo) ?? []
-      if (grupoIds.length === 0) {
+      if (cursosRaw.length === 0) {
         setLoading(false)
         return
       }
 
-      // 3. Cursos publicados de esos grupos
-      const { data: cursosRaw } = await supabase
-        .from("curso")
-        .select("id_curso, titulo")
-        .in("id_grupo", grupoIds)
+      const cursoIds = cursosRaw.map((c: any) => c.id_curso)
+
+      // Level 2: todas las lecciones de todos los cursos en una sola query
+      const { data: todasLecciones } = await supabase
+        .from("leccion")
+        .select("id_leccion, id_curso, titulo, orden")
+        .in("id_curso", cursoIds)
         .eq("publicado", true)
+        .order("orden", { ascending: true })
 
-      if (!cursosRaw) {
-        setLoading(false)
-        return
-      }
+      const allLeccionIds = todasLecciones?.map((l: any) => l.id_leccion) ?? []
 
-      // 4. Para cada curso, calcular progreso
-      const coursesData: Course[] = await Promise.all(
-        cursosRaw.map(async (c: any) => {
-          // Lecciones publicadas del curso
-          const { data: lecciones } = await supabase
-            .from("leccion")
-            .select("id_leccion, titulo, orden")
-            .eq("id_curso", c.id_curso)
-            .eq("publicado", true)
-            .order("orden", { ascending: true })
-
-          const totalLessons = lecciones?.length ?? 0
-          const leccionIds = lecciones?.map((l: any) => l.id_leccion) ?? []
-
-          // Progresión del alumno en esas lecciones
-          const { data: progresiones } = await supabase
+      // Level 3: todas las progresiones en una sola query
+      const { data: todasProgresiones } = allLeccionIds.length > 0
+        ? await supabase
             .from("progresion_alumno")
             .select("id_leccion, pct_completado")
             .eq("id_alumno", user.id)
-            .in("id_leccion", leccionIds)
+            .in("id_leccion", allLeccionIds)
+        : { data: [] as any[] }
 
-          const completedLessons = progresiones?.filter(
-            (p: any) => p.pct_completado >= 100
-          ).length ?? 0
+      // Agrupar en memoria (sin más queries)
+      const leccByCorso = new Map<string, any[]>()
+      for (const l of todasLecciones ?? []) {
+        if (!leccByCorso.has(l.id_curso)) leccByCorso.set(l.id_curso, [])
+        leccByCorso.get(l.id_curso)!.push(l)
+      }
 
-          const avgProgress =
-            progresiones && progresiones.length > 0
-              ? Math.round(
-                  progresiones.reduce((acc: number, p: any) => acc + p.pct_completado, 0) /
-                    totalLessons
-                )
-              : 0
+      const progByLecc = new Map<string, any>()
+      for (const p of todasProgresiones ?? []) {
+        progByLecc.set(p.id_leccion, p)
+      }
 
-          // Siguiente lección (primera no completada al 100%)
-          const completedIds = new Set(
-            progresiones
-              ?.filter((p: any) => p.pct_completado >= 100)
-              .map((p: any) => p.id_leccion) ?? []
-          )
-          const nextLesson = lecciones?.find(
-            (l: any) => !completedIds.has(l.id_leccion)
-          )
+      const coursesData: Course[] = cursosRaw.map((c: any) => {
+        const lecciones = leccByCorso.get(c.id_curso) ?? []
+        const totalLessons = lecciones.length
+        const progresiones = lecciones
+          .map((l: any) => progByLecc.get(l.id_leccion))
+          .filter(Boolean)
 
-          return {
-            id: c.id_curso,
-            name: c.titulo,
-            progress: Math.min(avgProgress, 100),
-            currentLesson: nextLesson?.titulo ?? "Completado",
-            totalLessons,
-            completedLessons,
-          }
-        })
-      )
+        const completedLessons = progresiones.filter(
+          (p: any) => p.pct_completado >= 100
+        ).length
+
+        const avgProgress =
+          progresiones.length > 0 && totalLessons > 0
+            ? Math.round(
+                progresiones.reduce((acc: number, p: any) => acc + p.pct_completado, 0) /
+                  totalLessons
+              )
+            : 0
+
+        const completedIds = new Set(
+          progresiones
+            .filter((p: any) => p.pct_completado >= 100)
+            .map((p: any) => p.id_leccion)
+        )
+        const nextLesson = lecciones.find((l: any) => !completedIds.has(l.id_leccion))
+
+        return {
+          id: c.id_curso,
+          name: c.titulo,
+          progress: Math.min(avgProgress, 100),
+          currentLesson: nextLesson?.titulo ?? "Completado",
+          totalLessons,
+          completedLessons,
+        }
+      })
 
       setCourses(coursesData)
       setLoading(false)

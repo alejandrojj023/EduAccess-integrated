@@ -16,15 +16,22 @@ export async function PUT(request, { params }) {
 
     const { id: courseId } = await params
     const body = await request.json()
-    const { titulo, descripcion, materia } = body
+    const { titulo, descripcion, materia, materia_personalizada } = body
 
     if (!titulo) {
       return NextResponse.json({ error: "El título es requerido" }, { status: 400 })
     }
 
+    if (materia === "otra" && !materia_personalizada?.trim()) {
+      return NextResponse.json({ error: "Escribe el nombre de la materia" }, { status: 400 })
+    }
+
     const updateData = { titulo }
     if (descripcion !== undefined) updateData.descripcion = descripcion || null
-    if (materia !== undefined) updateData.materia = materia
+    if (materia !== undefined) {
+      updateData.materia = materia
+      updateData.materia_personalizada = materia === "otra" ? materia_personalizada.trim() : null
+    }
 
     const { error: updateError } = await supabaseAdmin
       .from("curso")

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { supabase } from "@/lib/supabase"
-import { ArrowLeft, Save, Volume2, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip } from "lucide-react"
+import { ArrowLeft, Save, Volume2, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip, BookMarked, Pencil } from "lucide-react"
 import { parseActivityConfig, serializeActivityConfig } from "@/lib/activity-config"
 
 interface EditLessonProps {
@@ -66,6 +66,12 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
   const [isFetching, setIsFetching] = useState(true)
   const [error, setError] = useState("")
 
+  // Glosario
+  const [glosario, setGlosario] = useState<{ palabra: string; definicion: string }[]>([])
+  const [glosarioPalabra, setGlosarioPalabra] = useState("")
+  const [glosarioDefin, setGlosarioDefin] = useState("")
+  const [glosarioError, setGlosarioError] = useState("")
+
   // Inline config state
   const [configuringType, setConfiguringType] = useState<{ type: string; label: string } | null>(null)
   const [actInstrucciones, setActInstrucciones] = useState("")
@@ -88,7 +94,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
     }
 
     const fetchLesson = async () => {
-      const [leccionFull, actividadesResult] = await Promise.all([
+      const [leccionFull, actividadesResult, glosarioResult] = await Promise.all([
         supabase
           .from("leccion")
           .select("titulo, contenido, material_lectura, material_audiovisual, material_pdf_url, material_pdf_titulo")
@@ -99,6 +105,10 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
           .select("id_actividad, tipo, titulo, instrucciones, nivel_dificultad, orden, imagen_url, audio_url")
           .eq("id_leccion", lessonId)
           .order("orden", { ascending: true }),
+        supabase
+          .from("glosario")
+          .select("palabra, definicion")
+          .eq("id_leccion", lessonId),
       ])
 
       // If new columns don't exist yet in DB, fall back to basic select
@@ -146,6 +156,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
         }
       })
       setActivities(acts)
+      setGlosario(glosarioResult.data ?? [])
       setIsFetching(false)
     }
 
@@ -198,6 +209,21 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
     speak("Actividad eliminada")
   }
 
+  const handleAddGlosario = () => {
+    const pal = glosarioPalabra.trim().toLowerCase()
+    const def = glosarioDefin.trim()
+    if (!pal || !def) { setGlosarioError("Completa la palabra y la definición."); return }
+    if (glosario.some((g) => g.palabra.toLowerCase() === pal)) { setGlosarioError("Esa palabra ya está en el glosario."); return }
+    setGlosario([...glosario, { palabra: pal, definicion: def }])
+    setGlosarioPalabra("")
+    setGlosarioDefin("")
+    setGlosarioError("")
+  }
+
+  const handleRemoveGlosario = (pal: string) => {
+    setGlosario(glosario.filter((g) => g.palabra !== pal))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -246,6 +272,14 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
         setError(data.error ?? "Error al guardar la lección")
         setIsLoading(false)
         return
+      }
+
+      // Sync glosario: delete existing entries then re-insert
+      await supabase.from("glosario").delete().eq("id_leccion", lessonId)
+      if (glosario.length > 0) {
+        await supabase.from("glosario").insert(
+          glosario.map((g) => ({ id_leccion: lessonId, palabra: g.palabra, definicion: g.definicion }))
+        )
       }
 
       speak("Leccion actualizada exitosamente")
@@ -576,6 +610,70 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
               />
             </CardContent>
           </Card>
+          {/* Glosario */}
+          <Card className="border-2 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-3">
+                <BookMarked className="w-6 h-6 text-primary" aria-hidden="true" />
+                Glosario de palabras clave
+                <span className="text-sm font-normal text-muted-foreground">(opcional)</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Las palabras del glosario aparecerán resaltadas en el material de lectura. Los estudiantes podrán ver su definición al hacer clic.
+              </p>
+              <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+                <Input
+                  value={glosarioPalabra}
+                  onChange={(e) => setGlosarioPalabra(e.target.value)}
+                  placeholder="Palabra"
+                  className="h-11 border-2 flex-1 min-w-[120px]"
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddGlosario())}
+                />
+                <Input
+                  value={glosarioDefin}
+                  onChange={(e) => setGlosarioDefin(e.target.value)}
+                  placeholder="Definición"
+                  className="h-11 border-2 flex-[2] min-w-[160px]"
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddGlosario())}
+                />
+                <Button type="button" onClick={handleAddGlosario} className="h-11 px-4 shrink-0">
+                  <Plus className="w-4 h-4 mr-1" aria-hidden="true" />
+                  Agregar
+                </Button>
+              </div>
+              {glosarioError && (
+                <p className="text-sm text-destructive" role="alert">{glosarioError}</p>
+              )}
+              {glosario.length > 0 && (
+                <ul className="space-y-2">
+                  {glosario.map((g) => (
+                    <li key={g.palabra} className="flex items-start justify-between gap-3 bg-muted/50 rounded-lg px-3 py-2">
+                      <div className="flex items-start gap-2 min-w-0">
+                        <Pencil className="w-4 h-4 text-primary mt-0.5 shrink-0" aria-hidden="true" />
+                        <span className="font-semibold text-foreground capitalize">{g.palabra}</span>
+                        <span className="text-muted-foreground">—</span>
+                        <span className="text-foreground text-sm leading-snug">{g.definicion}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveGlosario(g.palabra)}
+                        className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                        aria-label={`Eliminar ${g.palabra} del glosario`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {glosario.length === 0 && (
+                <p className="text-sm text-muted-foreground italic">No hay palabras en el glosario todavía.</p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Material Audiovisual */}
           <Card className="border-2 shadow-lg">
             <CardHeader>

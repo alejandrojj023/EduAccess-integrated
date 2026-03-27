@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 
@@ -38,32 +38,36 @@ export function useTeacherDashboard(): UseTeacherDashboardReturn {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
   const [loading, setLoading] = useState(true)
   const [tick, setTick] = useState(0)
+  const isFirstLoad = useRef(true)
 
   const refetch = () => setTick(t => t + 1)
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 60 seconds (background, no loading state)
   useEffect(() => {
-    const interval = setInterval(() => setTick(t => t + 1), 30_000)
+    const interval = setInterval(() => setTick(t => t + 1), 60_000)
     return () => clearInterval(interval)
   }, [])
 
-  // Suscripción en tiempo real: actualiza al instante cuando un alumno completa una actividad
+  // Suscripción en tiempo real con debounce: evita múltiples refetches en ráfaga
   useEffect(() => {
     if (!user) return
+    let timeout: ReturnType<typeof setTimeout>
     const channel = supabase
       .channel("dashboard-realtime")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "intento_actividad" }, () => {
-        setTick((t) => t + 1)
+        clearTimeout(timeout)
+        timeout = setTimeout(() => setTick((t) => t + 1), 2000)
       })
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    return () => { clearTimeout(timeout); supabase.removeChannel(channel) }
   }, [user])
 
   useEffect(() => {
     if (!user) return
 
     const fetchData = async () => {
-      setLoading(true)
+      // Solo mostrar spinner en la carga inicial, no en los refetches de fondo
+      if (isFirstLoad.current) setLoading(true)
 
       // 1. Obtener grupos del docente
       const { data: grupos } = await supabase
@@ -74,6 +78,7 @@ export function useTeacherDashboard(): UseTeacherDashboardReturn {
       const grupoIds = grupos?.map((g) => g.id_grupo) ?? []
 
       if (grupoIds.length === 0) {
+        isFirstLoad.current = false
         setLoading(false)
         return
       }
@@ -138,6 +143,7 @@ export function useTeacherDashboard(): UseTeacherDashboardReturn {
       })
 
       setRecentActivity(actividadReciente)
+      isFirstLoad.current = false
       setLoading(false)
     }
 

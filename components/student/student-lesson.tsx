@@ -10,6 +10,7 @@ import {
   Mic, Image as ImageIcon, List, HelpCircle, PencilLine, Volume2,
   BookOpen, Youtube, Search, Paperclip, ExternalLink, FileText,
 } from "lucide-react"
+import { TextoConGlosario, type GlosarioEntry } from "@/components/ui/texto-con-glosario"
 
 interface Activity {
   id_actividad: string
@@ -84,6 +85,7 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onBack }
   })
   const [loading, setLoading] = useState(true)
   const [readingExpanded, setReadingExpanded] = useState(true)
+  const [glosario, setGlosario] = useState<GlosarioEntry[]>([])
 
   useEffect(() => {
     if (!user || !lessonId) return
@@ -93,7 +95,7 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onBack }
   async function load() {
     setLoading(true)
 
-    const [leccionRes, { data: acts }] = await Promise.all([
+    const [leccionRes, { data: acts }, { data: glosarioData }] = await Promise.all([
       supabase
         .from("leccion")
         .select("material_lectura, material_audiovisual, material_pdf_url, material_pdf_titulo")
@@ -105,6 +107,10 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onBack }
         .eq("id_leccion", lessonId!)
         .eq("publicado", true)
         .order("orden", { ascending: true }),
+      supabase
+        .from("glosario")
+        .select("palabra, definicion")
+        .eq("id_leccion", lessonId!),
     ])
 
     // Only set material if fetch succeeded (columns may not exist yet before SQL migration)
@@ -118,6 +124,7 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onBack }
       })
     }
 
+    setGlosario(glosarioData ?? [])
     if (!acts) { setLoading(false); return }
 
     // Check which activities have been completed
@@ -263,8 +270,8 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onBack }
                 </button>
                 {readingExpanded && (
                   <div className="mt-4 pt-4 border-t border-primary/20">
-                    <p className="text-lg text-foreground leading-relaxed whitespace-pre-wrap">
-                      {material.material_lectura}
+                    <p className="text-lg text-foreground leading-relaxed">
+                      <TextoConGlosario texto={material.material_lectura} glosario={glosario} />
                     </p>
                   </div>
                 )}
