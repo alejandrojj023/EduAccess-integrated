@@ -5,8 +5,7 @@ import { useAuth } from "@/lib/auth-context"
 // ============================================================
 // Hook: useCourses
 // ============================================================
-// Reemplaza demoCourses en course-list.tsx
-// Consume: curso, grupo, alumno_grupo, leccion
+// Consume: curso, grupo, alumno_curso, leccion
 // ============================================================
 
 interface Course {
@@ -14,6 +13,10 @@ interface Course {
   name: string
   description: string
   grade: string
+  grupoNombre: string
+  materia: string       // valor DB: 'español' | 'matematicas' | 'otra'
+  materiaLabel: string  // etiqueta para mostrar
+  codigoCurso: string
   students: number
   lessons: number
 }
@@ -45,17 +48,23 @@ export function useCourses(): UseCoursesReturn {
     const fetchCourses = async () => {
       setLoading(true)
 
-      // Obtener cursos con datos del grupo (grado)
+      // Single query: curso + grupo + nested counts (eliminates N+1)
       const { data: cursosRaw, error } = await supabase
         .from("curso")
         .select(`
           id_curso,
           titulo,
           descripcion,
+          materia,
+          materia_personalizada,
+          codigo_curso,
           grupo:id_grupo (
             id_grupo,
-            grado
-          )
+            grado,
+            nombre
+          ),
+          leccion(count),
+          alumno_curso(count)
         `)
         .order("fecha_creacion", { ascending: false })
 
@@ -64,33 +73,28 @@ export function useCourses(): UseCoursesReturn {
         return
       }
 
-      // Para cada curso, contar estudiantes y lecciones
-      const coursesData: Course[] = await Promise.all(
-        cursosRaw.map(async (c: any) => {
-          const grupoId = c.grupo?.id_grupo
+      const coursesData: Course[] = cursosRaw.map((c: any) => {
+        const mat = c.materia ?? "español"
+        const materiaLabel =
+          mat === "otra"
+            ? (c.materia_personalizada ?? "Otra")
+            : mat === "matematicas"
+            ? "Matemáticas"
+            : "Español"
 
-          // Contar lecciones
-          const { count: lessonCount } = await supabase
-            .from("leccion")
-            .select("id_leccion", { count: "exact", head: true })
-            .eq("id_curso", c.id_curso)
-
-          // Contar estudiantes del grupo
-          const { count: studentCount } = await supabase
-            .from("alumno_grupo")
-            .select("id_alumno", { count: "exact", head: true })
-            .eq("id_grupo", grupoId)
-
-          return {
-            id: c.id_curso,
-            name: c.titulo,
-            description: c.descripcion ?? "",
-            grade: gradeLabels[c.grupo?.grado] ?? c.grupo?.grado ?? "",
-            students: studentCount ?? 0,
-            lessons: lessonCount ?? 0,
-          }
-        })
-      )
+        return {
+          id: c.id_curso,
+          name: c.titulo,
+          description: c.descripcion ?? "",
+          grade: gradeLabels[c.grupo?.grado] ?? c.grupo?.grado ?? "",
+          grupoNombre: c.grupo?.nombre ?? "",
+          materia: mat,
+          materiaLabel,
+          codigoCurso: c.codigo_curso ?? "",
+          students: (c.alumno_curso as any)?.[0]?.count ?? 0,
+          lessons: (c.leccion as any)?.[0]?.count ?? 0,
+        }
+      })
 
       setCourses(coursesData)
       setLoading(false)

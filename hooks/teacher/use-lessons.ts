@@ -40,9 +40,10 @@ export function useLessons(courseId: string | null): UseLessonsReturn {
     const fetchLessons = async () => {
       setLoading(true)
 
+      // Single query with nested count (eliminates N+1)
       const { data: leccionesRaw, error } = await supabase
         .from("leccion")
-        .select("id_leccion, titulo, contenido, orden, publicado")
+        .select("id_leccion, titulo, contenido, orden, publicado, actividad(count)")
         .eq("id_curso", courseId)
         .order("orden", { ascending: true })
 
@@ -51,23 +52,13 @@ export function useLessons(courseId: string | null): UseLessonsReturn {
         return
       }
 
-      // Contar actividades por lección
-      const lessonsData: Lesson[] = await Promise.all(
-        leccionesRaw.map(async (l: any) => {
-          const { count } = await supabase
-            .from("actividad")
-            .select("id_actividad", { count: "exact", head: true })
-            .eq("id_leccion", l.id_leccion)
-
-          return {
-            id: l.id_leccion,
-            title: l.titulo,
-            instructions: l.contenido ?? "",
-            activitiesCount: count ?? 0,
-            status: l.publicado ? "published" as const : "draft" as const,
-          }
-        })
-      )
+      const lessonsData: Lesson[] = leccionesRaw.map((l: any) => ({
+        id: l.id_leccion,
+        title: l.titulo,
+        instructions: l.contenido ?? "",
+        activitiesCount: (l.actividad as any)?.[0]?.count ?? 0,
+        status: l.publicado ? "published" as const : "draft" as const,
+      }))
 
       setLessons(lessonsData)
       setLoading(false)

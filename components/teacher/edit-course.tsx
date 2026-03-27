@@ -15,8 +15,9 @@ interface EditCourseProps {
 }
 
 const materias = [
-  { id: "espanol", label: "Español" },
+  { id: "español",     label: "Español" },
   { id: "matematicas", label: "Matemáticas" },
+  { id: "otra",        label: "Otra materia" },
 ]
 
 const gradeLabels: Record<string, string> = {
@@ -28,7 +29,8 @@ const gradeLabels: Record<string, string> = {
 export function EditCourse({ courseId, onBack, onSave }: EditCourseProps) {
   const [titulo, setTitulo] = useState("")
   const [descripcion, setDescripcion] = useState("")
-  const [materia, setMateria] = useState("espanol")
+  const [materia, setMateria] = useState("español")
+  const [materiaPers, setMateriaPers] = useState("")
   const [grade, setGrade] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isFetching, setIsFetching] = useState(true)
@@ -45,7 +47,7 @@ export function EditCourse({ courseId, onBack, onSave }: EditCourseProps) {
     const fetchCourse = async () => {
       const { data, error: fetchError } = await supabase
         .from("curso")
-        .select("titulo, descripcion, materia, grupo:id_grupo ( grado )")
+        .select("titulo, descripcion, materia, materia_personalizada, grupo:id_grupo ( grado )")
         .eq("id_curso", courseId)
         .single()
 
@@ -57,7 +59,8 @@ export function EditCourse({ courseId, onBack, onSave }: EditCourseProps) {
 
       setTitulo(data.titulo)
       setDescripcion(data.descripcion ?? "")
-      setMateria(data.materia ?? "espanol")
+      setMateria(data.materia ?? "español")
+      setMateriaPers((data as any).materia_personalizada ?? "")
       setGrade(gradeLabels[(data.grupo as any)?.grado] ?? "")
       setIsFetching(false)
     }
@@ -90,7 +93,12 @@ export function EditCourse({ courseId, onBack, onSave }: EditCourseProps) {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ titulo, descripcion, materia }),
+        body: JSON.stringify({
+            titulo,
+            descripcion,
+            materia,
+            materia_personalizada: materia === "otra" ? materiaPers.trim() : null,
+          }),
       })
 
       if (!response.ok) {
@@ -196,7 +204,7 @@ export function EditCourse({ courseId, onBack, onSave }: EditCourseProps) {
 
               <div className="space-y-2">
                 <label className="text-lg font-semibold text-foreground block">Materia</label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   {materias.map((m) => (
                     <button
                       key={m.id}
@@ -209,12 +217,28 @@ export function EditCourse({ courseId, onBack, onSave }: EditCourseProps) {
                       }`}
                       aria-pressed={materia === m.id}
                     >
-                      <span className={`text-lg font-bold ${materia === m.id ? "text-primary" : "text-foreground"}`}>
+                      <span className={`text-base font-bold ${materia === m.id ? "text-primary" : "text-foreground"}`}>
                         {m.label}
                       </span>
                     </button>
                   ))}
                 </div>
+                {materia === "otra" && (
+                  <div className="space-y-2 pt-1">
+                    <label htmlFor="materia-pers-edit" className="text-base font-medium text-foreground block">
+                      Nombre de la materia
+                    </label>
+                    <Input
+                      id="materia-pers-edit"
+                      type="text"
+                      value={materiaPers}
+                      onChange={(e) => setMateriaPers(e.target.value)}
+                      placeholder="Ej: Ciencias Naturales, Arte, Geografía..."
+                      className="h-12 text-lg border-2"
+                      required
+                    />
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -239,7 +263,7 @@ export function EditCourse({ courseId, onBack, onSave }: EditCourseProps) {
               type="submit"
               size="lg"
               className="flex-1 h-16 text-xl"
-              disabled={isLoading || !titulo}
+              disabled={isLoading || !titulo || (materia === "otra" && !materiaPers.trim())}
             >
               <Save className="w-6 h-6 mr-3" aria-hidden="true" />
               {isLoading ? "Guardando..." : "Guardar Cambios"}

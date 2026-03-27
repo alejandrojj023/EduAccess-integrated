@@ -44,7 +44,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
   const hoverProgreso    = useSpeakOnHover("Mi Progreso: ver tu avance en los cursos")
   const hoverCalendario  = useSpeakOnHover("Mi Calendario: actividades completadas por día")
   const hoverAjustes     = useSpeakOnHover("Ajustes: cambiar accesibilidad y perfil")
-  const hoverUnirse      = useSpeakOnHover("Unirse a un Grupo: ingresar código de clase o aceptar invitación")
+  const hoverUnirse      = useSpeakOnHover("Unirse a un Curso: ingresar código de curso o aceptar invitación")
 
   const { totalStars, currentLevel, streakDays } = gamification
 
@@ -194,15 +194,15 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
                 </div>
                 <p className="text-xl font-semibold text-foreground">Aún no tienes cursos</p>
                 <p className="text-base text-muted-foreground max-w-xs">
-                  Pídele a tu docente el código de clase y únete a un grupo para ver tus cursos aquí.
+                  Pídele a tu docente el código de curso e ingrésalo para ver tus cursos aquí.
                 </p>
                 <Button
                   variant="outline"
                   className="mt-2 border-2"
                   onClick={() => onNavigate("join-group")}
                 >
-                  <Users className="w-4 h-4 mr-2" aria-hidden="true" />
-                  Unirme a un Grupo
+                  <BookOpen className="w-4 h-4 mr-2" aria-hidden="true" />
+                  Unirme a un Curso
                 </Button>
               </CardContent>
             </Card>
@@ -302,8 +302,8 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
             onClick={() => onNavigate("join-group")}
             {...hoverUnirse}
           >
-            <Users className="w-6 h-6 mr-3" aria-hidden="true" />
-            Unirme a un Grupo
+            <BookOpen className="w-6 h-6 mr-3" aria-hidden="true" />
+            Unirme a un Curso
           </Button>
         </div>
         </nav>

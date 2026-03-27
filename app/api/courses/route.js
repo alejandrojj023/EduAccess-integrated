@@ -1,12 +1,6 @@
 import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase-admin"
 
-const gradeMap = {
-  "1er Grado": "1",
-  "2do Grado": "2",
-  "3er Grado": "3",
-}
-
 export async function POST(request) {
   try {
     const authHeader = request.headers.get("Authorization")
@@ -21,52 +15,28 @@ export async function POST(request) {
     }
 
     const body = await request.json()
-    const { titulo, descripcion, grade } = body
+    const { titulo, descripcion, id_grupo, materia, materia_personalizada } = body
 
-    if (!titulo || !descripcion || !grade) {
+    if (!titulo || !descripcion || !id_grupo) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
     }
 
-    const gradoNum = gradeMap[grade]
-    if (!gradoNum) {
-      return NextResponse.json({ error: "Grado inválido" }, { status: 400 })
+    if (materia === "otra" && !materia_personalizada?.trim()) {
+      return NextResponse.json({ error: "Escribe el nombre de la materia" }, { status: 400 })
     }
 
-    const { data: grupoExistente } = await supabaseAdmin
-      .from("grupo")
-      .select("id_grupo")
-      .eq("grado", gradoNum)
-      .eq("id_docente", user.id)
-      .single()
-
-    let idGrupo
-
-    if (grupoExistente) {
-      idGrupo = grupoExistente.id_grupo
-    } else {
-      const { data: nuevoGrupo, error: grupoError } = await supabaseAdmin
-        .from("grupo")
-        .insert({ grado: gradoNum, id_docente: user.id, nombre: grade })
-        .select("id_grupo")
-        .single()
-
-      if (grupoError || !nuevoGrupo) {
-        return NextResponse.json(
-          { error: grupoError?.message ?? "Error al crear grupo" },
-          { status: 500 }
-        )
-      }
-      idGrupo = nuevoGrupo.id_grupo
+    const cursoData = {
+      titulo,
+      descripcion,
+      id_grupo,
+      publicado: true,
+      materia: materia ?? "español",
     }
+    if (materia === "otra") cursoData.materia_personalizada = materia_personalizada.trim()
 
     const { data: curso, error: cursoError } = await supabaseAdmin
       .from("curso")
-      .insert({
-        titulo,
-        descripcion,
-        id_grupo: idGrupo,
-        publicado: true,
-      })
+      .insert(cursoData)
       .select("id_curso")
       .single()
 

@@ -36,31 +36,38 @@ components/
     login-screen.tsx
     register-screen.tsx
   teacher/
-    teacher-dashboard.tsx         — Panel principal del docente
-    course-list.tsx               — Lista de cursos (Editar navega a lessons-{id})
-    create-course.tsx             — Formulario crear curso
+    teacher-dashboard.tsx         — Panel principal del docente (sin nav "Grupos")
+    course-list.tsx               — Lista de cursos con DropdownMenu de acciones (⋮)
+    create-course.tsx             — Formulario crear curso (crea grupo automáticamente por grado+sección)
+    course-invite.tsx             — Invitar alumnos al curso (por correo o desde alumnos del docente)
     lesson-management.tsx         — Lista de lecciones de un curso
-    create-lesson.tsx             — Formulario crear leccion (con config inline de actividades por tipo)
-    edit-lesson.tsx               — Formulario editar leccion (precarga datos + config inline actividades)
+    create-lesson.tsx             — Formulario crear leccion + gestión de glosario
+    edit-lesson.tsx               — Formulario editar leccion + gestión de glosario
     edit-course.tsx               — Formulario editar titulo/descripcion/materia de un curso
     activity-builder.tsx          — Constructor de actividades (grid tipos + ver existentes + config completo)
     students-list.tsx             — Lista de estudiantes del docente
     teacher-analytics.tsx         — Analiticas
   student/
     student-dashboard.tsx
-    student-activity.tsx
+    student-activity.tsx          — Muestra glosario en instrucciones via TextoConGlosario
     voice-activity.tsx
     initial-test.tsx
     student-progress.tsx
+    student-lesson.tsx            — Muestra glosario en material de lectura via TextoConGlosario
     student-calendar.tsx          — Calendario mensual con actividades completadas por dia
+    join-group.tsx                — Unirse a curso por código o aceptar invitaciones de curso
   accessibility-settings.tsx      — Pagina "Ajustes" con 3 pestanas: Perfil, Notificaciones, Accesibilidad
 
 hooks/teacher/
-  use-courses.ts                  — Fetch cursos + conteo lecciones/alumnos
+  use-courses.ts                  — Fetch cursos + conteo lecciones/alumnos (usa alumno_curso, incluye codigo_curso y grupoNombre)
   use-lessons.ts                  — Fetch lecciones + conteo actividades
   use-teacher-dashboard.ts        — Stats dashboard + actividad reciente (queries en paralelo)
   use-students.ts                 — Lista estudiantes con progreso
   use-analytics.ts                — Datos para graficas
+
+hooks/student/
+  use-student-dashboard.ts        — Usa alumno_curso (no alumno_grupo) para obtener cursos del alumno
+  use-student-progress.ts         — Usa alumno_curso para obtener cursoIds
 
 lib/
   supabase.ts                     — Cliente publico (respeta RLS)
@@ -71,6 +78,7 @@ lib/
 
 components/ui/
   accessible-tooltip.tsx          — Wrapper tooltip/TTS segun tooltipMode del usuario
+  texto-con-glosario.tsx          — Resalta palabras del glosario con Popover + TTS (DUA)
 ```
 
 ## Navegacion (app/page.tsx)
@@ -79,8 +87,9 @@ La app es una SPA. El estado `currentScreen` controla que componente se renderiz
 ### Flujo docente
 ```
 login → teacher-dashboard
-  → courses → create-course
-  → courses → edit-course-{courseId} → edit-course   (desde course-list "Editar Info")
+  → courses → create-course        (crea grupo automáticamente, muestra codigo_curso al final)
+  → courses → invite-course-{id}   (invitar alumno por correo o desde lista de alumnos del docente)
+  → courses → edit-course-{courseId} → edit-course   (desde DropdownMenu "Editar")
   → courses → lessons-{courseId} → lessons
       → edit-course-{courseId} → edit-course           (desde lesson-management "Editar Curso")
       → create-lesson
@@ -97,7 +106,8 @@ login → initial-test (si no lo ha completado)
       → student-dashboard
           → student-activity → voice-activity
           → student-progress
-          → student-calendar   (nuevo: calendario mensual de actividades)
+          → student-calendar   (calendario mensual de actividades)
+          → join-group          (unirse por código de curso o aceptar invitaciones de curso)
           → accessibility       (pagina "Ajustes" con 3 tabs)
 ```
 
@@ -129,11 +139,14 @@ El `useEffect` en `AppContent` corrige pantallas incorrectas cuando cambia el au
 |-------|-------------|
 | `perfil` | `id_perfil (uuid FK auth.users)`, `correo`, `rol ('docente'/'alumno')`, `nombre`, `condicion_tipo`, `grado_escolar` |
 | `configuracion_accesibilidad` | `id_perfil`, `texto_a_voz_activo`, `tamano_fuente (16/24/32)`, `contraste ('normal'/'alto'/'muy_alto')`, `interfaz_simplificada` |
-| `grupo` | `id_grupo`, `id_docente`, `nombre` (NOT NULL), `grado ('1'/'2'/'3')` |
-| `alumno_grupo` | `id_grupo`, `id_alumno` — pivot muchos a muchos |
-| `curso` | `id_curso`, `id_grupo`, `titulo`, `descripcion`, `materia ('espanol'/'matematicas') DEFAULT 'espanol'`, `publicado` |
-| `leccion` | `id_leccion`, `id_curso`, `titulo`, `contenido`, `orden` (UNIQUE por curso), `publicado` |
+| `grupo` | `id_grupo`, `id_docente`, `nombre` (auto: e.g. "1ro A"), `grado ('1'/'2'/'3')`, `seccion` — UNIQUE(id_docente, grado, seccion) |
+| `alumno_grupo` | `id_grupo`, `id_alumno` — membresía de grupo (aún existe, pero acceso a contenido usa `alumno_curso`) |
+| `alumno_curso` | `id_curso`, `id_alumno` — pivot inscripción por curso (reemplaza alumno_grupo para acceso a lecciones/actividades) |
+| `curso` | `id_curso`, `id_grupo`, `titulo`, `descripcion`, `materia ('español'/'matematicas'/'otra') DEFAULT 'español'`, `publicado`, `codigo_curso` (6 chars, auto-generado por trigger) |
+| `invitacion_curso` | `id_invitacion`, `id_curso`, `id_alumno`, `id_docente`, `estado ('pendiente'/'aceptada'/'rechazada')`, `fecha_creacion` |
+| `leccion` | `id_leccion`, `id_curso`, `titulo`, `contenido`, `orden` (UNIQUE por curso), `publicado`, `material_lectura`, `material_audiovisual`, `material_pdf_url`, `material_pdf_titulo` |
 | `actividad` | `id_actividad`, `id_leccion`, `tipo (CHECK)`, `titulo`, `instrucciones`, `nivel_dificultad`, `orden` (UNIQUE por leccion), `publicado` |
+| `glosario` | `id_glosario`, `id_leccion`, `palabra`, `definicion` — RLS: docente CRUD, alumno read |
 | `test_inicial` | `id_alumno`, `puntaje`, `tipo_indicador`, `resultado ('requiere_sistema'/'no_requiere'/'revision_manual')` |
 | `intento_actividad` | `id_alumno`, `id_actividad`, `id_grupo`, `puntaje_total`, `fecha_creacion` |
 | `progresion_alumno` | `id_alumno`, `id_leccion`, `pct_completado`, `promedio_puntaje` — cache actualizado por trigger |
@@ -156,10 +169,18 @@ El `useEffect` en `AppContent` corrige pantallas incorrectas cuando cambia el au
 | `"2do Grado"` | `"2"` |
 | `"3er Grado"` | `"3"` |
 
+### RPCs relevantes (15_patch.sql)
+| RPC | Parámetros | Acción |
+|-----|-----------|--------|
+| `fn_unirse_por_codigo_curso` | `p_codigo text` | Inscribe al alumno en el curso y su grupo. Devuelve `{ success, curso, error }` |
+| `fn_aceptar_invitacion_curso` | `p_id_invitacion uuid` | Acepta invitación → inserta en `alumno_curso` + `alumno_grupo` |
+| `fn_rechazar_invitacion_curso` | `p_id_invitacion uuid` | Rechaza invitación, actualiza estado |
+
 ### Triggers automaticos
 - Al crear `perfil` → se crea automaticamente `configuracion_accesibilidad`
 - Al crear `perfil` con `rol='alumno'` → se crea automaticamente `gamificacion`
 - Al crear/actualizar `intento_actividad` → se actualiza `progresion_alumno`
+- Al crear `curso` → se genera automaticamente `codigo_curso` (6 chars alfanumérico único)
 
 ## API Routes
 
@@ -181,9 +202,11 @@ Crea usuario en Auth + inserta en `perfil`. Usa `service_role` para bypasear RLS
 Si falla la insercion del perfil, hace rollback eliminando el usuario de Auth.
 
 ### POST /api/courses
-1. Mapea grado ("1er Grado" → "1")
-2. Busca `grupo` existente para `id_docente + grado`, o lo crea (con `nombre = grade`)
-3. Inserta `curso`
+Acepta `{ titulo, descripcion, id_grupo, materia, materia_personalizada }` directamente.
+El `id_grupo` lo calcula el componente `create-course.tsx` en el cliente:
+1. `supabase.from("grupo").select().eq("id_docente").eq("grado").eq("seccion").maybeSingle()`
+2. Si no existe, inserta nuevo grupo con `nombre = "${gradoShort} ${seccion}"` (e.g. "1ro A")
+3. Llama a la API con `id_grupo` ya resuelto para insertar el `curso`
 
 ### POST /api/lessons
 1. Cuenta lecciones existentes del curso para calcular `orden` (respeta `uq_leccion_orden`)
@@ -409,8 +432,10 @@ SUPABASE_SERVICE_ROLE_KEY=...       # clave privada, SOLO en API routes, nunca e
 2. **`supabase` vs `supabaseAdmin`**: el cliente `supabase` (anon key) respeta RLS.
    El `supabaseAdmin` (service_role) la bypasea — solo se usa en API routes del servidor.
 
-3. **Grupo por docente+grado**: cada docente tiene un `grupo` por cada grado que usa.
-   Al crear un curso se busca o crea el grupo correspondiente (`id_docente + grado`).
+3. **Grupo por docente+grado+sección**: cada docente tiene un `grupo` por combinación única de grado+sección.
+   `create-course.tsx` hace `maybeSingle()` sobre `(id_docente, grado, seccion)` antes de insertar.
+   UNIQUE constraint: `uq_grupo_docente_grado_seccion`. `nombre` auto-generado: `"${gradoShort} ${seccion}"` (e.g. "1ro A").
+   El `grado` NO es editable en `edit-course`; cambiarlo movería todos los alumnos del grupo.
 
 4. **Actividades: config completa en `instrucciones` JSON**: al crear/editar una actividad
    (en `create-lesson`, `edit-lesson` o `activity-builder`), el formulario inline muestra:
@@ -507,3 +532,49 @@ SUPABASE_SERVICE_ROLE_KEY=...       # clave privada, SOLO en API routes, nunca e
     - Click en un día muestra lista detallada de actividades completadas ese día
     - Resumen del mes: total completadas, promedio de puntaje, días activos
     - Accesible desde `student-dashboard` → botón "Mi Calendario"
+
+17. **Inscripción por curso** (15_patch.sql): el acceso del alumno a lecciones y actividades
+    se controla por `alumno_curso`, no por `alumno_grupo`. Dos flujos de inscripción:
+    - **Código de curso**: alumno ingresa el `codigo_curso` (6 chars) en `join-group.tsx` →
+      llama a `fn_unirse_por_codigo_curso` que inserta en `alumno_curso` + `alumno_grupo`.
+    - **Invitación**: docente invita desde `course-invite.tsx` → inserta en `invitacion_curso` →
+      alumno acepta/rechaza en `join-group.tsx` usando `fn_aceptar/rechazar_invitacion_curso`.
+    Los hooks `use-student-dashboard.ts` y `use-student-progress.ts` consultan `alumno_curso`
+    (no `alumno_grupo`) para obtener los cursos a los que tiene acceso el alumno.
+
+18. **Creación de curso unificada** (Google Classroom style): un solo formulario en `create-course.tsx`
+    reemplaza el flujo anterior de dos pasos. El docente elige grado (1/2/3) + sección (A/B/C/D o custom).
+    Al guardar, se crea/reutiliza el grupo automáticamente. Al terminar, se muestra una pantalla de
+    confirmación con el `codigo_curso` destacado y botón de copiar. El botón "Grupos" fue eliminado
+    de la navegación del docente (`teacher-dashboard.tsx`).
+
+19. **Invitar alumnos al curso** (`course-invite.tsx`): accesible desde el DropdownMenu de cada curso
+    (opción "Invitar"). Dos pestañas:
+    - **Por correo**: busca en `perfil` por correo + `rol='alumno'`, verifica que no esté inscrito ni
+      tenga invitación pendiente, inserta en `invitacion_curso`.
+    - **Mis alumnos**: lista alumnos de los grupos del docente excluyendo ya inscritos y con invitación
+      pendiente. Selección múltiple con click.
+    - **Invitaciones enviadas**: muestra estado (Pendiente/Aceptada/Rechazada) con badge de color.
+      Las pendientes tienen botón de cancelar (delete).
+
+20. **DropdownMenu en tarjeta de curso** (`course-list.tsx`): reemplaza los 4 botones visibles
+    (Lecciones, Invitar, Editar, Eliminar) por un botón `⋮` (`MoreVertical`) que abre un
+    `shadcn DropdownMenu`. Items: `text-base py-3 cursor-pointer` para accesibilidad táctil.
+
+21. **`materia` en DB usa `'español'` con ñ**: valor correcto es `'español'` (no `'espanol'`).
+    CHECK constraint en `curso.materia`. Opciones válidas: `'español'`, `'matematicas'`, `'otra'`.
+    Todos los componentes y API routes usan la forma correcta con ñ.
+
+22. **Glosario de palabras clave (DUA)** (`glosario` table + `TextoConGlosario` component):
+    - **Tabla**: `glosario(id_glosario, id_leccion, palabra, definicion)` — RLS docente CRUD / alumno read.
+    - **Docente**: gestiona el glosario inline en `create-lesson.tsx` y `edit-lesson.tsx` (Card con
+      formulario palabra+definición, lista de entradas con eliminar).
+      - Al crear: guarda tras recibir `id_leccion` de la respuesta de la API.
+      - Al editar: carga entradas existentes en `fetchLesson()`, sincroniza al guardar (delete+insert).
+    - **Alumno**: `student-activity.tsx` muestra glosario en instrucciones; `student-lesson.tsx`
+      muestra glosario en material de lectura. Ambos usan `TextoConGlosario`.
+    - **`TextoConGlosario`** (`components/ui/texto-con-glosario.tsx`): divide el texto por espacios,
+      limpia puntuación y busca coincidencias en el mapa del glosario. Palabras coincidentes
+      → `<span>` con `font-bold text-primary underline decoration-dotted` + `Popover` que muestra
+      la definición y botón "Escuchar definición" (TTS vía `speak()`).
+      Exporta: `TextoConGlosario`, `GlosarioEntry { palabra, definicion }`.

@@ -21,7 +21,17 @@ export function RegisterScreen({ onSwitchToLogin, onRegisterSuccess }: RegisterS
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const { register } = useAuth()
-  const { speak, settings } = useAccessibility()
+  const { speak } = useAccessibility()
+
+  const speakLocal = (text: string) => {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel()
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.lang = "es-ES"
+      utterance.rate = 0.9
+      window.speechSynthesis.speak(utterance)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -42,7 +52,7 @@ export function RegisterScreen({ onSwitchToLogin, onRegisterSuccess }: RegisterS
   }
 
   const handleReadInstructions = () => {
-    speak("Pantalla de registro. Completa tu nombre, correo electronico, contraseña y selecciona tu rol para crear una cuenta.")
+    speakLocal("Crear cuenta en EduAccess. Escribe tu nombre completo, correo electrónico y contraseña. Selecciona tu rol: Docente o Estudiante. Luego presiona Crear cuenta.")
   }
 
   return (
@@ -59,18 +69,16 @@ export function RegisterScreen({ onSwitchToLogin, onRegisterSuccess }: RegisterS
         </CardHeader>
         
         <CardContent className="space-y-5 pt-4">
-          {settings.voiceEnabled && (
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className="w-full h-14 text-lg border-2"
-              onClick={handleReadInstructions}
-            >
-              <Volume2 className="w-6 h-6 mr-3" aria-hidden="true" />
-              Escuchar instrucciones
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            className="w-full h-14 text-lg border-2"
+            onClick={handleReadInstructions}
+          >
+            <Volume2 className="w-6 h-6 mr-3" aria-hidden="true" />
+            Escuchar instrucciones
+          </Button>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">

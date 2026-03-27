@@ -5,9 +5,8 @@ import { useAuth } from "@/lib/auth-context"
 // ============================================================
 // Hook: useStudentProgress
 // ============================================================
-// Reemplaza lessonProgressData y mock stats en student-progress
-// Consume: progresion_alumno, leccion, gamificacion,
-//          intento_actividad
+// Consume: alumno_curso, curso, leccion, progresion_alumno,
+//          gamificacion, intento_actividad
 // ============================================================
 
 interface LessonProgress {
@@ -54,52 +53,47 @@ export function useStudentProgress(): UseStudentProgressReturn {
     const fetchProgress = async () => {
       setLoading(true)
 
-      // 1. Gamificación (streaks y puntos)
-      const { data: gami } = await supabase
-        .from("gamificacion")
-        .select("puntos_totales, streaks_dias")
-        .eq("id_alumno", user.id)
-        .single()
+      // Level 1 (parallel): gamificación + cursos inscritos
+      const [gamiResult, inscripcionesResult] = await Promise.all([
+        supabase
+          .from("gamificacion")
+          .select("puntos_totales, streaks_dias")
+          .eq("id_alumno", user.id)
+          .single(),
+        supabase
+          .from("alumno_curso")
+          .select("id_curso")
+          .eq("id_alumno", user.id),
+      ])
 
-      // 2. Grupos del alumno
-      const { data: inscripciones } = await supabase
-        .from("alumno_grupo")
-        .select("id_grupo")
-        .eq("id_alumno", user.id)
+      const gami = gamiResult.data
+      const cursoIds = inscripcionesResult.data?.map((i: any) => i.id_curso) ?? []
 
-      const grupoIds = inscripciones?.map((i) => i.id_grupo) ?? []
-
-      // 3. Cursos publicados de esos grupos
-      const { data: cursos } = await supabase
-        .from("curso")
-        .select("id_curso")
-        .in("id_grupo", grupoIds)
-        .eq("publicado", true)
-
-      const cursoIds = cursos?.map((c: any) => c.id_curso) ?? []
-
-      // 4. Lecciones publicadas de esos cursos
-      const { data: leccionesRaw } = await supabase
-        .from("leccion")
-        .select("id_leccion, titulo, orden")
-        .in("id_curso", cursoIds)
-        .eq("publicado", true)
-        .order("orden", { ascending: true })
+      // Level 2: lecciones publicadas de esos cursos
+      const { data: leccionesRaw } = cursoIds.length > 0
+        ? await supabase
+            .from("leccion")
+            .select("id_leccion, titulo, orden")
+            .in("id_curso", cursoIds)
+            .eq("publicado", true)
+            .order("orden", { ascending: true })
+        : { data: [] as any[] }
 
       const leccionIds = leccionesRaw?.map((l: any) => l.id_leccion) ?? []
 
-      // 5. Progresión del alumno
-      const { data: progresiones } = await supabase
-        .from("progresion_alumno")
-        .select("id_leccion, pct_completado, promedio_puntaje, total_intentos")
-        .eq("id_alumno", user.id)
-        .in("id_leccion", leccionIds)
+      // Level 3: progresión del alumno
+      const { data: progresiones } = leccionIds.length > 0
+        ? await supabase
+            .from("progresion_alumno")
+            .select("id_leccion, pct_completado, promedio_puntaje, total_intentos")
+            .eq("id_alumno", user.id)
+            .in("id_leccion", leccionIds)
+        : { data: [] as any[] }
 
       const progMap = new Map(
         progresiones?.map((p: any) => [p.id_leccion, p]) ?? []
       )
 
-      // 6. Construir lista de lecciones con progreso
       const lessonsData: LessonProgress[] = (leccionesRaw ?? []).map((l: any) => {
         const prog = progMap.get(l.id_leccion)
         return {
@@ -113,7 +107,6 @@ export function useStudentProgress(): UseStudentProgressReturn {
 
       setLessons(lessonsData)
 
-      // 7. Calcular stats
       const completedCount = lessonsData.filter((l) => l.completed).length
       const totalCount = lessonsData.length
       const avgScore =

@@ -20,7 +20,17 @@ export function LoginScreen({ onSwitchToRegister, onLoginSuccess }: LoginScreenP
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const { login } = useAuth()
-  const { speak, settings } = useAccessibility()
+  const { speak } = useAccessibility()
+
+  const speakLocal = (text: string) => {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel()
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.lang = "es-ES"
+      utterance.rate = 0.9
+      window.speechSynthesis.speak(utterance)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,7 +51,7 @@ export function LoginScreen({ onSwitchToRegister, onLoginSuccess }: LoginScreenP
   }
 
   const handleReadInstructions = () => {
-    speak("Pantalla de inicio de sesion. Ingresa tu correo electronico y contraseña para acceder a la plataforma educativa.")
+    speakLocal("Bienvenido a EduAccess. Ingresa tu correo electrónico y contraseña para iniciar sesión. Si no tienes cuenta, presiona el botón Registrarse.")
   }
 
   return (
@@ -58,18 +68,16 @@ export function LoginScreen({ onSwitchToRegister, onLoginSuccess }: LoginScreenP
         </CardHeader>
         
         <CardContent className="space-y-6 pt-4">
-          {settings.voiceEnabled && (
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className="w-full h-14 text-lg border-2"
-              onClick={handleReadInstructions}
-            >
-              <Volume2 className="w-6 h-6 mr-3" aria-hidden="true" />
-              Escuchar instrucciones
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            className="w-full h-14 text-lg border-2"
+            onClick={handleReadInstructions}
+          >
+            <Volume2 className="w-6 h-6 mr-3" aria-hidden="true" />
+            Escuchar instrucciones
+          </Button>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
@@ -156,12 +164,6 @@ export function LoginScreen({ onSwitchToRegister, onLoginSuccess }: LoginScreenP
             </Button>
           </div>
 
-          <div className="text-center text-sm text-muted-foreground bg-muted p-4 rounded-lg">
-            <p className="font-medium mb-2">Cuentas de prueba:</p>
-            <p>Docente: docente@demo.com</p>
-            <p>Estudiante: estudiante@demo.com</p>
-            <p>Contraseña: demo123</p>
-          </div>
         </CardContent>
       </Card>
     </div>
