@@ -6,14 +6,15 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { useAuth } from "@/lib/auth-context"
 import { useAccessibility } from "@/lib/accessibility-context"
-import { Eye, EyeOff, BookOpen, Volume2, Mail, Lock } from "lucide-react"
+import { Eye, EyeOff, BookOpen, Volume2, Mail, Lock, ArrowLeft } from "lucide-react"
 
 interface LoginScreenProps {
   onSwitchToRegister: () => void
   onLoginSuccess: () => void
+  onBack?: () => void
 }
 
-export function LoginScreen({ onSwitchToRegister, onLoginSuccess }: LoginScreenProps) {
+export function LoginScreen({ onSwitchToRegister, onLoginSuccess, onBack }: LoginScreenProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -58,6 +59,19 @@ export function LoginScreen({ onSwitchToRegister, onLoginSuccess }: LoginScreenP
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md shadow-xl border-2 border-primary/20">
         <CardHeader className="text-center space-y-4 pb-2">
+          {onBack && (
+            <div className="flex justify-start -mb-2">
+              <button
+                type="button"
+                onClick={onBack}
+                className="flex items-center gap-1 text-muted-foreground hover:text-foreground text-sm"
+                aria-label="Volver al inicio"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Volver
+              </button>
+            </div>
+          )}
           <div className="mx-auto w-20 h-20 bg-primary rounded-2xl flex items-center justify-center">
             <BookOpen className="w-10 h-10 text-primary-foreground" aria-hidden="true" />
           </div>

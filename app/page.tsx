@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic"
 
-import { Suspense, useEffect } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { AccessibilityProvider } from "@/lib/accessibility-context"
@@ -31,6 +31,7 @@ import { JoinGroup } from "@/components/student/join-group"
 import { StudentCourse } from "@/components/student/student-course"
 import { StudentLesson } from "@/components/student/student-lesson"
 import { BookOpen } from "lucide-react"
+import { LandingPage } from "@/components/landing-page"
 
 type Screen =
   | "login"
@@ -62,6 +63,11 @@ function AppContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, logout, isAuthenticated, loading, needsTest } = useAuth()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const segments = pathname.split("/").filter(Boolean)
   const backTo = searchParams.get("back")
@@ -163,18 +169,18 @@ function AppContent() {
   useEffect(() => {
     if (loading) return
     if (!isAuthenticated) {
-      if (pathname !== "/iniciar-sesion" && pathname !== "/registro") {
+      if (pathname !== "/" && pathname !== "/iniciar-sesion" && pathname !== "/registro") {
         router.replace("/iniciar-sesion")
       }
       return
     }
 
     if (user?.role === "teacher") {
-      if (pathname === "/iniciar-sesion" || pathname === "/registro" || pathname.startsWith("/estudiante")) {
+      if (pathname === "/" || pathname === "/iniciar-sesion" || pathname === "/registro" || pathname.startsWith("/estudiante")) {
         router.replace("/maestro")
       }
     } else {
-      if (pathname === "/iniciar-sesion" || pathname === "/registro" || pathname.startsWith("/maestro")) {
+      if (pathname === "/" || pathname === "/iniciar-sesion" || pathname === "/registro" || pathname.startsWith("/maestro")) {
         router.replace(needsTest ? "/estudiante/test-inicial" : "/estudiante")
       }
     }
@@ -191,7 +197,7 @@ function AppContent() {
 
   const handleLogout = () => {
     logout()
-    router.push("/iniciar-sesion")
+    router.push("/")
   }
 
   const handleNavigate = (screen: string) => {
@@ -199,8 +205,8 @@ function AppContent() {
   }
 
   const renderScreen = () => {
-    // Mostrar pantalla de carga mientras se verifica la sesión
-    if (loading) {
+    // Mostrar pantalla de carga hasta que el cliente esté listo y la sesión verificada
+    if (!mounted || loading) {
       return (
         <div className="min-h-screen bg-background flex items-center justify-center">
           <div className="text-center">
@@ -213,11 +219,21 @@ function AppContent() {
       )
     }
 
+    if (pathname === "/") {
+      return (
+        <LandingPage
+          onStudentLogin={() => router.push("/iniciar-sesion")}
+          onTeacherLogin={() => router.push("/iniciar-sesion")}
+        />
+      )
+    }
+
     if (pathname === "/iniciar-sesion") {
       return (
         <LoginScreen
           onSwitchToRegister={() => router.push("/registro")}
           onLoginSuccess={handleLoginSuccess}
+          onBack={() => router.push("/")}
         />
       )
     }
@@ -446,7 +462,7 @@ function AppContent() {
       )
     }
 
-    return <LoginScreen onSwitchToRegister={() => router.push("/registro")} onLoginSuccess={handleLoginSuccess} />
+    return <LoginScreen onSwitchToRegister={() => router.push("/registro")} onLoginSuccess={handleLoginSuccess} onBack={() => router.push("/")} />
   }
 
   return <>{renderScreen()}</>

@@ -1,25 +1,42 @@
-# v0 runtime files
-__v0_runtime_loader.js
-__v0_devtools.tsx
-__v0_jsx-dev-runtime.ts
-
-# Dependencies
+# =========================
+# Node / Dependencies
+# =========================
 node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
 
+# =========================
 # Build outputs
+# =========================
 .next/
 out/
 dist/
 build/
+.vercel/
+.netlify/
+.output/
 
+# =========================
 # Cache
+# =========================
 .turbo/
 .cache/
 .parcel-cache/
 .eslintcache
 *.tsbuildinfo
+*.rpt2_cache/
+*.rts2_cache_cjs/
+*.rts2_cache_es/
+*.rts2_cache_umd/
 
+# =========================
 # Logs
+# =========================
 logs/
 *.log
 npm-debug.log*
@@ -28,43 +45,84 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Test outputs
+# =========================
+# Testing
+# =========================
 coverage/
 test-results/
 playwright-report/
+jest-results.json
 
-# Runtime/data temp files
+# =========================
+# Temp / runtime files
+# =========================
 tmp/
 temp/
+*.tmp
 *.pid
 *.seed
 *.pid.lock
 
-# Environment files
+# =========================
+# Environment variables
+# =========================
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env.*.local
+.env.*
+!.env.example
 
-# Package manager stores
-.pnpm-store/
-.npm/
-
-# Framework / hosting
-.vercel/
-
+# =========================
 # OS files
+# =========================
 .DS_Store
 Thumbs.db
 Desktop.ini
 
+# =========================
 # Editor / IDE
+# =========================
 .idea/
 *.iml
+
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
 !.vscode/launch.json
 !.vscode/tasks.json
+
+# =========================
+# TypeScript / JS extras
+# =========================
+*.tsbuildinfo
+*.d.ts.map
+
+# =========================
+# Next.js specific
+# =========================
+.next/cache/
+.next/static/
+
+# =========================
+# Storybook
+# =========================
+storybook-static/
+
+# =========================
+# Docker
+# =========================
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+
+# =========================
+# Misc
+# =========================
+*.pem
+*.crt
+*.key
+
+# =========================
+# Package locks (elige uno)
+# =========================
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
