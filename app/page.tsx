@@ -360,6 +360,19 @@ function AppContent() {
       )
     }
 
+    if (segments[0] === "estudiante" && segments[1] === "lecciones" && segments[2] && segments[3] === "comenzar") {
+      const lessonId = segments[2]
+      return (
+        <StudentActivity
+          activityId={null}
+          lessonId={lessonId}
+          onBack={() => router.push(`/estudiante/lecciones/${lessonId}?lessonName=${encodeURIComponent(queryLessonName ?? "")}&courseId=${queryCourseId ?? ""}&courseName=${encodeURIComponent(queryCourseName ?? "")}`)}
+          onComplete={() => router.push(`/estudiante/lecciones/${lessonId}?lessonName=${encodeURIComponent(queryLessonName ?? "")}&courseId=${queryCourseId ?? ""}&courseName=${encodeURIComponent(queryCourseName ?? "")}`)}
+          onVoiceActivity={() => router.push(`/estudiante/lecciones/${lessonId}?lessonName=${encodeURIComponent(queryLessonName ?? "")}&courseId=${queryCourseId ?? ""}&courseName=${encodeURIComponent(queryCourseName ?? "")}`)}
+        />
+      )
+    }
+
     if (segments[0] === "estudiante" && segments[1] === "lecciones" && segments[2]) {
       const lessonId = segments[2]
       return (

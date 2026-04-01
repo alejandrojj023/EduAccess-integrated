@@ -19,8 +19,13 @@ interface Course {
 }
 
 interface Gamification {
-  totalStars: number
-  currentLevel: number
+  totalStars: number       // puntos_totales (legacy)
+  estrellasTotales: number // estrellas_totales (new star system)
+  nivelActual: number      // nivel (1-5)
+  nivelNombre: string      // "Explorador" etc.
+  nivelEmoji: string       // "🔍" etc.
+  nivelMin: number
+  nivelMax: number
   streakDays: number
 }
 
@@ -30,13 +35,12 @@ interface UseStudentDashboardReturn {
   loading: boolean
 }
 
-// Nivel basado en estrellas
-function calculateLevel(stars: number): number {
-  if (stars >= 100) return 5
-  if (stars >= 60) return 4
-  if (stars >= 30) return 3
-  if (stars >= 10) return 2
-  return 1
+const NIVELES: Record<number, { nombre: string; emoji: string; min: number; max: number }> = {
+  1: { nombre: "Explorador",  emoji: "🔍", min: 0,   max: 9 },
+  2: { nombre: "Aprendiz",    emoji: "📚", min: 10,  max: 29 },
+  3: { nombre: "Aventurero",  emoji: "🧭", min: 30,  max: 59 },
+  4: { nombre: "Experto",     emoji: "🏆", min: 60,  max: 99 },
+  5: { nombre: "Maestro",     emoji: "👑", min: 100, max: Infinity },
 }
 
 export function useStudentDashboard(): UseStudentDashboardReturn {
@@ -44,7 +48,12 @@ export function useStudentDashboard(): UseStudentDashboardReturn {
   const [courses, setCourses] = useState<Course[]>([])
   const [gamification, setGamification] = useState<Gamification>({
     totalStars: 0,
-    currentLevel: 1,
+    estrellasTotales: 0,
+    nivelActual: 1,
+    nivelNombre: NIVELES[1].nombre,
+    nivelEmoji: NIVELES[1].emoji,
+    nivelMin: NIVELES[1].min,
+    nivelMax: NIVELES[1].max,
     streakDays: 0,
   })
   const [loading, setLoading] = useState(true)
@@ -59,7 +68,7 @@ export function useStudentDashboard(): UseStudentDashboardReturn {
       const [gamiResult, inscripcionesResult] = await Promise.all([
         supabase
           .from("gamificacion")
-          .select("puntos_totales, streaks_dias")
+          .select("puntos_totales, estrellas_totales, nivel, streaks_dias")
           .eq("id_alumno", user.id)
           .single(),
         supabase
@@ -69,10 +78,17 @@ export function useStudentDashboard(): UseStudentDashboardReturn {
       ])
 
       if (gamiResult.data) {
+        const nivelActual: number = gamiResult.data.nivel ?? 1
+        const nivelInfo = NIVELES[nivelActual] ?? NIVELES[1]
         setGamification({
-          totalStars: gamiResult.data.puntos_totales,
-          currentLevel: calculateLevel(gamiResult.data.puntos_totales),
-          streakDays: gamiResult.data.streaks_dias,
+          totalStars: gamiResult.data.puntos_totales ?? 0,
+          estrellasTotales: gamiResult.data.estrellas_totales ?? 0,
+          nivelActual,
+          nivelNombre: nivelInfo.nombre,
+          nivelEmoji: nivelInfo.emoji,
+          nivelMin: nivelInfo.min,
+          nivelMax: nivelInfo.max,
+          streakDays: gamiResult.data.streaks_dias ?? 0,
         })
       }
 

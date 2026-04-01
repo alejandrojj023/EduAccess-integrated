@@ -46,11 +46,27 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
   const hoverAjustes     = useSpeakOnHover("Ajustes: cambiar accesibilidad y perfil")
   const hoverUnirse      = useSpeakOnHover("Unirse a un Curso: ingresar código de curso o aceptar invitación")
 
-  const { totalStars, currentLevel, streakDays } = gamification
+  const {
+    estrellasTotales,
+    nivelActual,
+    nivelNombre,
+    nivelEmoji,
+    nivelMin,
+    nivelMax,
+    streakDays,
+  } = gamification
+
+  const progressToNext =
+    nivelMax === Infinity
+      ? 100
+      : Math.min(
+          100,
+          Math.round(((estrellasTotales - nivelMin) / (nivelMax - nivelMin + 1)) * 100)
+        )
 
   const handleReadInstructions = () => {
     speak(
-      `Hola ${user?.name}! Bienvenido a tu panel de aprendizaje. Tienes ${courses.length} cursos asignados. Tu nivel actual es ${currentLevel} y has ganado ${totalStars} estrellas. Presiona el boton Continuar Aprendiendo para seguir con tu leccion actual.`
+      `Hola ${user?.name}! Bienvenido a tu panel de aprendizaje. Tienes ${courses.length} cursos asignados. Tu nivel actual es ${nivelNombre} y has ganado ${estrellasTotales} estrellas. Presiona el boton Continuar Aprendiendo para seguir con tu leccion actual.`
     )
   }
 
@@ -148,22 +164,39 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
                     <Star className="w-8 h-8 text-primary-foreground" />
                   </div>
                   <div>
-                    <p className="text-4xl font-bold text-foreground">{totalStars}</p>
+                    <p className="text-4xl font-bold text-foreground">{estrellasTotales} ⭐</p>
                     <p className="text-lg text-muted-foreground">Estrellas</p>
+                    {streakDays > 0 && (
+                      <p className="text-sm text-muted-foreground mt-1">🔥 {streakDays} días de racha</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
             </li>
             <li>
               <Card className="border-2 shadow-lg h-full">
-                <CardContent className="p-6 flex items-center gap-5">
-                  <div className="w-16 h-16 bg-success rounded-2xl flex items-center justify-center" aria-hidden="true">
-                    <Trophy className="w-8 h-8 text-success-foreground" />
+                <CardContent className="p-6 flex flex-col gap-3">
+                  <div className="flex items-center gap-5">
+                    <div className="w-16 h-16 bg-success rounded-2xl flex items-center justify-center text-2xl" aria-hidden="true">
+                      {nivelEmoji}
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-foreground">Nivel {nivelActual}</p>
+                      <p className="text-lg text-muted-foreground">{nivelNombre}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-4xl font-bold text-foreground">Nivel {currentLevel}</p>
-                    <p className="text-lg text-muted-foreground">Explorador</p>
-                  </div>
+                  {nivelMax !== Infinity && (
+                    <div>
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>{estrellasTotales} ⭐</span>
+                        <span>Meta: {nivelMax + 1} ⭐</span>
+                      </div>
+                      <Progress value={progressToNext} className="h-2" aria-label={`${progressToNext}% hacia el siguiente nivel`} />
+                    </div>
+                  )}
+                  {nivelMax === Infinity && (
+                    <p className="text-xs text-muted-foreground">Nivel máximo alcanzado</p>
+                  )}
                 </CardContent>
               </Card>
             </li>

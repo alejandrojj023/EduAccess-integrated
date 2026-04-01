@@ -16,9 +16,24 @@ import {
   Mic, HelpCircle, Loader2, RotateCcw,
 } from "lucide-react"
 import { motion, LayoutGroup } from "framer-motion"
+import { completarLeccion } from "@/hooks/student/use-lesson-completion"
+
+const MENSAJES_CORRECTO = [
+  "¡Excelente! Lo lograste.",
+  "¡Muy bien! Sigue así.",
+  "¡Correcto! Eres increíble.",
+  "¡Fantástico! Muy buen trabajo.",
+  "¡Lo tienes! ¡Sigue adelante!",
+]
+const RETRY_MESSAGES = [
+  "¡Inténtalo de nuevo! Puedes lograrlo.",
+  "¡Casi! Vuelve a intentarlo.",
+  "¡No te rindas! Intenta una vez más.",
+]
 
 interface StudentActivityProps {
   activityId: string | null
+  lessonId?: string | null
   onBack: () => void
   onComplete: () => void
   onVoiceActivity: () => void
@@ -84,9 +99,9 @@ function generateWordSearchGrid(words: string[]): string[][] {
   return grid
 }
 
-type Phase = "loading" | "question" | "result" | "done"
+type Phase = "loading" | "question" | "result" | "done" | "lesson-done"
 
-export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivity }: StudentActivityProps) {
+export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVoiceActivity }: StudentActivityProps) {
   const { user } = useAuth()
   const { speak, settings } = useAccessibility()
 
@@ -127,6 +142,18 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
   // Glosario de la lección
   const [glosario, setGlosario] = useState<GlosarioEntry[]>([])
 
+  // Lesson mode state
+  const isLessonMode = !!lessonId
+  interface ActivityResult { id: string; correct: boolean; attempts: number }
+  const [lessonActivities, setLessonActivities] = useState<DBActivity[]>([])
+  const [lessonActIndex, setLessonActIndex] = useState(0)
+  const [activityResults, setActivityResults] = useState<ActivityResult[]>([])
+  const [actAttempts, setActAttempts] = useState(0)
+  const [retryBanner, setRetryBanner] = useState<string | null>(null)
+  const [earnedStars, setEarnedStars] = useState(0)
+  const [starsAnimated, setStarsAnimated] = useState(0)
+  const [resultMessage, setResultMessage] = useState("")
+
   // Word search (sopa_letras) state
   const [wsGrid, setWsGrid] = useState<string[][]>([])
   const [wsPalabras, setWsPalabras] = useState<string[]>([])
@@ -138,42 +165,78 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
 
   // Load activity from DB
   useEffect(() => {
-    if (!user || !activityId) return
+    if (!user) return
+    if (isLessonMode ? !lessonId : !activityId) return
     loadActivity()
-  }, [user, activityId])
+  }, [user, activityId, lessonId])
 
   async function loadActivity() {
     setPhase("loading")
     setError(null)
+    setRetryBanner(null)
+    setActAttempts(0)
 
-    // 1. Fetch activity
-    const { data: act, error: actErr } = await supabase
-      .from("actividad")
-      .select("id_actividad, titulo, tipo, instrucciones, imagen_url, audio_url, id_leccion")
-      .eq("id_actividad", activityId!)
-      .single()
+    if (isLessonMode && lessonId) {
+      // Lesson mode: load all non-voice activities for the lesson
+      const [{ data: acts }, { data: glosarioData }] = await Promise.all([
+        supabase
+          .from("actividad")
+          .select("id_actividad, titulo, tipo, instrucciones, imagen_url, audio_url, id_leccion")
+          .eq("id_leccion", lessonId)
+          .eq("publicado", true)
+          .order("orden", { ascending: true }),
+        supabase
+          .from("glosario")
+          .select("palabra, definicion")
+          .eq("id_leccion", lessonId),
+      ])
 
-    if (actErr || !act) { setError("No se pudo cargar la actividad."); return }
+      const filtered = acts ?? []
+      if (!filtered.length) { setError("No hay actividades disponibles en esta lección."); return }
 
-    // Redirect voice activity type
-    if (act.tipo === "respuesta_oral") {
-      onVoiceActivity()
-      return
+      setGlosario((glosarioData as GlosarioEntry[]) ?? [])
+      setLessonActivities(filtered)
+      setLessonActIndex(0)
+      setActivityResults([])
+      loadActivityData(filtered[0])
+    } else if (activityId) {
+      // Single mode: existing behavior
+      const { data: act, error: actErr } = await supabase
+        .from("actividad")
+        .select("id_actividad, titulo, tipo, instrucciones, imagen_url, audio_url, id_leccion")
+        .eq("id_actividad", activityId)
+        .single()
+
+      if (actErr || !act) { setError("No se pudo cargar la actividad."); return }
+
+      if (act.tipo === "respuesta_oral") {
+        onVoiceActivity()
+        return
+      }
+
+      if (act.id_leccion) {
+        supabase
+          .from("glosario")
+          .select("palabra, definicion")
+          .eq("id_leccion", act.id_leccion)
+          .then(({ data }) => setGlosario((data as GlosarioEntry[]) ?? []))
+      }
+
+      loadActivityData(act)
     }
+  }
 
+  function loadActivityData(act: DBActivity) {
     setActivity(act)
     setPhase("question")
+    setSelectedAnswer(null)
+    setTextAnswer("")
+    setIsCorrect(false)
+    setScore(0)
+    setRetryBanner(null)
+    setActAttempts(0)
+    setResultMessage("")
 
-    // Cargar glosario de la lección
-    if (act.id_leccion) {
-      supabase
-        .from("glosario")
-        .select("palabra, definicion")
-        .eq("id_leccion", act.id_leccion)
-        .then(({ data }) => setGlosario((data as GlosarioEntry[]) ?? []))
-    }
-
-    // Auto-speak instructions if TTS on (skip sound/fill/sequence/wordsearch — spoken in their own useEffect)
     if (settings.voiceEnabled && act.tipo !== "reconocimiento_sonidos" && act.tipo !== "completar_oracion" && act.tipo !== "secuenciacion" && act.tipo !== "sopa_letras") {
       const cfg = parseActivityConfig(act.instrucciones)
       if (cfg.instrucciones) setTimeout(() => speak(cfg.instrucciones), 400)
@@ -223,6 +286,21 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
     setWsGrid(generateWordSearchGrid(words))
     if (settings.voiceEnabled) setTimeout(() => speak(cfg.instrucciones ?? "Encuentra las palabras en la sopa de letras"), 400)
   }, [activity])
+
+  // Star animation when lesson-done phase starts
+  useEffect(() => {
+    if (phase !== "lesson-done") return
+    setStarsAnimated(0)
+    const rounded = Math.round(earnedStars)
+    if (rounded === 0) return
+    let count = 0
+    const timer = setInterval(() => {
+      count++
+      setStarsAnimated(count)
+      if (count >= rounded) clearInterval(timer)
+    }, 350)
+    return () => clearInterval(timer)
+  }, [phase, earnedStars])
 
   function handleWsCellClick(row: number, col: number) {
     if (phase !== "question") return
@@ -530,10 +608,32 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
   function handleSelectOption(texto: string, correcta: boolean) {
     if (phase !== "question") return
     setSelectedAnswer(texto)
-    setIsCorrect(correcta)
-    setScore(correcta ? 100 : 0)
-    setPhase("result")
-    speak(correcta ? "¡Muy bien! Respuesta correcta." : "Inténtalo de nuevo. Esa no es la respuesta correcta.")
+    if (correcta) {
+      setIsCorrect(true)
+      setScore(100)
+      setRetryBanner(null)
+      const msg = MENSAJES_CORRECTO[Math.floor(Math.random() * MENSAJES_CORRECTO.length)]
+      setResultMessage(msg)
+      setPhase("result")
+      if (settings.voiceEnabled) speak(msg)
+    } else {
+      const newAttempts = actAttempts + 1
+      setActAttempts(newAttempts)
+      if (newAttempts >= 2) {
+        setIsCorrect(false)
+        setScore(0)
+        setRetryBanner(null)
+        setResultMessage("")
+        setPhase("result")
+        const correctOp = opciones.find((o) => o.correcta)
+        if (settings.voiceEnabled && correctOp) speak(`La respuesta correcta es: ${correctOp.texto}`)
+      } else {
+        const msg = RETRY_MESSAGES[Math.floor(Math.random() * RETRY_MESSAGES.length)]
+        setRetryBanner(msg)
+        setSelectedAnswer(null)
+        if (settings.voiceEnabled) speak(msg)
+      }
+    }
   }
 
   function handleSubmitText() {
@@ -541,14 +641,34 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
     const expected = (config?.respuesta_correcta ?? "").trim().toLowerCase()
     const given = textAnswer.trim().toLowerCase()
     const correct = expected ? given.includes(expected) || expected.includes(given) : true
-    setIsCorrect(correct)
-    setScore(correct ? 100 : 0)
-    setPhase("result")
-    speak(correct ? "¡Muy bien! Respuesta correcta." : "Respuesta incorrecta. Sigue intentando.")
+    if (correct) {
+      setIsCorrect(true)
+      setScore(100)
+      setRetryBanner(null)
+      const msg = MENSAJES_CORRECTO[Math.floor(Math.random() * MENSAJES_CORRECTO.length)]
+      setResultMessage(msg)
+      setPhase("result")
+      if (settings.voiceEnabled) speak(msg)
+    } else {
+      const newAttempts = actAttempts + 1
+      setActAttempts(newAttempts)
+      if (newAttempts >= 2) {
+        setIsCorrect(false)
+        setScore(0)
+        setRetryBanner(null)
+        setResultMessage("")
+        setPhase("result")
+        if (settings.voiceEnabled && config?.respuesta_correcta) speak(`La respuesta correcta es: ${config.respuesta_correcta}`)
+      } else {
+        const msg = RETRY_MESSAGES[Math.floor(Math.random() * RETRY_MESSAGES.length)]
+        setRetryBanner(msg)
+        if (settings.voiceEnabled) speak(msg)
+      }
+    }
   }
 
   async function handleFinish() {
-    // Save attempt via API route (uses admin to resolve id_grupo reliably)
+    // Save attempt via API route
     if (user && activityId) {
       const { data: { session } } = await supabase.auth.getSession()
       await fetch("/api/attempts", {
@@ -559,9 +679,126 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
         },
         body: JSON.stringify({ activityId, puntaje: score }),
       })
+
+      // Check if ALL activities in the lesson are now complete → calculate stars
+      const lessonId = activity?.id_leccion
+      if (lessonId) {
+        const { data: allActs } = await supabase
+          .from("actividad")
+          .select("id_actividad")
+          .eq("id_leccion", lessonId)
+          .eq("publicado", true)
+
+        if (allActs && allActs.length > 0) {
+          const actIds = allActs.map((a: any) => a.id_actividad as string)
+
+          const { data: attempts } = await supabase
+            .from("intento_actividad")
+            .select("id_actividad, puntaje_total")
+            .eq("id_alumno", user.id)
+            .in("id_actividad", actIds)
+            .not("puntaje_total", "is", null)
+
+          // Build best-score map; include current activity just saved
+          const scoreMap = new Map<string, number>()
+          for (const a of attempts ?? []) {
+            const prev = scoreMap.get(a.id_actividad) ?? -1
+            if (a.puntaje_total > prev) scoreMap.set(a.id_actividad, a.puntaje_total)
+          }
+          scoreMap.set(activityId, score)
+
+          const allDone = actIds.every((id) => scoreMap.has(id))
+          if (allDone) {
+            const results = actIds.map((id) => ({
+              id,
+              correct: (scoreMap.get(id) ?? 0) >= 100,
+              attempts: id === activityId ? Math.max(1, actAttempts) : 1,
+            }))
+            await completarLeccion(user.id, lessonId, results)
+          }
+        }
+      }
     }
-    speak(`¡Actividad completada! Obtuviste ${score} puntos.`)
+    speak(`¡Actividad completada!`)
     onComplete()
+  }
+
+  function getCorrectAnswer(): string {
+    const tipo = activity?.tipo
+    if (tipo === "seleccion_guiada" || tipo === "identificacion") {
+      return opciones.find((o) => o.correcta)?.texto ?? "—"
+    }
+    if (tipo === "respuesta_corta") return config?.respuesta_correcta ?? "—"
+    if (tipo === "completar_oracion" && fillPregunta) return fillPregunta.respuesta_esperada
+    return "—"
+  }
+
+  function getStarMessage(stars: number): string {
+    if (stars >= 5) return "¡Perfecto! Dominas esta lección."
+    if (stars >= 4) return "¡Excelente trabajo! Casi lo tienes perfecto."
+    if (stars >= 3) return "¡Muy bien! Sigue practicando para mejorar."
+    if (stars >= 2) return "¡Buen esfuerzo! Puedes lograrlo mejor."
+    if (stars >= 1) return "¡Lo intentaste! Sigue practicando."
+    return "Sigue practicando, lo lograrás la próxima vez."
+  }
+
+  async function handleNextActivity() {
+    if (!activity) return
+    const { data: { session } } = await supabase.auth.getSession()
+    await fetch("/api/attempts", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({ activityId: activity.id_actividad, puntaje: score }),
+    })
+
+    const result: ActivityResult = {
+      id: activity.id_actividad,
+      correct: isCorrect,
+      attempts: actAttempts || 1,
+    }
+    const newResults = [...activityResults, result]
+    setActivityResults(newResults)
+
+    const nextIndex = lessonActIndex + 1
+    if (nextIndex >= lessonActivities.length) {
+      await handleLessonComplete(newResults)
+    } else {
+      setLessonActIndex(nextIndex)
+      loadActivityData(lessonActivities[nextIndex])
+    }
+  }
+
+  async function handleLessonComplete(results: ActivityResult[]) {
+    setPhase("loading")
+    const stars = await completarLeccion(user!.id, lessonId!, results)
+    setEarnedStars(stars)
+    setPhase("lesson-done")
+  }
+
+  async function handleRetryLesson() {
+    // Increment total_reintentos via admin API (bypasses RLS)
+    if (user && lessonId) {
+      const { data: { session } } = await supabase.auth.getSession()
+      await fetch("/api/complete-lesson", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ lessonId }),
+      })
+    }
+
+    setActivityResults([])
+    setLessonActIndex(0)
+    setEarnedStars(0)
+    setStarsAnimated(0)
+    if (lessonActivities.length > 0) {
+      loadActivityData(lessonActivities[0])
+    }
   }
 
   // ── Render ──────────────────────────────────────────────────
@@ -600,20 +837,37 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
               size="lg"
               onClick={onBack}
               className="h-12 w-12 p-0"
-              aria-label="Volver a las actividades"
+              aria-label="Volver"
             >
               <ArrowLeft className="w-6 h-6" />
             </Button>
             <div className="flex-1 text-center px-4">
               <p className="font-bold text-lg line-clamp-1">{activity?.titulo}</p>
+              {isLessonMode && lessonActivities.length > 0 && (
+                <p className="text-sm opacity-80">
+                  Actividad {lessonActIndex + 1} de {lessonActivities.length}
+                </p>
+              )}
             </div>
-            <div className="flex items-center gap-2">
-              <Star className="w-6 h-6 text-accent" aria-hidden="true" />
-              <span className="text-xl font-bold">{score}</span>
-            </div>
+            {!isLessonMode && (
+              <div className="flex items-center gap-2">
+                <Star className="w-6 h-6 text-accent" aria-hidden="true" />
+                <span className="text-xl font-bold">{score}</span>
+              </div>
+            )}
+            {isLessonMode && lessonActivities.length > 0 && (
+              <div className="text-right min-w-[60px]">
+                <p className="text-xs opacity-70">Progreso</p>
+                <p className="font-bold">
+                  {Math.round((lessonActIndex / lessonActivities.length) * 100)}%
+                </p>
+              </div>
+            )}
           </div>
           <Progress
-            value={phase === "done" ? 100 : phase === "result" ? 66 : 33}
+            value={isLessonMode && lessonActivities.length > 0
+              ? Math.round((lessonActIndex / lessonActivities.length) * 100)
+              : phase === "done" ? 100 : phase === "result" ? 66 : 33}
             className="h-3 bg-primary-foreground/20"
           />
         </div>
@@ -661,6 +915,15 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
         {/* Question / options */}
         {phase === "question" && (
           <section aria-label="Pregunta y opciones de respuesta">
+            {/* Retry banner — shown after first wrong attempt */}
+            {retryBanner && (
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border-2 border-amber-300 mb-4">
+                <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center shrink-0">
+                  <RotateCcw className="w-4 h-4 text-white" aria-hidden="true" />
+                </div>
+                <p className="text-amber-800 font-semibold flex-1">{retryBanner}</p>
+              </div>
+            )}
             {/* Image — only for tipo identificacion */}
             {activity?.tipo === "identificacion" && (
               <figure className="mb-4">
@@ -1236,9 +1499,28 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
                 <CardContent className="py-10 text-center space-y-4">
                   <Mic className="w-12 h-12 text-primary mx-auto" aria-hidden="true" />
                   <p className="text-lg text-muted-foreground">Esta actividad se responde de forma oral.</p>
-                  <Button size="lg" onClick={onVoiceActivity}>
-                    Iniciar actividad oral
-                  </Button>
+                  {isLessonMode ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">Responde en voz alta y luego continúa.</p>
+                      <Button
+                        size="lg"
+                        onClick={() => {
+                          setIsCorrect(true)
+                          setScore(100)
+                          setResultMessage("¡Actividad oral completada!")
+                          setPhase("result")
+                          if (settings.voiceEnabled) speak("Actividad oral completada. Continuemos.")
+                        }}
+                      >
+                        Completar y continuar
+                        <ChevronRight className="w-5 h-5 ml-2" aria-hidden="true" />
+                      </Button>
+                    </>
+                  ) : (
+                    <Button size="lg" onClick={onVoiceActivity}>
+                      Iniciar actividad oral
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -1248,15 +1530,19 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
         {/* Result */}
         {phase === "result" && (
           <section aria-live="polite" aria-label="Resultado de tu respuesta">
-            <Card className={`border-4 shadow-xl ${isCorrect ? "border-green-400 bg-green-50/40" : "border-destructive bg-destructive/5"}`}>
+            <Card className={`border-4 shadow-xl ${isCorrect ? "border-green-400 bg-green-50/40" : "border-amber-400 bg-amber-50/40"}`}>
               <CardContent className="p-8 text-center space-y-4">
-                <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center ${isCorrect ? "bg-green-500" : "bg-destructive"}`}>
+                <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center ${isCorrect ? "bg-green-500" : "bg-amber-500"}`}>
                   {isCorrect
                     ? <Check className="w-10 h-10 text-white" aria-hidden="true" />
                     : <X className="w-10 h-10 text-white" aria-hidden="true" />}
                 </div>
-                <SpeakableText as="h3" className={`text-3xl font-bold ${isCorrect ? "text-green-700" : "text-destructive"}`}>
-                  {isCorrect ? "¡Excelente!" : "Inténtalo de nuevo"}
+                <SpeakableText as="h3" className={`text-3xl font-bold ${isCorrect ? "text-green-700" : "text-amber-700"}`}>
+                  {isCorrect
+                    ? (resultMessage || "¡Excelente!")
+                    : activity?.tipo === "sopa_letras"
+                      ? "¡Buen intento!"
+                      : "¡Casi! Sigue practicando"}
                 </SpeakableText>
                 <SpeakableText as="p" className="text-lg text-muted-foreground">
                   {isCorrect
@@ -1267,37 +1553,86 @@ export function StudentActivity({ activityId, onBack, onComplete, onVoiceActivit
                       ? `Encontraste ${wsFoundWords.size} de ${wsPalabras.length} palabras. ¡Sigue practicando!`
                       : activity?.tipo === "secuenciacion"
                         ? "Puedes ver el orden correcto arriba. ¡Sigue practicando!"
-                        : activity?.tipo === "completar_oracion" && fillPregunta
-                          ? `La respuesta correcta era: "${fillPregunta.respuesta_esperada}"`
-                          : config?.respuesta_correcta
-                            ? `La respuesta correcta era: ${config.respuesta_correcta}`
-                            : "No te preocupes, sigue practicando."}
+                        : ""}
                 </SpeakableText>
-                <SpeakableText as="p" className="text-lg text-muted-foreground">
-                  {isCorrect
-                    ? activity?.tipo === "sopa_letras"
-                      ? `¡Encontraste todas las palabras! ${wsPalabras.length} de ${wsPalabras.length}.`
-                      : "¡Muy bien! Has respondido correctamente."
-                    : activity?.tipo === "sopa_letras"
-                      ? `Encontraste ${wsFoundWords.size} de ${wsPalabras.length} palabras. ¡Sigue practicando!`
-                      : activity?.tipo === "secuenciacion"
-                        ? "Puedes ver el orden correcto arriba. ¡Sigue practicando!"
-                        : activity?.tipo === "completar_oracion" && fillPregunta
-                          ? `La respuesta correcta era: "${fillPregunta.respuesta_esperada}"`
-                          : config?.respuesta_correcta
-                            ? `La respuesta correcta era: ${config.respuesta_correcta}`
-                            : "No te preocupes, sigue practicando."}
-                </SpeakableText>
-                <Button
-                  size="lg"
-                  className="h-16 text-xl px-12"
-                  onClick={handleFinish}
-                >
-                  Terminar actividad
-                  <ChevronRight className="w-6 h-6 ml-3" aria-hidden="true" />
-                </Button>
+                {!isCorrect && activity?.tipo !== "sopa_letras" && activity?.tipo !== "secuenciacion" && (
+                  <div className="bg-amber-100 border-2 border-amber-300 rounded-xl p-4 text-left">
+                    <p className="text-sm font-semibold text-amber-700 mb-1">Respuesta correcta:</p>
+                    <p className="text-lg font-bold text-amber-900">{getCorrectAnswer()}</p>
+                  </div>
+                )}
+                {isLessonMode ? (
+                  <Button
+                    size="lg"
+                    className="h-16 text-xl px-12"
+                    onClick={handleNextActivity}
+                  >
+                    {lessonActIndex + 1 < lessonActivities.length ? "Siguiente actividad" : "Ver resultado final"}
+                    <ChevronRight className="w-6 h-6 ml-3" aria-hidden="true" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="lg"
+                    className="h-16 text-xl px-12"
+                    onClick={handleFinish}
+                  >
+                    Terminar actividad
+                    <ChevronRight className="w-6 h-6 ml-3" aria-hidden="true" />
+                  </Button>
+                )}
               </CardContent>
             </Card>
+          </section>
+        )}
+
+        {/* Lesson done — star result screen */}
+        {phase === "lesson-done" && (
+          <section aria-live="polite" aria-label="Resultado de la lección" className="space-y-8 py-4">
+            <div className="text-center space-y-2">
+              <h2 className="text-3xl font-bold text-foreground">¡Lección completada!</h2>
+              <p className="text-muted-foreground text-lg">Aquí están tus estrellas</p>
+            </div>
+
+            {/* Animated stars */}
+            <div className="flex justify-center gap-3" role="img" aria-label={`${Math.round(earnedStars)} de 5 estrellas`}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star
+                  key={i}
+                  className={`w-14 h-14 transition-all duration-300 ${i < starsAnimated ? "text-amber-400 fill-amber-400 scale-110" : "text-muted-foreground/30"}`}
+                  aria-hidden="true"
+                />
+              ))}
+            </div>
+
+            <p className="text-center text-2xl font-bold text-amber-600">
+              {Math.round(earnedStars)} de 5 estrellas
+            </p>
+
+            <Card className="border-2 shadow-lg">
+              <CardContent className="p-6 text-center">
+                <p className="text-xl text-foreground font-medium">{getStarMessage(Math.round(earnedStars))}</p>
+              </CardContent>
+            </Card>
+
+            <div className="flex flex-col gap-4">
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-14 text-lg border-2"
+                onClick={handleRetryLesson}
+              >
+                <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                Repetir lección
+              </Button>
+              <Button
+                size="lg"
+                className="h-14 text-lg"
+                onClick={onComplete}
+              >
+                Continuar
+                <ChevronRight className="w-6 h-6 ml-2" aria-hidden="true" />
+              </Button>
+            </div>
           </section>
         )}
       </main>
