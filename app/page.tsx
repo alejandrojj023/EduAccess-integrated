@@ -393,6 +393,7 @@ function AppContent() {
       const lessonId = segments[2]
       return (
         <StudentLesson
+          key={pathname}
           lessonId={lessonId}
           lessonName={queryLessonName}
           onSelectActivity={(id) => {
