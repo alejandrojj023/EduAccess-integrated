@@ -32,6 +32,7 @@ import { StudentCourse } from "@/components/student/student-course"
 import { StudentLesson } from "@/components/student/student-lesson"
 import { BookOpen } from "lucide-react"
 import { LandingPage } from "@/components/landing-page"
+import { GlobalAccessibilityButton } from "@/components/ui/global-accessibility-button"
 
 type Screen =
   | "login"
@@ -465,7 +466,13 @@ function AppContent() {
     return <LoginScreen onSwitchToRegister={() => router.push("/registro")} onLoginSuccess={handleLoginSuccess} onBack={() => router.push("/")} />
   }
 
-  return <>{renderScreen()}</>
+  return (
+    <>
+      {renderScreen()}
+      {/* Botón flotante de accesibilidad — visible en todas las pantallas excepto /ajustes */}
+      {pathname !== "/ajustes" && <GlobalAccessibilityButton />}
+    </>
+  )
 }
 
 export default function Home() {
