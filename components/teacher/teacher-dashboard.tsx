@@ -70,8 +70,8 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
       <header className="bg-card border-b-2 border-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
-              <BookOpen className="w-6 h-6 text-primary-foreground" aria-hidden="true" />
+            <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center bg-[#008e92]">
+              <img src="/2.svg" alt="EduAccess logo" className="w-full h-full object-cover" aria-hidden="true" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-foreground">EduAccess</h1>
