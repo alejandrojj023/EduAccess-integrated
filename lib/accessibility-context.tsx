@@ -80,25 +80,43 @@ function settingsToDb(s: AccessibilitySettings) {
 // ============================================================
 
 const LS = {
-  tooltipMode: "ea_tooltipMode",
-  voiceRate:   "ea_voiceRate",
-  voiceName:   "ea_voiceName",
+  tooltipMode:         "ea_tooltipMode",
+  voiceRate:           "ea_voiceRate",
+  voiceName:           "ea_voiceName",
+  // Guardados en localStorage para persistir en el navegador sin importar sesión
+  contrastLevel:       "ea_contrastLevel",
+  textSize:            "ea_textSize",
+  voiceEnabled:        "ea_voiceEnabled",
+  simplifiedInterface: "ea_simplifiedInterface",
 }
 
 function loadLocal(): Partial<AccessibilitySettings> {
   if (typeof window === "undefined") return {}
+  const contrastRaw = localStorage.getItem(LS.contrastLevel) as ContrastLevel | null
+  const textSizeRaw = localStorage.getItem(LS.textSize) as AccessibilitySettings["textSize"] | null
+  const contrastLevel: ContrastLevel =
+    contrastRaw === "alto" || contrastRaw === "muy_alto" ? contrastRaw : "normal"
   return {
-    tooltipMode: (localStorage.getItem(LS.tooltipMode) as TooltipMode | null) ?? "off",
-    voiceRate:   parseFloat(localStorage.getItem(LS.voiceRate) ?? "0.9"),
-    voiceName:   localStorage.getItem(LS.voiceName) ?? "",
+    tooltipMode:         (localStorage.getItem(LS.tooltipMode) as TooltipMode | null) ?? "off",
+    voiceRate:           parseFloat(localStorage.getItem(LS.voiceRate) ?? "0.9"),
+    voiceName:           localStorage.getItem(LS.voiceName) ?? "",
+    contrastLevel,
+    highContrast:        contrastLevel !== "normal",
+    textSize:            textSizeRaw === "large" || textSizeRaw === "extra-large" ? textSizeRaw : "normal",
+    voiceEnabled:        localStorage.getItem(LS.voiceEnabled) === "true",
+    simplifiedInterface: localStorage.getItem(LS.simplifiedInterface) === "true",
   }
 }
 
 function saveLocal(s: Partial<AccessibilitySettings>) {
   if (typeof window === "undefined") return
-  if (s.tooltipMode !== undefined) localStorage.setItem(LS.tooltipMode, s.tooltipMode)
-  if (s.voiceRate   !== undefined) localStorage.setItem(LS.voiceRate,   String(s.voiceRate))
-  if (s.voiceName   !== undefined) localStorage.setItem(LS.voiceName,   s.voiceName)
+  if (s.tooltipMode         !== undefined) localStorage.setItem(LS.tooltipMode,         s.tooltipMode)
+  if (s.voiceRate           !== undefined) localStorage.setItem(LS.voiceRate,           String(s.voiceRate))
+  if (s.voiceName           !== undefined) localStorage.setItem(LS.voiceName,           s.voiceName)
+  if (s.contrastLevel       !== undefined) localStorage.setItem(LS.contrastLevel,       s.contrastLevel)
+  if (s.textSize            !== undefined) localStorage.setItem(LS.textSize,            s.textSize)
+  if (s.voiceEnabled        !== undefined) localStorage.setItem(LS.voiceEnabled,        String(s.voiceEnabled))
+  if (s.simplifiedInterface !== undefined) localStorage.setItem(LS.simplifiedInterface, String(s.simplifiedInterface))
 }
 
 // ============================================================
@@ -125,7 +143,10 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
         .select("*")
         .eq("id_perfil", user.id)
         .single()
-      setSettings(error || !data ? { ...defaultSettings, ...local } : dbToSettings(data, local))
+      const resolved = error || !data ? { ...defaultSettings, ...local } : dbToSettings(data, local)
+      // Sincronizar localStorage con lo que vino de DB para que otras pestañas lo lean
+      saveLocal(resolved)
+      setSettings(resolved)
       setLoading(false)
     }
     load()
