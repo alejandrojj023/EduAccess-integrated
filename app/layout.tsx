@@ -21,14 +21,6 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'es_MX',
   },
-  icons: {
-    icon: [
-      { url: '/icon.svg', type: 'image/svg+xml', sizes: 'any' },
-      { url: '/icon.svg.png', type: 'image/png', sizes: '512x512' },
-    ],
-    apple: { url: '/apple-icon.png.png', sizes: '180x180' },
-    shortcut: '/icon.svg',
-  },
 }
 
 export const viewport: Viewport = {
