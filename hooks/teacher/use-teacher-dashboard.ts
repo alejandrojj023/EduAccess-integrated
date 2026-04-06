@@ -17,7 +17,11 @@ interface DashboardStats {
 
 interface RecentActivity {
   student: string
-  activity: string
+  activity: string   // título de la actividad
+  tipo: string       // tipo raw de DB (e.g. "seleccion_guiada")
+  lesson: string     // título de la lección
+  course: string     // título del curso
+  score: number | null
   time: string
 }
 
@@ -100,10 +104,22 @@ export function useTeacherDashboard(): UseTeacherDashboardReturn {
           : Promise.resolve({ data: [] as { pct_completado: number }[] }),
         supabase
           .from("intento_actividad")
-          .select(`fecha_creacion, perfil:id_alumno ( nombre ), actividad:id_actividad ( titulo, tipo )`)
+          .select(`
+            fecha_creacion,
+            puntaje_total,
+            perfil:id_alumno ( nombre ),
+            actividad:id_actividad (
+              titulo,
+              tipo,
+              leccion:id_leccion (
+                titulo,
+                curso:id_curso ( titulo )
+              )
+            )
+          `)
           .in("id_grupo", grupoIds)
           .order("fecha_creacion", { ascending: false })
-          .limit(5),
+          .limit(8),
       ])
 
       const progresiones = progresionesResult.data ?? []
@@ -123,21 +139,28 @@ export function useTeacherDashboard(): UseTeacherDashboardReturn {
       const intentos = intentosResult.data
 
       const actividadReciente: RecentActivity[] = (intentos ?? []).map((i: any) => {
-        const nombre = i.perfil?.nombre ?? "Alumno"
-        const tipoActividad = i.actividad?.titulo ?? i.actividad?.tipo ?? "actividad"
-        const fecha = new Date(i.fecha_creacion)
-        const ahora = new Date()
+        const nombre  = i.perfil?.nombre ?? "Alumno"
+        const act     = i.actividad
+        const lec     = act?.leccion
+        const cur     = Array.isArray(lec?.curso) ? lec.curso[0] : lec?.curso
+
+        const fecha   = new Date(i.fecha_creacion)
+        const ahora   = new Date()
         const diffMin = Math.round((ahora.getTime() - fecha.getTime()) / 60000)
 
         let time: string
-        if (diffMin < 1) time = "Justo ahora"
-        else if (diffMin < 60) time = `Hace ${diffMin} min`
-        else if (diffMin < 1440) time = `Hace ${Math.round(diffMin / 60)} hora${Math.round(diffMin / 60) > 1 ? "s" : ""}`
-        else time = `Hace ${Math.round(diffMin / 1440)} dia${Math.round(diffMin / 1440) > 1 ? "s" : ""}`
+        if (diffMin < 1)    time = "Justo ahora"
+        else if (diffMin < 60)   time = `Hace ${diffMin} min`
+        else if (diffMin < 1440) time = `Hace ${Math.round(diffMin / 60)} h`
+        else                     time = `Hace ${Math.round(diffMin / 1440)} día${Math.round(diffMin / 1440) > 1 ? "s" : ""}`
 
         return {
-          student: nombre,
-          activity: `Completo ${tipoActividad}`,
+          student:  nombre,
+          activity: act?.titulo ?? "Actividad",
+          tipo:     act?.tipo   ?? "",
+          lesson:   Array.isArray(lec) ? (lec[0]?.titulo ?? "") : (lec?.titulo ?? ""),
+          course:   cur?.titulo ?? "",
+          score:    i.puntaje_total ?? null,
           time,
         }
       })

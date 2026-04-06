@@ -22,7 +22,37 @@ import {
   CheckCircle,
   History,
   RefreshCw,
+  ImageIcon,
+  Mic,
+  ListOrdered,
+  AlignLeft,
+  Headphones,
+  CircleHelp,
 } from "lucide-react"
+
+// Mapa tipo DB → etiqueta legible + icono
+const TIPO_LABEL: Record<string, { label: string; Icon: React.ElementType }> = {
+  identificacion:       { label: "Identificación de imagen",  Icon: ImageIcon     },
+  reconocimiento_sonidos: { label: "Reconocimiento de sonidos", Icon: Headphones  },
+  secuenciacion:        { label: "Ordenar secuencias",        Icon: ListOrdered   },
+  seleccion_guiada:     { label: "Opción múltiple",           Icon: CircleHelp    },
+  respuesta_corta:      { label: "Respuesta corta",           Icon: AlignLeft     },
+  respuesta_oral:       { label: "Respuesta oral",            Icon: Mic           },
+}
+
+function ScoreBadge({ score }: { score: number | null }) {
+  if (score === null) return null
+  const color =
+    score >= 80 ? "bg-green-100 text-green-700 border-green-200"
+    : score >= 50 ? "bg-amber-100 text-amber-700 border-amber-200"
+    : "bg-red-100 text-red-700 border-red-200"
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-bold ${color}`}>
+      <CheckCircle className="w-3 h-3" aria-hidden="true" />
+      {score}%
+    </span>
+  )
+}
 
 interface TeacherDashboardProps {
   onNavigate: (screen: string) => void
@@ -245,21 +275,57 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
                 </div>
               ) : (
                 <ul className="divide-y divide-border" aria-label="Lista de actividad reciente">
-                  {recentActivity.map((activity, index) => (
-                    <li key={index} className="p-5 hover:bg-muted/50 transition-colors">
-                      <article aria-label={`${activity.student}: ${activity.activity}`}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-lg font-semibold text-foreground">{activity.student}</p>
-                            <p className="text-base text-muted-foreground">{activity.activity}</p>
+                  {recentActivity.map((activity, index) => {
+                    const tipoInfo = TIPO_LABEL[activity.tipo] ?? { label: activity.tipo || "Actividad", Icon: BookOpen }
+                    const TipoIcon = tipoInfo.Icon
+                    return (
+                      <li key={index} className="px-5 py-4 hover:bg-muted/30 transition-colors">
+                        <article aria-label={`${activity.student} completó ${activity.activity}`}>
+                          <div className="flex items-start justify-between gap-3">
+
+                            {/* Avatar inicial */}
+                            <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
+                              <span className="text-xs font-bold text-primary" aria-hidden="true">
+                                {activity.student.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}
+                              </span>
+                            </div>
+
+                            {/* Contenido */}
+                            <div className="flex-1 min-w-0 space-y-1">
+                              {/* Nombre + tiempo */}
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-sm font-bold text-foreground truncate">{activity.student}</p>
+                                <time className="text-xs text-muted-foreground shrink-0">{activity.time}</time>
+                              </div>
+
+                              {/* Actividad completada */}
+                              <p className="text-sm text-foreground truncate">
+                                Completó <span className="font-semibold">"{activity.activity}"</span>
+                              </p>
+
+                              {/* Contexto: lección y curso */}
+                              {(activity.lesson || activity.course) && (
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {activity.lesson && <span>Lección: {activity.lesson}</span>}
+                                  {activity.lesson && activity.course && <span className="mx-1">·</span>}
+                                  {activity.course && <span>{activity.course}</span>}
+                                </p>
+                              )}
+
+                              {/* Tipo + puntaje */}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted border border-border text-xs text-muted-foreground">
+                                  <TipoIcon className="w-3 h-3" aria-hidden="true" />
+                                  {tipoInfo.label}
+                                </span>
+                                <ScoreBadge score={activity.score} />
+                              </div>
+                            </div>
                           </div>
-                          <time className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
-                            {activity.time}
-                          </time>
-                        </div>
-                      </article>
-                    </li>
-                  ))}
+                        </article>
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </CardContent>
