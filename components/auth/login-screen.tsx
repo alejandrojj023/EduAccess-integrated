@@ -47,35 +47,6 @@ export function LoginScreen({ onSwitchToRegister, onLoginSuccess, onBack }: Logi
   }
 
   return (
-<<<<<<< Updated upstream
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md shadow-xl border-2 border-primary/20">
-        <CardHeader className="text-center space-y-4 pb-2">
-          {onBack && (
-            <div className="flex justify-start -mb-2">
-              <button
-                type="button"
-                onClick={onBack}
-                className="flex items-center gap-1 text-muted-foreground hover:text-foreground text-sm"
-                aria-label="Volver al inicio"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Volver
-              </button>
-            </div>
-          )}
-          <div className="mx-auto w-20 h-20 bg-primary rounded-2xl flex items-center justify-center">
-            <BookOpen className="w-10 h-10 text-primary-foreground" aria-hidden="true" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">EduAccess</h1>
-            <p className="text-lg text-muted-foreground mt-2">Plataforma Educativa</p>
-          </div>
-        </CardHeader>
-        
-        <CardContent className="space-y-6 pt-4">
-          <Button
-=======
     <div className="min-h-screen bg-background relative flex items-center justify-center p-4 overflow-hidden">
 
       {/* Blobs decorativos */}
@@ -89,7 +60,6 @@ export function LoginScreen({ onSwitchToRegister, onLoginSuccess, onBack }: Logi
         {/* Volver */}
         {onBack && (
           <button
->>>>>>> Stashed changes
             type="button"
             onClick={onBack}
             className="flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm mb-6 transition-colors"
@@ -103,7 +73,7 @@ export function LoginScreen({ onSwitchToRegister, onLoginSuccess, onBack }: Logi
         {/* Card */}
         <div className="bg-card border-2 border-border rounded-3xl shadow-2xl overflow-hidden">
 
-          {/* Header con gradiente */}
+          {/* Header */}
           <div className="px-8 pt-8 pb-6 text-center">
             <div className="relative inline-block mb-5">
               <div className="absolute inset-0 bg-primary/20 rounded-2xl blur-lg scale-110" aria-hidden="true" />
