@@ -13,6 +13,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
+import { SpeakableText, useSpeakOnHover } from "@/components/ui/accessible-tooltip"
 
 /* ─────────────────────────────────── DATA ─────────────────────────────────── */
 
@@ -69,6 +70,8 @@ interface LandingPageProps {
 
 export function LandingPage({ onStudentLogin, onTeacherLogin }: LandingPageProps) {
   const [isPaused, setIsPaused] = useState(false)
+  const speakStudent = useSpeakOnHover("Soy Estudiante. Accede a tus cursos, actividades y sigue tu progreso.")
+  const speakTeacher = useSpeakOnHover("Soy Docente. Crea cursos, gestiona lecciones y ve el avance de tus alumnos.")
 
   return (
     <div className="min-h-screen bg-background relative overflow-x-hidden flex flex-col">
@@ -135,6 +138,7 @@ export function LandingPage({ onStudentLogin, onTeacherLogin }: LandingPageProps
         <div className="flex flex-col sm:flex-row gap-4 w-full max-w-xl" role="group" aria-label="Selecciona tu rol para ingresar">
           <button
             onClick={onStudentLogin}
+            {...speakStudent}
             className="group flex-1 relative overflow-hidden rounded-2xl border-2 border-border bg-card hover:border-primary/50 hover:shadow-xl transition-all duration-300 active:scale-[0.98] cursor-pointer text-left"
             aria-label="Ingresar como estudiante"
           >
@@ -156,6 +160,7 @@ export function LandingPage({ onStudentLogin, onTeacherLogin }: LandingPageProps
 
           <button
             onClick={onTeacherLogin}
+            {...speakTeacher}
             className="group flex-1 relative overflow-hidden rounded-2xl border-2 border-border bg-card hover:border-primary/50 hover:shadow-xl transition-all duration-300 active:scale-[0.98] cursor-pointer text-left"
             aria-label="Ingresar como docente"
           >
@@ -180,7 +185,7 @@ export function LandingPage({ onStudentLogin, onTeacherLogin }: LandingPageProps
       {/* ══════════════════════════════════════════════════════
           SECCIÓN 1 — Tipos de Actividades (Carrusel)
       ══════════════════════════════════════════════════════ */}
-      <section className="relative z-10 bg-white py-16 sm:py-20" aria-label="Tipos de actividades">
+      <section className="relative z-10 bg-background py-16 sm:py-20" aria-label="Tipos de actividades">
         <style>{`
           @keyframes marquee {
             from { transform: translateX(0); }
@@ -215,7 +220,7 @@ export function LandingPage({ onStudentLogin, onTeacherLogin }: LandingPageProps
             {[...ACTIVITY_TYPES, ...ACTIVITY_TYPES].map(({ Icon, color, name, desc }, i) => (
               <div
                 key={i}
-                className="w-[280px] bg-white border border-border rounded-2xl p-6 shadow-sm flex-shrink-0"
+                className="w-[280px] bg-card border border-border rounded-2xl p-6 shadow-sm flex-shrink-0"
               >
                 <div className={`w-14 h-14 ${color} rounded-xl flex items-center justify-center mb-4`}>
                   <Icon className="w-7 h-7 text-white" aria-hidden="true" />
@@ -264,7 +269,7 @@ export function LandingPage({ onStudentLogin, onTeacherLogin }: LandingPageProps
       {/* ══════════════════════════════════════════════════════
           SECCIÓN 3 — Preguntas Frecuentes (Acordeón)
       ══════════════════════════════════════════════════════ */}
-      <section className="relative z-10 bg-white py-16 sm:py-20" aria-label="Preguntas frecuentes">
+      <section className="relative z-10 bg-background py-16 sm:py-20" aria-label="Preguntas frecuentes">
         <div className="max-w-3xl mx-auto px-4">
           {/* Heading */}
           <div className="text-center mb-10">
@@ -272,14 +277,16 @@ export function LandingPage({ onStudentLogin, onTeacherLogin }: LandingPageProps
             <p className="text-muted-foreground mt-2">Todo lo que necesitas saber sobre EduAccess</p>
           </div>
 
-          <Accordion type="single" collapsible className="w-full">
+          <Accordion type="multiple" className="w-full">
             {FAQS.map((faq, i) => (
-              <AccordionItem key={i} value={`faq-${i}`}>
-                <AccordionTrigger className="font-medium text-base text-left">
-                  {faq.q}
+              <AccordionItem key={i} value={`faq-${i}`} className="border-b border-border">
+                <AccordionTrigger className="font-medium text-base text-left text-foreground hover:no-underline hover:text-primary">
+                  <SpeakableText as="span" speakText={faq.q}>{faq.q}</SpeakableText>
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground text-sm leading-relaxed">
-                  {faq.a}
+                <AccordionContent>
+                  <SpeakableText as="p" speakText={faq.a} className="text-foreground/80 text-sm leading-relaxed">
+                    {faq.a}
+                  </SpeakableText>
                 </AccordionContent>
               </AccordionItem>
             ))}
@@ -288,7 +295,7 @@ export function LandingPage({ onStudentLogin, onTeacherLogin }: LandingPageProps
       </section>
 
       {/* ── Footer ────────────────────────────────────────── */}
-      <footer className="relative z-10 bg-white border-t border-border py-6 text-center text-sm text-muted-foreground">
+      <footer className="relative z-10 bg-background border-t border-border py-6 text-center text-sm text-muted-foreground">
         © {new Date().getFullYear()} EduAccess · Plataforma Educativa Accesible
       </footer>
     </div>
