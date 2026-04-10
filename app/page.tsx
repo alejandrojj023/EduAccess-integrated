@@ -16,6 +16,7 @@ import { CreateLesson } from "@/components/teacher/create-lesson"
 import { EditLesson } from "@/components/teacher/edit-lesson"
 import { EditCourse } from "@/components/teacher/edit-course"
 import { CourseInvite } from "@/components/teacher/course-invite"
+import { CourseStudents } from "@/components/teacher/course-students"
 import { ActivityBuilder } from "@/components/teacher/activity-builder"
 import { StudentsList } from "@/components/teacher/students-list"
 import { TeacherAnalytics } from "@/components/teacher/teacher-analytics"
@@ -92,6 +93,12 @@ function AppContent() {
       const rest = screen.replace("invite-course-", "")
       const [courseId, qs] = rest.split("?", 2)
       router.push(`/maestro/cursos/${courseId}/invitar${qs ? `?${qs}` : ""}`)
+      return
+    }
+    if (screen.startsWith("course-students-")) {
+      const rest = screen.replace("course-students-", "")
+      const [courseId, qs] = rest.split("?", 2)
+      router.push(`/maestro/cursos/${courseId}/estudiantes${qs ? `?${qs}` : ""}`)
       return
     }
     if (screen.startsWith("edit-lesson-")) {
@@ -315,6 +322,19 @@ function AppContent() {
       )
     }
 
+    if (segments[0] === "maestro" && segments[1] === "cursos" && segments[3] === "estudiantes") {
+      const courseId = segments[2]
+      const cName = searchParams.get("name")
+      return (
+        <CourseStudents
+          courseId={courseId}
+          courseName={cName}
+          onBack={() => router.push("/maestro/cursos")}
+          onInvite={() => router.push(`/maestro/cursos/${courseId}/invitar${cName ? `?name=${encodeURIComponent(cName)}` : ""}`)}
+        />
+      )
+    }
+
     if (segments[0] === "maestro" && segments[1] === "cursos" && segments[3] === "editar") {
       const courseId = segments[2]
       const isLessonsBack = backTo === "lessons"
@@ -399,6 +419,9 @@ function AppContent() {
           lessonName={queryLessonName}
           onSelectActivity={(id) => {
             router.push(`/estudiante/actividades/${id}?lessonId=${lessonId}&lessonName=${encodeURIComponent(queryLessonName ?? "")}&courseId=${queryCourseId ?? ""}&courseName=${encodeURIComponent(queryCourseName ?? "")}`)
+          }}
+          onStartLesson={() => {
+            router.push(`/estudiante/lecciones/${lessonId}/comenzar?lessonName=${encodeURIComponent(queryLessonName ?? "")}&courseId=${queryCourseId ?? ""}&courseName=${encodeURIComponent(queryCourseName ?? "")}`)
           }}
           onBack={() => {
             if (queryCourseId) {

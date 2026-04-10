@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase"
 import {
   ArrowLeft, ChevronRight, CheckCircle2,
   Mic, Image as ImageIcon, List, HelpCircle, PencilLine, Volume2,
-  BookOpen, Youtube, Search, Paperclip, ExternalLink, FileText,
+  BookOpen, Youtube, Search, Paperclip, ExternalLink, FileText, RotateCcw, PlayCircle,
 } from "lucide-react"
 import { TextoConGlosario, type GlosarioEntry } from "@/components/ui/texto-con-glosario"
 
@@ -32,6 +32,7 @@ interface StudentLessonProps {
   lessonId: string | null
   lessonName: string | null
   onSelectActivity: (id: string) => void
+  onStartLesson?: () => void
   onBack: () => void
 }
 
@@ -74,7 +75,7 @@ function getYouTubeEmbedUrl(url: string): string | null {
   }
 }
 
-export function StudentLesson({ lessonId, lessonName, onSelectActivity, onBack }: StudentLessonProps) {
+export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartLesson, onBack }: StudentLessonProps) {
   const { user } = useAuth()
   const [activities, setActivities] = useState<Activity[]>([])
   const [material, setMaterial] = useState<LessonMaterial>({
@@ -279,6 +280,23 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onBack }
             </Card>
           </section>
         )}
+        {/* Botón Comenzar / Repetir lección */}
+        {!loading && activities.length > 0 && onStartLesson && (
+          <div className="flex justify-center">
+            {completadas === activities.length ? (
+              <Button size="lg" className="gap-2 h-14 px-8 text-base" onClick={onStartLesson}>
+                <RotateCcw className="w-5 h-5" aria-hidden="true" />
+                Repetir lección
+              </Button>
+            ) : (
+              <Button size="lg" className="gap-2 h-14 px-8 text-base" onClick={onStartLesson}>
+                <PlayCircle className="w-5 h-5" aria-hidden="true" />
+                {completadas === 0 ? "Comenzar lección" : "Continuar lección"}
+              </Button>
+            )}
+          </div>
+        )}
+
         {loading ? (
           <p className="text-muted-foreground py-8">Cargando actividades…</p>
         ) : activities.length === 0 ? (

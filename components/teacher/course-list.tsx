@@ -191,10 +191,10 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-base py-3 cursor-pointer"
-                            onClick={() => onNavigate(`invite-course-${course.id}?name=${encodeURIComponent(course.name)}`)}
+                            onClick={() => onNavigate(`course-students-${course.id}?name=${encodeURIComponent(course.name)}`)}
                           >
-                            <UserPlus className="w-4 h-4 mr-3" aria-hidden="true" />
-                            Invitar
+                            <Users className="w-4 h-4 mr-3" aria-hidden="true" />
+                            Estudiantes
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-base py-3 cursor-pointer"

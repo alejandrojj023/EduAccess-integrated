@@ -668,7 +668,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
   }
 
   async function handleFinish() {
-    // Save attempt via API route
+    // Guarda el intento individual de la actividad
     if (user && activityId) {
       const { data: { session } } = await supabase.auth.getSession()
       await fetch("/api/attempts", {
@@ -679,45 +679,6 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
         },
         body: JSON.stringify({ activityId, puntaje: score }),
       })
-
-      // Check if ALL activities in the lesson are now complete → calculate stars
-      const lessonId = activity?.id_leccion
-      if (lessonId) {
-        const { data: allActs } = await supabase
-          .from("actividad")
-          .select("id_actividad")
-          .eq("id_leccion", lessonId)
-          .eq("publicado", true)
-
-        if (allActs && allActs.length > 0) {
-          const actIds = allActs.map((a: any) => a.id_actividad as string)
-
-          const { data: attempts } = await supabase
-            .from("intento_actividad")
-            .select("id_actividad, puntaje_total")
-            .eq("id_alumno", user.id)
-            .in("id_actividad", actIds)
-            .not("puntaje_total", "is", null)
-
-          // Build best-score map; include current activity just saved
-          const scoreMap = new Map<string, number>()
-          for (const a of attempts ?? []) {
-            const prev = scoreMap.get(a.id_actividad) ?? -1
-            if (a.puntaje_total > prev) scoreMap.set(a.id_actividad, a.puntaje_total)
-          }
-          scoreMap.set(activityId, score)
-
-          const allDone = actIds.every((id) => scoreMap.has(id))
-          if (allDone) {
-            const results = actIds.map((id) => ({
-              id,
-              correct: (scoreMap.get(id) ?? 0) >= 100,
-              attempts: id === activityId ? Math.max(1, actAttempts) : 1,
-            }))
-            await completarLeccion(user.id, lessonId, results)
-          }
-        }
-      }
     }
     speak(`¡Actividad completada!`)
     onComplete()

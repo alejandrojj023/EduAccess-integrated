@@ -36,10 +36,11 @@ components/
     login-screen.tsx
     register-screen.tsx
   teacher/
-    teacher-dashboard.tsx         — Panel principal del docente (sin nav "Grupos")
+    teacher-dashboard.tsx         — Panel principal del docente (banner teal, stats, Gestionar, Actividad Reciente)
     course-list.tsx               — Lista de cursos con DropdownMenu de acciones (⋮)
     create-course.tsx             — Formulario crear curso (crea grupo automáticamente por grado+sección)
     course-invite.tsx             — Invitar alumnos al curso (por correo o desde alumnos del docente)
+    course-students.tsx           — Lista de alumnos inscritos en un curso + Sheet de reporte individual
     lesson-management.tsx         — Lista de lecciones de un curso
     create-lesson.tsx             — Formulario crear leccion + gestión de glosario
     edit-lesson.tsx               — Formulario editar leccion + gestión de glosario
@@ -88,7 +89,8 @@ La app es una SPA. El estado `currentScreen` controla que componente se renderiz
 ```
 login → teacher-dashboard
   → courses → create-course        (crea grupo automáticamente, muestra codigo_curso al final)
-  → courses → invite-course-{id}   (invitar alumno por correo o desde lista de alumnos del docente)
+  → courses → course-students-{courseId}?name=...   (lista de alumnos inscritos + Sheet reporte)
+      → invite-course-{id}         (botón "Invitar" dentro de course-students)
   → courses → edit-course-{courseId} → edit-course   (desde DropdownMenu "Editar")
   → courses → lessons-{courseId} → lessons
       → edit-course-{courseId} → edit-course           (desde lesson-management "Editar Curso")
@@ -557,9 +559,10 @@ SUPABASE_SERVICE_ROLE_KEY=...       # clave privada, SOLO en API routes, nunca e
     - **Invitaciones enviadas**: muestra estado (Pendiente/Aceptada/Rechazada) con badge de color.
       Las pendientes tienen botón de cancelar (delete).
 
-20. **DropdownMenu en tarjeta de curso** (`course-list.tsx`): reemplaza los 4 botones visibles
-    (Lecciones, Invitar, Editar, Eliminar) por un botón `⋮` (`MoreVertical`) que abre un
-    `shadcn DropdownMenu`. Items: `text-base py-3 cursor-pointer` para accesibilidad táctil.
+20. **DropdownMenu en tarjeta de curso** (`course-list.tsx`): botón `⋮` (`MoreVertical`) con
+    `shadcn DropdownMenu`. Items actuales: Lecciones, **Estudiantes** (→ `course-students-{id}`),
+    Editar, Eliminar. La opción "Invitar" fue movida al interior de `course-students.tsx`
+    (botón en el header). Items: `text-base py-3 cursor-pointer` para accesibilidad táctil.
 
 21. **`materia` en DB usa `'español'` con ñ**: valor correcto es `'español'` (no `'espanol'`).
     CHECK constraint en `curso.materia`. Opciones válidas: `'español'`, `'matematicas'`, `'otra'`.
@@ -578,3 +581,47 @@ SUPABASE_SERVICE_ROLE_KEY=...       # clave privada, SOLO en API routes, nunca e
       → `<span>` con `font-bold text-primary underline decoration-dotted` + `Popover` que muestra
       la definición y botón "Escuchar definición" (TTS vía `speak()`).
       Exporta: `TextoConGlosario`, `GlosarioEntry { palabra, definicion }`.
+
+23. **Banner de bienvenida en teacher-dashboard** (`teacher-dashboard.tsx`): la sección de
+    bienvenida es un banner `bg-primary rounded-2xl p-8` con:
+    - Avatar circular con iniciales + color de `ea_avatar_color` (fallback `rgba(255,255,255,0.25)`)
+    - Saludo con nombre del docente y subtítulo, todo en texto blanco (`text-white`)
+    - Dos botones dentro del banner: "Crear Nuevo Curso" (fondo `primary-foreground`, texto primario)
+      y "Ver Estudiantes" (fondo blanco/20, texto blanco)
+    - Sección "Gestionar": iconos `w-11 h-11` dentro de contenedores `w-16 h-16`, con efecto
+      `group-hover:scale-110 transition-transform duration-200` al pasar el cursor
+
+24. **Reporte de alumno por curso** (`course-students.tsx`):
+    - **Lista de alumnos**: `Accordion type="single" collapsible` — colapsado muestra nombre + estrellas;
+      expandido muestra correo + barra de progreso animada. `[&>svg]:hidden` oculta el chevron de shadcn.
+    - **Sheet de reporte** (lado derecho, `max-w-[700px]`): se abre al hacer "Ver reporte" en el
+      `DropdownMenu` de cada alumno. Contiene 3 secciones:
+      1. **Progreso por Lección**: barra de progreso + estrellas de la última sesión + contador de sesiones
+      2. **Evolución de Aprendizaje**: barras verticales `BarraIntento` — una por sesión (día)
+      3. **Material Educativo**: badges de Lectura/Video/PDF por lección
+    - **`BarraIntento`**: barra vertical clicable. Colapsada = color sólido primario. Expandida =
+      segmentos multicolor por actividad con tooltip al hover mostrando título + puntaje.
+      `onExpandedChange` callback notifica al padre para mostrar/ocultar la leyenda.
+
+25. **Sesiones derivadas de `intento_actividad`** (`course-students.tsx` → `openReporte`):
+    El reporte NO usa `intento_leccion` (que es upsert: 1 fila por alumno+lección).
+    En su lugar, agrupa `intento_actividad` por **(lección, día calendario)** → cada día
+    que el alumno hizo actividades de una lección = 1 `SesionLeccion` = 1 barra.
+    - Flujo: `actividad` (para mapear `id_actividad → id_leccion + titulo`) →
+      `intento_actividad` filtrado por `id_actividad` → agrupación por `fecha_creacion.split("T")[0]`
+    - **Cálculo de estrellas ponderado**: `estrellas = (puntaje_promedio/100) × (acts_únicas/total_acts_lección) × 5`
+      Esto evita que lecciones parcialmente completadas muestren 5 estrellas.
+    - Fallback: si no hay `intento_actividad`, usa `progresion_alumno` como sesión virtual (1 barra).
+    - Las estrellas en "Progreso por Lección" usan la última sesión calculada (no `progresion_alumno.estrellas`).
+
+26. **Landing page — carrusel y FAQ** (`components/landing-page.tsx`):
+    - **Carrusel**: animación CSS pura con `@keyframes marquee { to { transform: translateX(-50%) } }`.
+      Las tarjetas se duplican (`[...ACTIVITY_TYPES, ...ACTIVITY_TYPES]`) para loop infinito seamless.
+      `animationPlayState: paused` al hover. No usa `useRef`/`useEffect`/`setInterval`.
+    - **Colores de iconos del carrusel**: cada tipo de actividad tiene `color` field:
+      `bg-chart-1` a `bg-chart-4`, `bg-primary`, `bg-teal-500`, `bg-pink-500` — iconos en blanco.
+    - **Contraste mode**: reemplazado `bg-white` → `bg-background`/`bg-card` en carrusel y FAQ
+      para que respondan a las clases `high-contrast`/`very-high-contrast`.
+    - **FAQ**: `Accordion type="multiple"` (permite múltiples abiertos). `SpeakableText` en
+      preguntas y respuestas. `useSpeakOnHover` en tarjetas de roles (docente/estudiante).
+      Colores explícitos `text-foreground` para que funcionen en modo contraste.

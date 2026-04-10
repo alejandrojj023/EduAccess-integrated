@@ -53,9 +53,9 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
   const hoverProgresoCard     = useSpeakOnHover(`Progreso General: porcentaje promedio de avance de todos tus alumnos en los cursos activos. Actualmente ${dashboardStats.progresoGeneral}`)
 
   const stats = [
-    { label: "Estudiantes",     value: dashboardStats.estudiantes,    icon: Users,      color: "bg-primary", hover: hoverEstudiantesCard },
-    { label: "Cursos",          value: dashboardStats.cursos,         icon: BookOpen,   color: "bg-accent",  hover: hoverCursosCard      },
-    { label: "Progreso General",value: dashboardStats.progresoGeneral,icon: TrendingUp, color: "bg-success", hover: hoverProgresoCard     },
+    { label: "Estudiantes",     sub: "Total inscritos",     value: dashboardStats.estudiantes,    icon: Users,      color: "bg-primary", hover: hoverEstudiantesCard },
+    { label: "Cursos",          sub: "Material disponible", value: dashboardStats.cursos,         icon: BookOpen,   color: "bg-accent",  hover: hoverCursosCard      },
+    { label: "Progreso General",sub: "Media de completado", value: dashboardStats.progresoGeneral,icon: TrendingUp, color: "bg-success", hover: hoverProgresoCard     },
   ]
 
   const handleReadInstructions = () => {
@@ -112,23 +112,48 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Welcome */}
+        {/* Welcome Banner */}
         <section aria-label="Bienvenida" className="mb-8">
-          <div className="flex items-center gap-4">
-            <div
-              className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white shadow-md"
-              style={{ backgroundColor: avatarColor ?? "hsl(var(--primary))" }}
-              aria-hidden="true"
-            >
-              {(user?.name ?? "D").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}
+          <div className="bg-primary rounded-2xl p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            {/* Izquierda: avatar + saludo */}
+            <div className="flex items-center gap-5">
+              <div
+                className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-white shrink-0 shadow-md ring-2 ring-white/40"
+                style={{ backgroundColor: avatarColor ?? "rgba(255,255,255,0.25)" }}
+                aria-hidden="true"
+              >
+                {(user?.name ?? "D").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}
+              </div>
+              <div>
+                <h2 className="text-3xl font-bold text-white">
+                  Hola, {user?.name?.split(" ")[0]}
+                </h2>
+                <p className="text-white/80 text-base mt-1">
+                  Este es el resumen de tu clase
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-3xl font-bold text-foreground">
-                Hola, {user?.name?.split(" ")[0]}
-              </h2>
-              <p className="text-xl text-muted-foreground mt-1">
-                Este es el resumen de tu clase
-              </p>
+
+            {/* Derecha: botones */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <Button
+                size="lg"
+                className="bg-primary-foreground text-primary border-primary-foreground hover:bg-primary-foreground/90 font-semibold h-12 px-6 text-base"
+                onClick={() => onNavigate("create-course")}
+                {...hoverCrearCurso}
+              >
+                <Plus className="w-5 h-5 mr-2" aria-hidden="true" />
+                Crear Nuevo Curso
+              </Button>
+              <Button
+                size="lg"
+                className="bg-primary-foreground/20 text-primary-foreground border border-primary-foreground/30 hover:bg-primary-foreground/30 font-semibold h-12 px-6 text-base"
+                onClick={() => onNavigate("students")}
+                {...hoverEstudiantes}
+              >
+                <Users className="w-5 h-5 mr-2" aria-hidden="true" />
+                Ver Estudiantes
+              </Button>
             </div>
           </div>
         </section>
@@ -145,7 +170,8 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
                     </div>
                     <div>
                       <p className="text-4xl font-bold text-foreground">{stat.value}</p>
-                      <p className="text-lg text-muted-foreground">{stat.label}</p>
+                      <p className="text-lg font-semibold text-foreground">{stat.label}</p>
+                      <p className="text-sm text-muted-foreground">{stat.sub}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -161,12 +187,12 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
             <li>
               <Button
                 variant="outline"
-                className="w-full h-auto p-8 flex flex-col items-center gap-4 border-2 hover:border-primary hover:bg-primary/5"
+                className="w-full h-auto p-8 flex flex-col items-center gap-4 border-2 hover:border-primary hover:bg-primary/5 group"
                 onClick={() => onNavigate("courses")}
                 {...hoverCursos}
               >
-                <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center" aria-hidden="true">
-                  <FolderOpen className="w-8 h-8 text-primary" />
+                <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110" aria-hidden="true">
+                  <FolderOpen className="w-11 h-11 text-primary" />
                 </div>
                 <span className="text-xl font-semibold text-foreground">Cursos</span>
               </Button>
@@ -174,12 +200,12 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
             <li>
               <Button
                 variant="outline"
-                className="w-full h-auto p-8 flex flex-col items-center gap-4 border-2 hover:border-primary hover:bg-primary/5"
+                className="w-full h-auto p-8 flex flex-col items-center gap-4 border-2 hover:border-primary hover:bg-primary/5 group"
                 onClick={() => onNavigate("courses")}
                 {...hoverLecciones}
               >
-                <div className="w-16 h-16 bg-accent/30 rounded-2xl flex items-center justify-center" aria-hidden="true">
-                  <BookOpen className="w-8 h-8 text-accent-foreground" />
+                <div className="w-16 h-16 bg-accent/30 rounded-2xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110" aria-hidden="true">
+                  <BookOpen className="w-11 h-11 text-accent-foreground" />
                 </div>
                 <span className="text-xl font-semibold text-foreground">Lecciones</span>
               </Button>
@@ -187,12 +213,12 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
             <li>
               <Button
                 variant="outline"
-                className="w-full h-auto p-8 flex flex-col items-center gap-4 border-2 hover:border-primary hover:bg-primary/5"
+                className="w-full h-auto p-8 flex flex-col items-center gap-4 border-2 hover:border-primary hover:bg-primary/5 group"
                 onClick={() => onNavigate("activities")}
                 {...hoverActividades}
               >
-                <div className="w-16 h-16 bg-success/10 rounded-2xl flex items-center justify-center" aria-hidden="true">
-                  <CheckCircle className="w-8 h-8 text-success" />
+                <div className="w-16 h-16 bg-success/10 rounded-2xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110" aria-hidden="true">
+                  <CheckCircle className="w-11 h-11 text-success" />
                 </div>
                 <span className="text-xl font-semibold text-foreground">Actividades</span>
               </Button>
@@ -200,12 +226,12 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
             <li>
               <Button
                 variant="outline"
-                className="w-full h-auto p-8 flex flex-col items-center gap-4 border-2 hover:border-primary hover:bg-primary/5"
+                className="w-full h-auto p-8 flex flex-col items-center gap-4 border-2 hover:border-primary hover:bg-primary/5 group"
                 onClick={() => onNavigate("analytics")}
                 {...hoverAnaliticas}
               >
-                <div className="w-16 h-16 bg-chart-4/20 rounded-2xl flex items-center justify-center" aria-hidden="true">
-                  <BarChart3 className="w-8 h-8 text-chart-4" />
+                <div className="w-16 h-16 bg-chart-4/20 rounded-2xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110" aria-hidden="true">
+                  <BarChart3 className="w-11 h-11 text-chart-4" />
                 </div>
                 <span className="text-xl font-semibold text-foreground">Analiticas</span>
               </Button>
@@ -266,30 +292,6 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
           </Card>
         </section>
 
-        {/* Quick Actions */}
-        <aside aria-label="Acciones rápidas" className="mt-8">
-          <div className="flex flex-wrap gap-4">
-            <Button
-              size="lg"
-              className="h-14 text-lg px-8"
-              onClick={() => onNavigate("create-course")}
-              {...hoverCrearCurso}
-            >
-              <Plus className="w-6 h-6 mr-3" aria-hidden="true" />
-              Crear Nuevo Curso
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="h-14 text-lg px-8 border-2"
-              onClick={() => onNavigate("students")}
-              {...hoverEstudiantes}
-            >
-              <Users className="w-6 h-6 mr-3" aria-hidden="true" />
-              Ver Estudiantes
-            </Button>
-          </div>
-        </aside>
       </main>
     </div>
   )

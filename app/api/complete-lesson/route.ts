@@ -30,17 +30,23 @@ export async function POST(request: NextRequest) {
   // 2. Contar intentos previos de esta lección para numero_intento
   const { count: intentosPrevios } = await supabaseAdmin
     .from("intento_leccion")
-    .select("id_intento_leccion", { count: "exact", head: true })
+    .select("*", { count: "exact", head: true })
     .eq("id_alumno", user.id)
     .eq("id_leccion", lessonId)
 
+  const numeroIntento = (intentosPrevios ?? 0) + 1
+
   // 3. Insertar registro de historial en intento_leccion
-  const { data: intentoLeccion } = await supabaseAdmin
+  //    Intenta primero con todos los campos; si falla (columnas inexistentes),
+  //    reintenta con solo los campos mínimos garantizados.
+  let intentoLeccionId: string | null = null
+
+  const { data: intentoFull, error: errorFull } = await supabaseAdmin
     .from("intento_leccion")
     .insert({
       id_alumno: user.id,
       id_leccion: lessonId,
-      numero_intento: (intentosPrevios ?? 0) + 1,
+      numero_intento: numeroIntento,
       estrellas: stars,
       promedio_puntaje: puntajePct,
       total_actividades: total,
@@ -50,12 +56,35 @@ export async function POST(request: NextRequest) {
     .select("id_intento_leccion")
     .single()
 
+  if (!errorFull && intentoFull?.id_intento_leccion) {
+    intentoLeccionId = intentoFull.id_intento_leccion
+  } else if (errorFull) {
+    // Fallback: insertar solo los campos mínimos
+    console.error("[complete-lesson] insert completo falló, intentando mínimo:", errorFull.message)
+    const { data: intentoMin, error: errorMin } = await supabaseAdmin
+      .from("intento_leccion")
+      .insert({
+        id_alumno: user.id,
+        id_leccion: lessonId,
+        numero_intento: numeroIntento,
+        estrellas: stars,
+      })
+      .select("id_intento_leccion")
+      .single()
+
+    if (!errorMin && intentoMin?.id_intento_leccion) {
+      intentoLeccionId = intentoMin.id_intento_leccion
+    } else {
+      console.error("[complete-lesson] insert mínimo también falló:", errorMin?.message)
+    }
+  }
+
   // 4. Vincular los intento_actividad de esta sesión con el intento_leccion
-  if (intentoLeccion?.id_intento_leccion) {
+  if (intentoLeccionId) {
     const actIds = results.map((r: any) => r.id)
     await supabaseAdmin
       .from("intento_actividad")
-      .update({ id_intento_leccion: intentoLeccion.id_intento_leccion })
+      .update({ id_intento_leccion: intentoLeccionId })
       .in("id_actividad", actIds)
       .eq("id_alumno", user.id)
       .is("id_intento_leccion", null)
