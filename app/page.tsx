@@ -325,11 +325,14 @@ function AppContent() {
     if (segments[0] === "maestro" && segments[1] === "cursos" && segments[3] === "estudiantes") {
       const courseId = segments[2]
       const cName = searchParams.get("name")
+      const openStudent = searchParams.get("openStudent")
+      const backRoute = backTo === "students" ? "/maestro/estudiantes" : "/maestro/cursos"
       return (
         <CourseStudents
           courseId={courseId}
           courseName={cName}
-          onBack={() => router.push("/maestro/cursos")}
+          openStudentId={openStudent}
+          onBack={() => router.push(backRoute)}
           onInvite={() => router.push(`/maestro/cursos/${courseId}/invitar${cName ? `?name=${encodeURIComponent(cName)}` : ""}`)}
         />
       )

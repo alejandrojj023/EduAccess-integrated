@@ -99,6 +99,8 @@ interface CourseStudentsProps {
   courseName: string | null
   onBack: () => void
   onInvite: () => void
+  /** Si se pasa, abre automáticamente el reporte de ese alumno al cargar la lista */
+  openStudentId?: string | null
 }
 
 /* ─── Barra de intento con segmentos y tooltip ───────────────────────────── */
@@ -190,7 +192,7 @@ function BarraIntento({
 }
 
 /* ─── Componente principal ───────────────────────────────────────────────── */
-export function CourseStudents({ courseId, courseName, onBack, onInvite }: CourseStudentsProps) {
+export function CourseStudents({ courseId, courseName, onBack, onInvite, openStudentId }: CourseStudentsProps) {
   const [students, setStudents] = useState<CourseStudent[]>([])
   const [loading, setLoading] = useState(true)
   const [removingId, setRemovingId] = useState<string | null>(null)
@@ -199,6 +201,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite }: Cours
   const [reporte, setReporte] = useState<ReporteData | null>(null)
   const [loadingReporte, setLoadingReporte] = useState(false)
   const [barrasExpandidas, setBarrasExpandidas] = useState<Record<string, boolean>>({})
+  const [autoOpenedId, setAutoOpenedId] = useState<string | null>(null)
 
   const fetchStudents = useCallback(async () => {
     setLoading(true)
@@ -272,6 +275,16 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite }: Cours
       setAnimado(false)
     }
   }, [loading, students])
+
+  // Auto-abrir el reporte cuando viene openStudentId (desde "Mis Estudiantes")
+  useEffect(() => {
+    if (loading || !openStudentId || autoOpenedId === openStudentId) return
+    const target = students.find(s => s.id === openStudentId)
+    if (target) {
+      setAutoOpenedId(openStudentId)
+      openReporte(target)
+    }
+  }, [loading, students, openStudentId, autoOpenedId])
 
   const openReporte = async (student: CourseStudent) => {
     setLoadingReporte(true)

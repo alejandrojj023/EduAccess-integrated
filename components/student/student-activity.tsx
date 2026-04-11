@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { motion, LayoutGroup } from "framer-motion"
 import { completarLeccion } from "@/hooks/student/use-lesson-completion"
+import { VoiceActivity } from "@/components/student/voice-activity"
 
 const MENSAJES_CORRECTO = [
   "¡Excelente! Lo lograste.",
@@ -739,6 +740,19 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     setPhase("lesson-done")
   }
 
+  // Avanza al siguiente paso de la lección sin guardar intento (ya guardado externamente)
+  async function handleAdvanceLesson(result: ActivityResult) {
+    const newResults = [...activityResults, result]
+    setActivityResults(newResults)
+    const nextIndex = lessonActIndex + 1
+    if (nextIndex >= lessonActivities.length) {
+      await handleLessonComplete(newResults)
+    } else {
+      setLessonActIndex(nextIndex)
+      loadActivityData(lessonActivities[nextIndex])
+    }
+  }
+
   async function handleRetryLesson() {
     // Increment total_reintentos via admin API (bypasses RLS)
     if (user && lessonId) {
@@ -763,6 +777,23 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
   }
 
   // ── Render ──────────────────────────────────────────────────
+
+  // En modo lección, actividad oral → mostrar VoiceActivity real con contexto de lección
+  // Solo durante phase="question": si phase cambia a "loading"/"lesson-done" hay que mostrar esas pantallas
+  if (isLessonMode && activity?.tipo === "respuesta_oral" && phase === "question") {
+    return (
+      <VoiceActivity
+        activityId={activity.id_actividad}
+        onBack={onBack}
+        onComplete={() =>
+          handleAdvanceLesson({ id: activity.id_actividad, correct: true, attempts: 1 })
+        }
+        lessonIndex={lessonActIndex}
+        lessonTotal={lessonActivities.length}
+      />
+    )
+  }
+
   if (phase === "loading") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">

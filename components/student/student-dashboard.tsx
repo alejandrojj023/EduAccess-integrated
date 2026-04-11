@@ -22,6 +22,7 @@ import {
   BarChart3,
   Calendar,
   Users,
+  Flame,
 } from "lucide-react"
 
 interface StudentDashboardProps {
@@ -156,47 +157,100 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
 
         {/* Stats Cards */}
         <section aria-label="Tu progreso y logros" className="mb-8">
-          <ul className="grid grid-cols-2 gap-6 list-none p-0">
+          <ul className="grid grid-cols-1 sm:grid-cols-3 gap-6 list-none p-0">
+            {/* ── Estrellas ── */}
             <li>
               <Card className="border-2 shadow-lg h-full">
                 <CardContent className="p-6 flex items-center gap-5">
-                  <div className="w-16 h-16 bg-accent rounded-2xl flex items-center justify-center" aria-hidden="true">
-                    <Star className="w-8 h-8 text-primary-foreground" />
+                  <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center shrink-0 shadow-md" aria-hidden="true">
+                    <Star className="w-9 h-9 text-white fill-white" />
                   </div>
-                  <div>
-                    <p className="text-4xl font-bold text-foreground">{estrellasTotales} ⭐</p>
-                    <p className="text-lg text-muted-foreground">Estrellas</p>
-                    {streakDays > 0 && (
-                      <p className="text-sm text-muted-foreground mt-1">🔥 {streakDays} días de racha</p>
-                    )}
+                  <div className="min-w-0">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-4xl font-bold text-foreground leading-none">{estrellasTotales}</span>
+                      <Star className="w-6 h-6 text-amber-400 fill-amber-400 shrink-0" aria-hidden="true" />
+                    </div>
+                    <p className="text-base font-semibold text-muted-foreground mt-0.5">Estrellas totales</p>
                   </div>
                 </CardContent>
               </Card>
             </li>
+
+            {/* ── Nivel ── */}
             <li>
               <Card className="border-2 shadow-lg h-full">
-                <CardContent className="p-6 flex flex-col gap-3">
-                  <div className="flex items-center gap-5">
-                    <div className="w-16 h-16 bg-success rounded-2xl flex items-center justify-center text-2xl" aria-hidden="true">
+                <CardContent className="p-6 flex flex-col gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 bg-success rounded-2xl flex items-center justify-center text-3xl shrink-0 shadow-md" aria-hidden="true">
                       {nivelEmoji}
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-foreground">Nivel {nivelActual}</p>
-                      <p className="text-lg text-muted-foreground">{nivelNombre}</p>
+                      <p className="text-2xl font-bold text-foreground leading-tight">
+                        Nivel <span className="text-primary">{nivelActual}</span>
+                      </p>
+                      <p className="text-base font-semibold text-muted-foreground">{nivelNombre}</p>
                     </div>
                   </div>
                   {nivelMax !== Infinity && (
-                    <div>
-                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                        <span>{estrellasTotales} ⭐</span>
-                        <span>Meta: {nivelMax + 1} ⭐</span>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center text-sm font-medium">
+                        <span className="flex items-center gap-1 text-amber-500">
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
+                          {estrellasTotales}
+                        </span>
+                        <span className="text-muted-foreground text-xs">
+                          Meta: <span className="text-amber-500 font-semibold">{nivelMax + 1}</span>
+                          <Star className="w-3 h-3 fill-amber-400 text-amber-400 inline ml-0.5 -mt-0.5" aria-hidden="true" />
+                        </span>
                       </div>
-                      <Progress value={progressToNext} className="h-2" aria-label={`${progressToNext}% hacia el siguiente nivel`} />
+                      <Progress value={progressToNext} className="h-3" aria-label={`${progressToNext}% hacia el siguiente nivel`} />
+                      <p className="text-xs text-right text-muted-foreground">{progressToNext}% hacia el siguiente nivel</p>
                     </div>
                   )}
                   {nivelMax === Infinity && (
-                    <p className="text-xs text-muted-foreground">Nivel máximo alcanzado</p>
+                    <p className="text-sm font-semibold text-muted-foreground">✨ Nivel máximo alcanzado</p>
                   )}
+                </CardContent>
+              </Card>
+            </li>
+
+            {/* ── Racha ── */}
+            <li>
+              <Card className="border-2 shadow-lg h-full">
+                <CardContent className="p-6 flex items-center gap-5">
+                  <div
+                    className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${
+                      streakDays > 0
+                        ? "bg-gradient-to-br from-orange-400 to-red-500"
+                        : "bg-gradient-to-br from-slate-300 to-slate-400"
+                    }`}
+                    aria-hidden="true"
+                  >
+                    <Flame className="w-9 h-9 text-white fill-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-4xl font-bold text-foreground leading-none">{streakDays}</span>
+                      <Flame
+                        className={`w-6 h-6 shrink-0 ${
+                          streakDays > 0 ? "text-orange-500 fill-orange-500" : "text-slate-400 fill-slate-400"
+                        }`}
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <p className="text-base font-semibold text-muted-foreground mt-0.5">
+                      {streakDays === 1 ? "Día de racha" : "Días de racha"}
+                    </p>
+                    {streakDays > 0 ? (
+                      <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-orange-600 bg-orange-100 rounded-full px-3 py-1 mt-2">
+                        🔥 ¡Sigue así!
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground bg-muted rounded-full px-3 py-1 mt-2">
+                        Comienza tu racha hoy
+                      </span>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </li>

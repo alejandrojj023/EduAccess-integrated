@@ -5,9 +5,18 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useAccessibility } from "@/lib/accessibility-context"
+import { useAuth } from "@/lib/auth-context"
 import { useStudents } from "@/hooks/teacher/use-students"
 import { useSpeakOnHover } from "@/components/ui/accessible-tooltip"
+import { supabase } from "@/lib/supabase"
 import {
   ArrowLeft,
   Volume2,
@@ -18,7 +27,14 @@ import {
   CheckCircle,
   AlertCircle,
   Eye,
+  BookOpen,
+  Loader2,
 } from "lucide-react"
+
+interface CursoDelAlumno {
+  id_curso: string
+  titulo: string
+}
 
 interface StudentsListProps {
   onNavigate: (screen: string) => void
@@ -29,6 +45,67 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
   const { students, loading } = useStudents()
   const [searchQuery, setSearchQuery] = useState("")
   const { speak, settings } = useAccessibility()
+  const { user } = useAuth()
+
+  // Selector de curso al ver reporte
+  const [selectorAbierto, setSelectorAbierto] = useState(false)
+  const [cursosDisponibles, setCursosDisponibles] = useState<CursoDelAlumno[]>([])
+  const [alumnoSeleccionado, setAlumnoSeleccionado] = useState<{ id: string; nombre: string } | null>(null)
+  const [buscandoCursos, setBuscandoCursos] = useState<string | null>(null)
+  const [errorReporte, setErrorReporte] = useState<string | null>(null)
+
+  const abrirReporte = (alumnoId: string, cursoId: string, cursoTitulo: string) => {
+    const qs = new URLSearchParams({
+      name: cursoTitulo,
+      openStudent: alumnoId,
+      back: "students",
+    }).toString()
+    onNavigate(`course-students-${cursoId}?${qs}`)
+  }
+
+  const handleVerReporte = async (alumnoId: string, alumnoNombre: string) => {
+    if (!user) return
+    setErrorReporte(null)
+    setBuscandoCursos(alumnoId)
+
+    // 1. Grupos del docente
+    const { data: grupos } = await supabase
+      .from("grupo")
+      .select("id_grupo")
+      .eq("id_docente", user.id)
+
+    const grupoIds = new Set((grupos ?? []).map((g: any) => g.id_grupo))
+
+    // 2. Cursos donde el alumno está inscrito (con id_grupo para filtrar)
+    const { data: cursosDelAlumno } = await supabase
+      .from("alumno_curso")
+      .select("id_curso, curso:id_curso(id_curso, titulo, id_grupo)")
+      .eq("id_alumno", alumnoId)
+
+    // 3. Filtrar a solo los cursos que pertenecen a grupos del docente
+    const cursosFiltrados: CursoDelAlumno[] = (cursosDelAlumno ?? [])
+      .map((ac: any) => ac.curso)
+      .filter((c: any) => c && grupoIds.has(c.id_grupo))
+      .map((c: any) => ({ id_curso: c.id_curso, titulo: c.titulo }))
+
+    setBuscandoCursos(null)
+
+    if (cursosFiltrados.length === 0) {
+      setErrorReporte("Este alumno no está inscrito en ninguno de tus cursos")
+      setTimeout(() => setErrorReporte(null), 4000)
+      return
+    }
+
+    if (cursosFiltrados.length === 1) {
+      abrirReporte(alumnoId, cursosFiltrados[0].id_curso, cursosFiltrados[0].titulo)
+      return
+    }
+
+    // 2+ cursos → mostrar selector
+    setCursosDisponibles(cursosFiltrados)
+    setAlumnoSeleccionado({ id: alumnoId, nombre: alumnoNombre })
+    setSelectorAbierto(true)
+  }
 
   const filteredStudents = students.filter((s) =>
     s.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -207,10 +284,15 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
                         variant="outline"
                         size="lg"
                         className="h-12 px-6 border-2"
-                        onClick={() => onNavigate(`student-report-${student.id}`)}
+                        onClick={() => handleVerReporte(student.id, student.name)}
+                        disabled={buscandoCursos === student.id}
                         aria-label={`Ver reporte de ${student.name}`}
                       >
-                        <Eye className="w-5 h-5 mr-2" aria-hidden="true" />
+                        {buscandoCursos === student.id ? (
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <Eye className="w-5 h-5 mr-2" aria-hidden="true" />
+                        )}
                         Ver Reporte
                       </Button>
                     </div>
@@ -234,7 +316,49 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
             </CardContent>
           </Card>
         )}
+
+        {/* Banner de error (alumno sin cursos) */}
+        {errorReporte && (
+          <div
+            role="alert"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-destructive text-destructive-foreground px-6 py-4 rounded-2xl shadow-xl border-2 border-destructive flex items-center gap-3"
+          >
+            <AlertCircle className="w-5 h-5 shrink-0" aria-hidden="true" />
+            <p className="font-medium">{errorReporte}</p>
+          </div>
+        )}
       </main>
+
+      {/* Selector de curso al ver reporte */}
+      <Dialog open={selectorAbierto} onOpenChange={setSelectorAbierto}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">
+              Ver reporte de{alumnoSeleccionado ? ` ${alumnoSeleccionado.nombre}` : ""}:
+            </DialogTitle>
+            <DialogDescription className="text-base">
+              Este alumno está inscrito en varios de tus cursos. Selecciona uno para ver su reporte.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 pt-2">
+            {cursosDisponibles.map((c) => (
+              <Button
+                key={c.id_curso}
+                variant="outline"
+                className="justify-start h-auto py-4 px-4 text-base border-2"
+                onClick={() => {
+                  if (!alumnoSeleccionado) return
+                  setSelectorAbierto(false)
+                  abrirReporte(alumnoSeleccionado.id, c.id_curso, c.titulo)
+                }}
+              >
+                <BookOpen className="w-5 h-5 mr-3 text-primary shrink-0" aria-hidden="true" />
+                <span className="font-medium text-left">{c.titulo}</span>
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

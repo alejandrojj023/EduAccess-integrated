@@ -525,7 +525,7 @@ export function AccessibilitySettings({ onBack }: AccessibilitySettingsProps) {
             TAB: ACCESIBILIDAD
         ══════════════════════════════════════════════ */}
         {activeTab === "accesibilidad" && (
-          <section role="tabpanel" id="tabpanel-accesibilidad" aria-labelledby="tab-accesibilidad">
+          <section role="tabpanel" id="tabpanel-accesibilidad" aria-labelledby="tab-accesibilidad" className="space-y-6">
             {/* Contraste */}
             <Card className="border-2 shadow-lg">
               <CardHeader>

@@ -16,6 +16,9 @@ interface VoiceActivityProps {
   activityId: string | null
   onBack: () => void
   onComplete: () => void
+  /** Contexto de lección — si se pasan, el header muestra "Actividad X de Y" en lugar del contador de estrellas */
+  lessonIndex?: number
+  lessonTotal?: number
 }
 
 interface ActivityData {
@@ -55,7 +58,9 @@ function checkAnswer(spoken: string, expected: string): boolean {
 const MAX_ATTEMPTS = 2
 type Phase = "loading" | "question" | "result"
 
-export function VoiceActivity({ activityId, onBack, onComplete }: VoiceActivityProps) {
+export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, lessonTotal }: VoiceActivityProps) {
+  const isLessonMode = lessonIndex !== undefined && lessonTotal !== undefined && lessonTotal > 0
+  const lessonProgress = isLessonMode ? Math.round((lessonIndex / lessonTotal) * 100) : 0
   const { user }            = useAuth()
   const { speak, settings } = useAccessibility()
 
@@ -269,16 +274,30 @@ export function VoiceActivity({ activityId, onBack, onComplete }: VoiceActivityP
             >
               <ArrowLeft className="w-6 h-6" />
             </Button>
-            <p className="font-bold text-lg line-clamp-1 flex-1 text-center px-4">
-              {activity?.titulo ?? "Respuesta por Voz"}
-            </p>
-            <div className="flex items-center gap-2">
-              <Star className="w-6 h-6 text-accent" aria-hidden="true" />
-              <span className="text-xl font-bold">{score}</span>
+            <div className="flex-1 text-center px-4">
+              <p className="font-bold text-lg line-clamp-1">
+                {activity?.titulo ?? "Respuesta por Voz"}
+              </p>
+              {isLessonMode && (
+                <p className="text-sm opacity-80">
+                  Actividad {lessonIndex! + 1} de {lessonTotal}
+                </p>
+              )}
             </div>
+            {!isLessonMode ? (
+              <div className="flex items-center gap-2">
+                <Star className="w-6 h-6 text-accent" aria-hidden="true" />
+                <span className="text-xl font-bold">{score}</span>
+              </div>
+            ) : (
+              <div className="text-right min-w-[60px]">
+                <p className="text-xs opacity-70">Progreso</p>
+                <p className="font-bold">{lessonProgress}%</p>
+              </div>
+            )}
           </div>
           <Progress
-            value={phase === "result" ? 100 : 33}
+            value={isLessonMode ? lessonProgress : (phase === "result" ? 100 : 33)}
             className="h-3 bg-primary-foreground/20"
           />
         </div>
