@@ -75,7 +75,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
   const [alumnos, setAlumnos] = useState<{ id_perfil: string; nombre: string }[]>([])
 
   // ── Config por gráfico ──────────────────────────────────────
-  const [perfCfg, setPerfCfg] = useState({ metrica: "correctas", cantidad: "5", ordenar: "nombre" })
+  const [perfCfg, setPerfCfg] = useState({ metrica: "promedio_puntaje", cantidad: "5", ordenar: "nombre" })
   const [progCfg, setProgCfg] = useState({ periodo: "7", metrica: "progreso", agrupar: "dia" })
   const [tipoCfg, setTipoCfg] = useState({
     vista:  "dona",
@@ -553,7 +553,6 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
 
                     <ConfigSection title="Métrica">
                       <RadioGroup value={perfCfg.metrica} onValueChange={(v) => setPerfCfg((p) => ({ ...p, metrica: v }))} className="space-y-1.5">
-                        <RadioRow value="correctas"      label="% Correctas" />
                         <RadioRow value="promedio_puntaje" label="Promedio de puntaje" />
                         <RadioRow value="total_intentos" label="Total de intentos" />
                       </RadioGroup>
@@ -583,7 +582,11 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={processedPerf} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="lesson" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                    <XAxis
+                      dataKey="lessonFull"
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                      tickFormatter={(v: string) => v.length > 14 ? v.substring(0, 14) + "…" : v}
+                    />
                     <YAxis
                       tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
                       domain={perfCfg.metrica === "total_intentos" ? [0, "auto"] : [0, 100]}
@@ -595,22 +598,9 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                         perfCfg.metrica === "total_intentos" ? value : `${value}%`,
                         name,
                       ]}
-                      labelFormatter={(label: string) => {
-                        const item = processedPerf.find((d) => d.lesson === label)
-                        return item?.lessonFull ?? label
-                      }}
+                      labelFormatter={(label: string) => label}
                     />
                     <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-                    {perfCfg.metrica === "correctas" && (
-                      <>
-                        <Bar dataKey="correctas"  name="Correctas %"   fill="#22c55e" radius={[4, 4, 0, 0]}>
-                          <LabelList dataKey="correctas"  position="top" formatter={(v: number) => `${v}%`} style={{ fill: "hsl(var(--foreground))", fontSize: 11, fontWeight: 600 }} />
-                        </Bar>
-                        <Bar dataKey="incorrectas" name="Incorrectas %" fill="#ef4444" radius={[4, 4, 0, 0]}>
-                          <LabelList dataKey="incorrectas" position="top" formatter={(v: number) => `${v}%`} style={{ fill: "hsl(var(--foreground))", fontSize: 11, fontWeight: 600 }} />
-                        </Bar>
-                      </>
-                    )}
                     {perfCfg.metrica === "promedio_puntaje" && (
                       <Bar dataKey="promedio_puntaje" name="Puntaje promedio" fill="#0d9488" radius={[4, 4, 0, 0]}>
                         <LabelList dataKey="promedio_puntaje" position="top" formatter={(v: number) => `${v}%`} style={{ fill: "hsl(var(--foreground))", fontSize: 11, fontWeight: 600 }} />

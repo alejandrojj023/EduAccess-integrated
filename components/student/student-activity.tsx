@@ -13,7 +13,7 @@ import { SpeakableText } from "@/components/ui/accessible-tooltip"
 import { TextoConGlosario, type GlosarioEntry } from "@/components/ui/texto-con-glosario"
 import {
   ArrowLeft, Volume2, Check, X, Star, ChevronRight,
-  Mic, HelpCircle, Loader2, RotateCcw,
+  Mic, HelpCircle, Loader2, RotateCcw, Clock,
 } from "lucide-react"
 import { motion, LayoutGroup } from "framer-motion"
 import { completarLeccion } from "@/hooks/student/use-lesson-completion"
@@ -155,6 +155,11 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
   const [starsAnimated, setStarsAnimated] = useState(0)
   const [resultMessage, setResultMessage] = useState("")
 
+  // Timer — tracks elapsed time per activity and total lesson time
+  const activityStartRef = useRef<number>(Date.now())
+  const lessonStartRef = useRef<number>(Date.now())
+  const [lessonElapsedSecs, setLessonElapsedSecs] = useState(0)
+
   // Word search (sopa_letras) state
   const [wsGrid, setWsGrid] = useState<string[][]>([])
   const [wsPalabras, setWsPalabras] = useState<string[]>([])
@@ -176,6 +181,8 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     setError(null)
     setRetryBanner(null)
     setActAttempts(0)
+    lessonStartRef.current = Date.now()
+    activityStartRef.current = Date.now()
 
     if (isLessonMode && lessonId) {
       // Lesson mode: load all non-voice activities for the lesson
@@ -237,6 +244,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     setRetryBanner(null)
     setActAttempts(0)
     setResultMessage("")
+    activityStartRef.current = Date.now()
 
     if (settings.voiceEnabled && act.tipo !== "reconocimiento_sonidos" && act.tipo !== "completar_oracion" && act.tipo !== "secuenciacion" && act.tipo !== "sopa_letras") {
       const cfg = parseActivityConfig(act.instrucciones)
@@ -670,6 +678,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
 
   async function handleFinish() {
     // Guarda el intento individual de la actividad
+    const tiempoSeg = Math.round((Date.now() - activityStartRef.current) / 1000)
     if (user && activityId) {
       const { data: { session } } = await supabase.auth.getSession()
       await fetch("/api/attempts", {
@@ -678,7 +687,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
           "Content-Type": "application/json",
           Authorization: `Bearer ${session?.access_token}`,
         },
-        body: JSON.stringify({ activityId, puntaje: score }),
+        body: JSON.stringify({ activityId, puntaje: score, tiempoSegundos: tiempoSeg }),
       })
     }
     speak(`¡Actividad completada!`)
@@ -706,6 +715,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
 
   async function handleNextActivity() {
     if (!activity) return
+    const tiempoSeg = Math.round((Date.now() - activityStartRef.current) / 1000)
     const { data: { session } } = await supabase.auth.getSession()
     await fetch("/api/attempts", {
       method: "POST",
@@ -713,7 +723,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
         "Content-Type": "application/json",
         Authorization: `Bearer ${session?.access_token}`,
       },
-      body: JSON.stringify({ activityId: activity.id_actividad, puntaje: score }),
+      body: JSON.stringify({ activityId: activity.id_actividad, puntaje: score, tiempoSegundos: tiempoSeg }),
     })
 
     const result: ActivityResult = {
@@ -735,7 +745,9 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
 
   async function handleLessonComplete(results: ActivityResult[]) {
     setPhase("loading")
-    const stars = await completarLeccion(user!.id, lessonId!, results)
+    const totalSecs = Math.round((Date.now() - lessonStartRef.current) / 1000)
+    setLessonElapsedSecs(totalSecs)
+    const stars = await completarLeccion(user!.id, lessonId!, results, totalSecs)
     setEarnedStars(stars)
     setPhase("lesson-done")
   }
@@ -771,6 +783,8 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     setLessonActIndex(0)
     setEarnedStars(0)
     setStarsAnimated(0)
+    setLessonElapsedSecs(0)
+    lessonStartRef.current = Date.now()
     if (lessonActivities.length > 0) {
       loadActivityData(lessonActivities[0])
     }
@@ -1599,6 +1613,20 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
             <p className="text-center text-2xl font-bold text-amber-600">
               {Math.round(earnedStars)} de 5 estrellas
             </p>
+
+            {/* Tiempo empleado */}
+            {lessonElapsedSecs > 0 && (
+              <div className="flex justify-center">
+                <div className="inline-flex items-center gap-2 bg-muted/60 rounded-full px-5 py-2">
+                  <Clock className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
+                  <span className="text-lg font-semibold text-foreground">
+                    {lessonElapsedSecs < 60
+                      ? `${lessonElapsedSecs} seg`
+                      : `${Math.floor(lessonElapsedSecs / 60)}:${String(lessonElapsedSecs % 60).padStart(2, "0")} min`}
+                  </span>
+                </div>
+              </div>
+            )}
 
             <Card className="border-2 shadow-lg">
               <CardContent className="p-6 text-center">

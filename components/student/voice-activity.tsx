@@ -79,6 +79,7 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
   const [showCorrect,      setShowCorrect]      = useState(false)
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const activityStartRef = useRef<number>(Date.now())
 
   // ── Load activity + pregunta ─────────────────────────────────
   useEffect(() => {
@@ -224,7 +225,7 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
           "Content-Type": "application/json",
           Authorization: `Bearer ${session?.access_token}`,
         },
-        body: JSON.stringify({ activityId, puntaje: score }),
+        body: JSON.stringify({ activityId, puntaje: score, tiempoSegundos: Math.round((Date.now() - activityStartRef.current) / 1000) }),
       })
     }
     onComplete()

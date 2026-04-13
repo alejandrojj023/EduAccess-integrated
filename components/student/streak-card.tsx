@@ -43,24 +43,26 @@ export function StreakCard({ streakDays }: StreakCardProps) {
               aria-hidden="true"
             />
           </div>
-          <p className="text-base font-semibold text-muted-foreground mt-0.5">
-            {streakDays === 1 ? "Día seguido" : "Días seguidos"}
-          </p>
-          {streakDays > 1 && (
-            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-orange-600 bg-orange-100 rounded-full px-3 py-1 mt-2">
-              🔥 ¡Sigue así!
-            </span>
-          )}
-          {streakDays === 1 && (
-            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-orange-600 bg-orange-100 rounded-full px-3 py-1 mt-2">
-              🔥 ¡Buen inicio!
-            </span>
-          )}
-          {streakDays === 0 && (
-            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground bg-muted rounded-full px-3 py-1 mt-2">
-              ¡Recupera tu racha hoy!
-            </span>
-          )}
+          <div className="flex items-center gap-2 flex-wrap mt-0.5">
+            <p className="text-base font-semibold text-muted-foreground">
+              {streakDays === 1 ? "Día seguido" : "Días seguidos"}
+            </p>
+            {streakDays > 1 && (
+              <span className="inline-flex items-center gap-1 text-sm font-semibold text-orange-600 bg-orange-100 rounded-full px-2.5 py-0.5">
+                🔥 ¡Sigue así!
+              </span>
+            )}
+            {streakDays === 1 && (
+              <span className="inline-flex items-center gap-1 text-sm font-semibold text-orange-600 bg-orange-100 rounded-full px-2.5 py-0.5">
+                🔥 ¡Buen inicio!
+              </span>
+            )}
+            {streakDays === 0 && (
+              <span className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground bg-muted rounded-full px-2.5 py-0.5">
+                ¡Recupera tu racha!
+              </span>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

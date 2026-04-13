@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabaseAdmin.auth.getUser(token)
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
 
-  const { lessonId, results } = await request.json()
+  const { lessonId, results, duracionSegundos } = await request.json()
   if (!lessonId || !Array.isArray(results)) {
     return NextResponse.json({ error: "lessonId y results son requeridos" }, { status: 400 })
   }
@@ -42,18 +42,21 @@ export async function POST(request: NextRequest) {
   //    reintenta con solo los campos mínimos garantizados.
   let intentoLeccionId: string | null = null
 
+  const intentoData: Record<string, any> = {
+    id_alumno: user.id,
+    id_leccion: lessonId,
+    numero_intento: numeroIntento,
+    estrellas: stars,
+    promedio_puntaje: puntajePct,
+    total_actividades: total,
+    correctas_primer_intento: correctFirst,
+    total_reintentos: totalReintentos,
+  }
+  if (duracionSegundos != null) intentoData.duracion_segundos = duracionSegundos
+
   const { data: intentoFull, error: errorFull } = await supabaseAdmin
     .from("intento_leccion")
-    .insert({
-      id_alumno: user.id,
-      id_leccion: lessonId,
-      numero_intento: numeroIntento,
-      estrellas: stars,
-      promedio_puntaje: puntajePct,
-      total_actividades: total,
-      correctas_primer_intento: correctFirst,
-      total_reintentos: totalReintentos,
-    })
+    .insert(intentoData)
     .select("id_intento_leccion")
     .single()
 

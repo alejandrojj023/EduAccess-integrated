@@ -187,14 +187,21 @@ export function useAnalytics(filters: AnalyticsFilters): UseAnalyticsReturn {
     if (filters.alumnoId)   intentosQuery = intentosQuery.eq("id_alumno", filters.alumnoId)
     if (filters.fechaDesde) intentosQuery = intentosQuery.gte("fecha_creacion", filters.fechaDesde)
     if (filters.fechaHasta) intentosQuery = intentosQuery.lte("fecha_creacion", filters.fechaHasta)
-    const { data: intentos } = await intentosQuery
+    const { data: intentosRaw } = await intentosQuery
+
+    // Si hay filtro de curso, restringir intentos solo a lecciones de ese curso
+    const intentos = leccionIdsForCurso
+      ? intentosRaw?.filter((i: any) => {
+          const leccionId = i.actividad?.id_leccion
+          return leccionId && leccionIdsForCurso!.includes(leccionId)
+        }) ?? []
+      : intentosRaw ?? []
 
     // Rendimiento por lección desde intento_actividad (misma fuente que los KPIs)
     const leccionMap = new Map<string, { titulo: string; puntajes: number[]; total: number }>()
     intentos?.forEach((i: any) => {
       const leccionId = i.actividad?.id_leccion
       if (!leccionId) return
-      if (leccionIdsForCurso && !leccionIdsForCurso.includes(leccionId)) return
       const titulo = i.actividad?.leccion?.titulo ?? "Sin título"
       const prev   = leccionMap.get(leccionId) ?? { titulo, puntajes: [] as number[], total: 0 }
       prev.total++

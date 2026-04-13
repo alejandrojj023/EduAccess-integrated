@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabaseAdmin.auth.getUser(token)
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
 
-  const { activityId, puntaje } = await request.json()
+  const { activityId, puntaje, tiempoSegundos } = await request.json()
   if (!activityId) return NextResponse.json({ error: "activityId requerido" }, { status: 400 })
 
   // Obtener id_grupo desde actividad → leccion → curso → grupo
@@ -37,14 +37,17 @@ export async function POST(request: NextRequest) {
 
   const now = new Date().toISOString()
 
-  const { error } = await supabaseAdmin.from("intento_actividad").insert({
+  const insertData: Record<string, any> = {
     id_alumno:    user.id,
     id_actividad: activityId,
     id_grupo:     curso.id_grupo,
     puntaje_total: puntaje ?? 0,
     fecha_inicio:  now,
     fecha_fin:     now,
-  })
+  }
+  if (tiempoSegundos != null) insertData.tiempo_total_segundos = tiempoSegundos
+
+  const { error } = await supabaseAdmin.from("intento_actividad").insert(insertData)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

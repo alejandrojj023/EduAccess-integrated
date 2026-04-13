@@ -28,8 +28,12 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
   const { speak, settings } = useAccessibility()
 
   const handleReadInstructions = () => {
+    if (loading) {
+      speak("Cargando lecciones, por favor espera.")
+      return
+    }
     speak(
-      `Gestion de lecciones. Tienes ${lessons.length} lecciones en este curso. Puedes agregar, editar o eliminar lecciones.`
+      `Gestion de lecciones. Tienes ${lessons.length} ${lessons.length === 1 ? "leccion" : "lecciones"} en este curso. Puedes agregar, editar o eliminar lecciones.`
     )
   }
 
@@ -55,9 +59,9 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
             </Button>
             <div>
               <h1 className="text-2xl font-bold text-foreground">Lecciones</h1>
-              <p className="text-sm text-muted-foreground">
-                {lessons.length} lecciones en el curso
-              </p>
+              <div className="text-sm text-muted-foreground">
+                {loading ? "Cargando…" : `${lessons.length} lecciones en el curso`}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
