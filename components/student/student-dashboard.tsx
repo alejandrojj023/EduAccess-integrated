@@ -9,11 +9,14 @@ import { useAccessibility } from "@/lib/accessibility-context"
 import { useStudentDashboard } from "@/hooks/student/use-student-dashboard"
 import { AccessibleTooltip, SpeakableText, useSpeakOnHover } from "@/components/ui/accessible-tooltip"
 
+import { StarsCard } from "@/components/student/stars-card"
+import { LevelCard } from "@/components/student/level-card"
+import { StreakCard } from "@/components/student/streak-card"
+
 import {
   BookOpen,
   Play,
   Star,
-  Trophy,
   Volume2,
   Settings,
   LogOut,
@@ -22,13 +25,23 @@ import {
   BarChart3,
   Calendar,
   Users,
-  Flame,
 } from "lucide-react"
 
 interface StudentDashboardProps {
   onNavigate: (screen: string) => void
   onLogout: () => void
 }
+
+const COURSE_COLORS = [
+  { bg: "bg-teal-100",    icon: "text-teal-600"    },
+  { bg: "bg-violet-100",  icon: "text-violet-600"  },
+  { bg: "bg-amber-100",   icon: "text-amber-600"   },
+  { bg: "bg-rose-100",    icon: "text-rose-600"    },
+  { bg: "bg-sky-100",     icon: "text-sky-600"     },
+  { bg: "bg-emerald-100", icon: "text-emerald-600" },
+  { bg: "bg-orange-100",  icon: "text-orange-600"  },
+  { bg: "bg-pink-100",    icon: "text-pink-600"    },
+]
 
 export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps) {
   const { user } = useAuth()
@@ -44,7 +57,6 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
   const hoverContinuar   = useSpeakOnHover("Continuar Aprendiendo")
   const hoverProgreso    = useSpeakOnHover("Mi Progreso: ver tu avance en los cursos")
   const hoverCalendario  = useSpeakOnHover("Mi Calendario: actividades completadas por día")
-  const hoverAjustes     = useSpeakOnHover("Ajustes: cambiar accesibilidad y perfil")
   const hoverUnirse      = useSpeakOnHover("Unirse a un Curso: ingresar código de curso o aceptar invitación")
 
   const {
@@ -64,6 +76,30 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
           100,
           Math.round(((estrellasTotales - nivelMin) / (nivelMax - nivelMin + 1)) * 100)
         )
+
+  const handleContinuar = () => {
+    if (courses.length === 0) return
+
+    // Prioridad 1: cursos no iniciados (progress === 0)
+    const noIniciados = courses.filter(c => c.progress === 0)
+    if (noIniciados.length > 0) {
+      const elegido = noIniciados[Math.floor(Math.random() * noIniciados.length)]
+      onNavigate(`course-${elegido.id}|${elegido.name}`)
+      return
+    }
+
+    // Prioridad 2: cursos en progreso (0 < progress < 100)
+    const enProgreso = courses.filter(c => c.progress > 0 && c.progress < 100)
+    if (enProgreso.length > 0) {
+      const elegido = enProgreso[Math.floor(Math.random() * enProgreso.length)]
+      onNavigate(`course-${elegido.id}|${elegido.name}`)
+      return
+    }
+
+    // Todos completados: elige uno al azar
+    const elegido = courses[Math.floor(Math.random() * courses.length)]
+    onNavigate(`course-${elegido.id}|${elegido.name}`)
+  }
 
   const handleReadInstructions = () => {
     speak(
@@ -158,102 +194,18 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
         {/* Stats Cards */}
         <section aria-label="Tu progreso y logros" className="mb-8">
           <ul className="grid grid-cols-1 sm:grid-cols-3 gap-6 list-none p-0">
-            {/* ── Estrellas ── */}
+            <li><StarsCard estrellasTotales={estrellasTotales} /></li>
             <li>
-              <Card className="border-2 shadow-lg h-full">
-                <CardContent className="p-6 flex items-center gap-5">
-                  <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center shrink-0 shadow-md" aria-hidden="true">
-                    <Star className="w-9 h-9 text-white fill-white" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-4xl font-bold text-foreground leading-none">{estrellasTotales}</span>
-                      <Star className="w-6 h-6 text-amber-400 fill-amber-400 shrink-0" aria-hidden="true" />
-                    </div>
-                    <p className="text-base font-semibold text-muted-foreground mt-0.5">Estrellas totales</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <LevelCard
+                nivelActual={nivelActual}
+                nivelNombre={nivelNombre}
+                nivelEmoji={nivelEmoji}
+                nivelMax={nivelMax}
+                estrellasTotales={estrellasTotales}
+                progressToNext={progressToNext}
+              />
             </li>
-
-            {/* ── Nivel ── */}
-            <li>
-              <Card className="border-2 shadow-lg h-full">
-                <CardContent className="p-6 flex flex-col gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-success rounded-2xl flex items-center justify-center text-3xl shrink-0 shadow-md" aria-hidden="true">
-                      {nivelEmoji}
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-foreground leading-tight">
-                        Nivel <span className="text-primary">{nivelActual}</span>
-                      </p>
-                      <p className="text-base font-semibold text-muted-foreground">{nivelNombre}</p>
-                    </div>
-                  </div>
-                  {nivelMax !== Infinity && (
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between items-center text-sm font-medium">
-                        <span className="flex items-center gap-1 text-amber-500">
-                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
-                          {estrellasTotales}
-                        </span>
-                        <span className="text-muted-foreground text-xs">
-                          Meta: <span className="text-amber-500 font-semibold">{nivelMax + 1}</span>
-                          <Star className="w-3 h-3 fill-amber-400 text-amber-400 inline ml-0.5 -mt-0.5" aria-hidden="true" />
-                        </span>
-                      </div>
-                      <Progress value={progressToNext} className="h-3" aria-label={`${progressToNext}% hacia el siguiente nivel`} />
-                      <p className="text-xs text-right text-muted-foreground">{progressToNext}% hacia el siguiente nivel</p>
-                    </div>
-                  )}
-                  {nivelMax === Infinity && (
-                    <p className="text-sm font-semibold text-muted-foreground">✨ Nivel máximo alcanzado</p>
-                  )}
-                </CardContent>
-              </Card>
-            </li>
-
-            {/* ── Racha ── */}
-            <li>
-              <Card className="border-2 shadow-lg h-full">
-                <CardContent className="p-6 flex items-center gap-5">
-                  <div
-                    className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${
-                      streakDays > 0
-                        ? "bg-gradient-to-br from-orange-400 to-red-500"
-                        : "bg-gradient-to-br from-slate-300 to-slate-400"
-                    }`}
-                    aria-hidden="true"
-                  >
-                    <Flame className="w-9 h-9 text-white fill-white" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-4xl font-bold text-foreground leading-none">{streakDays}</span>
-                      <Flame
-                        className={`w-6 h-6 shrink-0 ${
-                          streakDays > 0 ? "text-orange-500 fill-orange-500" : "text-slate-400 fill-slate-400"
-                        }`}
-                        aria-hidden="true"
-                      />
-                    </div>
-                    <p className="text-base font-semibold text-muted-foreground mt-0.5">
-                      {streakDays === 1 ? "Día de racha" : "Días de racha"}
-                    </p>
-                    {streakDays > 0 ? (
-                      <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-orange-600 bg-orange-100 rounded-full px-3 py-1 mt-2">
-                        🔥 ¡Sigue así!
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground bg-muted rounded-full px-3 py-1 mt-2">
-                        Comienza tu racha hoy
-                      </span>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </li>
+            <li><StreakCard streakDays={streakDays} /></li>
           </ul>
         </section>
 
@@ -261,7 +213,8 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
         <Button
           size="lg"
           className="w-full h-20 text-2xl mb-8 shadow-lg"
-          onClick={() => onNavigate("activity-image")}
+          onClick={handleContinuar}
+          disabled={loading || courses.length === 0}
           {...hoverContinuar}
         >
           <Play className="w-8 h-8 mr-4" aria-hidden="true" />
@@ -296,18 +249,20 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
           )}
 
           <ul className="grid gap-6 mb-8 list-none p-0">
-          {courses.map((course) => (
+          {courses.map((course, idx) => {
+            const color = COURSE_COLORS[idx % COURSE_COLORS.length]
+            return (
             <li key={course.id}>
             <article aria-label={`Curso: ${course.name}`}>
             <Card
-              className="border-2 shadow-lg hover:border-primary/50 transition-all cursor-pointer"
+              className="border-2 shadow-lg hover:border-primary/50 transition-all duration-200 hover:scale-105 cursor-pointer"
               onClick={() => onNavigate(`course-${course.id}|${course.name}`)}
             >
               <CardContent className="p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-5">
-                    <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
-                      <BookOpen className="w-8 h-8 text-primary" aria-hidden="true" />
+                    <div className={`w-16 h-16 ${color.bg} rounded-2xl flex items-center justify-center`}>
+                      <BookOpen className={`w-8 h-8 ${color.icon}`} aria-hidden="true" />
                     </div>
                     <div>
                       <SpeakableText as="h4" className="text-xl font-bold text-foreground">
@@ -345,7 +300,8 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
             </Card>
             </article>
             </li>
-          ))}
+            )
+          })}
           </ul>
         </section>
 
@@ -372,16 +328,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
             <Calendar className="w-6 h-6 mr-3" aria-hidden="true" />
             Mi Calendario
           </Button>
-          <Button
-            variant="outline"
-            size="lg"
-            className="h-16 text-lg border-2"
-            onClick={() => onNavigate("accessibility")}
-            {...hoverAjustes}
-          >
-            <Settings className="w-6 h-6 mr-3" aria-hidden="true" />
-            Ajustes
-          </Button>
+
           <Button
             variant="outline"
             size="lg"

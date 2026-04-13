@@ -8,6 +8,7 @@ const activityTypeMap = {
   multiple: "seleccion_guiada",
   short: "respuesta_corta",
   voice: "respuesta_oral",
+  fill: "completar_oracion",
   wordsearch: "sopa_letras",
 };
 
@@ -72,6 +73,20 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
+    // Delete existing preguntas before deleting activities (safe even with CASCADE)
+    const { data: existingActs } = await supabaseAdmin
+      .from("actividad")
+      .select("id_actividad")
+      .eq("id_leccion", lessonId);
+    if (existingActs && existingActs.length > 0) {
+      await supabaseAdmin
+        .from("pregunta")
+        .delete()
+        .in(
+          "id_actividad",
+          existingActs.map((a) => a.id_actividad),
+        );
+    }
     await supabaseAdmin.from("actividad").delete().eq("id_leccion", lessonId);
 
     if (Array.isArray(activities) && activities.length > 0) {
@@ -89,12 +104,74 @@ export async function PUT(request, { params }) {
         publicado: true,
       }));
 
-      const { error: actError } = await supabaseAdmin
+      const { data: insertedActivities, error: actError } = await supabaseAdmin
         .from("actividad")
-        .insert(actividadesData);
+        .insert(actividadesData)
+        .select("id_actividad, orden");
 
       if (actError) {
         return NextResponse.json({ error: actError.message }, { status: 500 });
+      }
+
+      // Insert pregunta rows for sound/voice/fill/sequence types
+      if (insertedActivities) {
+        for (let i = 0; i < activities.length; i++) {
+          const act = activities[i];
+          const insertedAct = insertedActivities.find(
+            (a) => a.orden === i + 1,
+          );
+          if (!insertedAct) continue;
+
+          if (act.pregunta) {
+            const defaultEnunciado =
+              act.type === "voice"
+                ? "Escucha y responde"
+                : act.type === "fill"
+                  ? "Completa la oración"
+                  : "Escucha y arma la oración";
+            const enunciado =
+              act.pregunta.enunciado ||
+              act.instrucciones ||
+              defaultEnunciado;
+            const { error: pqError } = await supabaseAdmin
+              .from("pregunta")
+              .insert({
+                id_actividad: insertedAct.id_actividad,
+                enunciado,
+                respuesta_esperada:
+                  act.pregunta.respuesta_esperada || "",
+                palabras_distractoras:
+                  act.pregunta.palabras_distractoras || null,
+                oraciones_contexto:
+                  act.pregunta.oraciones_contexto || null,
+                tipo_respuesta_esperada:
+                  act.pregunta.tipo_respuesta_esperada ||
+                  (act.type === "voice" ? "voz" : "texto"),
+                orden: 1,
+                puntaje_maximo: 100,
+              });
+            if (pqError) {
+              console.error("Error inserting pregunta:", pqError);
+            }
+          }
+
+          if (act.steps && Array.isArray(act.steps)) {
+            const stepsData = act.steps.map((step, idx) => ({
+              id_actividad: insertedAct.id_actividad,
+              enunciado: step.description || `Paso ${idx + 1}`,
+              imagen_url: step.imagen_url || null,
+              orden: idx + 1,
+              tipo_respuesta_esperada: "opcion",
+              puntaje_maximo: 1,
+            }));
+            const { error: stepsError } = await supabaseAdmin
+              .from("pregunta")
+              .insert(stepsData);
+            if (stepsError) {
+              console.error("Error inserting sequence steps:", stepsError);
+            }
+          }
+        }
       }
     }
 

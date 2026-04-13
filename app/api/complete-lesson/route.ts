@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase-admin"
+import { fechaTijuana, diferenciaDias } from "@/lib/utils"
 
 // POST /api/complete-lesson — calcula estrellas, guarda historial de intento y actualiza gamificación
 export async function POST(request: NextRequest) {
@@ -120,13 +121,44 @@ export async function POST(request: NextRequest) {
     p_estrellas: totalEstrellas,
   })
 
-  // 8. Actualizar gamificacion
+  // 8. Calcular racha diaria
+  const { data: gamiActual } = await supabaseAdmin
+    .from("gamificacion")
+    .select("streaks_dias, ultimo_acceso")
+    .eq("id_alumno", user.id)
+    .single()
+
+  const ahora = new Date()
+  const hoyMx = fechaTijuana(ahora)
+  let nuevaRacha: number
+
+  if (!gamiActual?.ultimo_acceso) {
+    nuevaRacha = 1
+  } else {
+    const ultimoDiaMx = fechaTijuana(gamiActual.ultimo_acceso)
+    const diff = diferenciaDias(ultimoDiaMx, hoyMx)
+
+    if (diff === 0) {
+      nuevaRacha = gamiActual.streaks_dias ?? 1
+    } else if (diff === 1) {
+      nuevaRacha = (gamiActual.streaks_dias ?? 0) + 1
+    } else {
+      nuevaRacha = 1
+    }
+  }
+
+  // 9. Actualizar gamificacion (estrellas, nivel, racha, ultimo_acceso)
   await supabaseAdmin
     .from("gamificacion")
-    .update({ estrellas_totales: totalEstrellas, nivel: nuevoNivel ?? 1 })
+    .update({
+      estrellas_totales: totalEstrellas,
+      nivel: nuevoNivel ?? 1,
+      streaks_dias: nuevaRacha,
+      ultimo_acceso: ahora.toISOString(),
+    })
     .eq("id_alumno", user.id)
 
-  return NextResponse.json({ stars, totalEstrellas, nivel: nuevoNivel ?? 1 })
+  return NextResponse.json({ stars, totalEstrellas, nivel: nuevoNivel ?? 1, streakDays: nuevaRacha })
 }
 
 // PUT /api/complete-lesson — reinicia progresión de lección (incrementa total_reintentos)

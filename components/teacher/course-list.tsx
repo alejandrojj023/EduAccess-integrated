@@ -31,6 +31,17 @@ interface CourseListProps {
   onBack: () => void
 }
 
+const COURSE_COLORS = [
+  { bg: "bg-teal-100",    icon: "text-teal-600"    },
+  { bg: "bg-violet-100",  icon: "text-violet-600"  },
+  { bg: "bg-amber-100",   icon: "text-amber-600"   },
+  { bg: "bg-rose-100",    icon: "text-rose-600"    },
+  { bg: "bg-sky-100",     icon: "text-sky-600"     },
+  { bg: "bg-emerald-100", icon: "text-emerald-600" },
+  { bg: "bg-orange-100",  icon: "text-orange-600"  },
+  { bg: "bg-pink-100",    icon: "text-pink-600"    },
+]
+
 export function CourseList({ onNavigate, onBack }: CourseListProps) {
   const { courses, loading, deleteCourse } = useCourses()
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null)
@@ -113,7 +124,9 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
           </Card>
         ) : (
           <ul className="grid gap-6 list-none p-0">
-            {courses.map((course) => (
+            {courses.map((course, idx) => {
+              const color = COURSE_COLORS[idx % COURSE_COLORS.length]
+              return (
               <li key={course.id}>
               <article aria-label={`Curso: ${course.name}`}>
               <Card
@@ -124,8 +137,8 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
                 <CardContent className="p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-start gap-5">
-                      <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0" aria-hidden="true">
-                        <BookOpen className="w-8 h-8 text-primary" />
+                      <div className={`w-16 h-16 ${color.bg} rounded-2xl flex items-center justify-center shrink-0`} aria-hidden="true">
+                        <BookOpen className={`w-8 h-8 ${color.icon}`} />
                       </div>
                       <div>
                         <h3 className="text-xl font-bold text-foreground">{course.name}</h3>
@@ -218,7 +231,8 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
               </Card>
               </article>
               </li>
-            ))}
+              )
+            })}
           </ul>
         )}
         </section>

@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase"
 import {
   ArrowLeft, ChevronRight, CheckCircle2,
   Mic, Image as ImageIcon, List, HelpCircle, PencilLine, Volume2,
-  BookOpen, Youtube, Search, Paperclip, ExternalLink, FileText, RotateCcw, PlayCircle,
+  BookOpen, Youtube, Search, Paperclip, ExternalLink, FileText, RotateCcw, PlayCircle, AlignLeft,
 } from "lucide-react"
 import { TextoConGlosario, type GlosarioEntry } from "@/components/ui/texto-con-glosario"
 
@@ -37,13 +37,14 @@ interface StudentLessonProps {
 }
 
 const TIPO_META: Record<string, { label: string; Icon: React.ElementType; color: string }> = {
-  identificacion: { label: "Identificación", Icon: ImageIcon, color: "bg-blue-100   text-blue-700" },
-  reconocimiento_sonidos: { label: "Sonidos", Icon: Volume2, color: "bg-purple-100 text-purple-700" },
-  secuenciacion: { label: "Secuenciación", Icon: List, color: "bg-orange-100 text-orange-700" },
-  seleccion_guiada: { label: "Opción múltiple", Icon: HelpCircle, color: "bg-teal-100   text-teal-700" },
-  respuesta_corta: { label: "Respuesta corta", Icon: PencilLine, color: "bg-yellow-100 text-yellow-700" },
-  respuesta_oral: { label: "Oral / Voz", Icon: Mic, color: "bg-green-100  text-green-700" },
-  sopa_letras: { label: "Sopa de letras", Icon: Search, color: "bg-pink-100   text-pink-700" },
+  identificacion:        { label: "Identificación",   Icon: ImageIcon,   color: "bg-blue-100   text-blue-700"   },
+  reconocimiento_sonidos:{ label: "Sonidos",          Icon: Volume2,     color: "bg-purple-100 text-purple-700" },
+  secuenciacion:         { label: "Secuenciación",    Icon: List,        color: "bg-orange-100 text-orange-700" },
+  seleccion_guiada:      { label: "Opción múltiple",  Icon: HelpCircle,  color: "bg-teal-100   text-teal-700"   },
+  respuesta_corta:       { label: "Respuesta corta",  Icon: PencilLine,  color: "bg-yellow-100 text-yellow-700" },
+  respuesta_oral:        { label: "Oral / Voz",       Icon: Mic,         color: "bg-green-100  text-green-700"  },
+  completar_oracion:     { label: "Completar oración",Icon: AlignLeft,   color: "bg-cyan-100   text-cyan-700"   },
+  sopa_letras:           { label: "Sopa de letras",   Icon: Search,      color: "bg-pink-100   text-pink-700"   },
 }
 
 const diffMeta = (n: number) =>
@@ -321,10 +322,15 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
                       onClick={() => onSelectActivity(act.id_actividad)}
                     >
                       <CardContent className="p-5 flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${meta.color}`}>
-                          {act.completada
-                            ? <CheckCircle2 className="w-6 h-6 text-green-600" />
-                            : <Icon className="w-6 h-6" aria-hidden="true" />}
+                        <div className="relative shrink-0">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${meta.color}`}>
+                            <Icon className="w-6 h-6" aria-hidden="true" />
+                          </div>
+                          {act.completada && (
+                            <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center shadow">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex-1 min-w-0">

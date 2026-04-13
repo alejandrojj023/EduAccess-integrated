@@ -179,7 +179,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
         <section aria-label="Estadísticas del estudiante" className="mb-8">
           <ul className="grid grid-cols-2 lg:grid-cols-4 gap-4 list-none p-0">
             <li>
-              <Card className="border-2 shadow-lg h-full">
+              <Card className="border-2 shadow-lg h-full transition-transform duration-200 hover:scale-105">
                 <CardContent className="p-5 flex flex-col items-center text-center">
                   <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mb-3" aria-hidden="true">
                     <BookOpen className="w-7 h-7 text-primary" />
@@ -190,7 +190,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
               </Card>
             </li>
             <li>
-              <Card className="border-2 shadow-lg h-full">
+              <Card className="border-2 shadow-lg h-full transition-transform duration-200 hover:scale-105">
                 <CardContent className="p-5 flex flex-col items-center text-center">
                   <div className="w-14 h-14 bg-success/10 rounded-2xl flex items-center justify-center mb-3" aria-hidden="true">
                     <Target className="w-7 h-7 text-success" />
@@ -201,7 +201,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
               </Card>
             </li>
             <li>
-              <Card className="border-2 shadow-lg h-full">
+              <Card className="border-2 shadow-lg h-full transition-transform duration-200 hover:scale-105">
                 <CardContent className="p-5 flex flex-col items-center text-center">
                   <div className="w-14 h-14 bg-accent/20 rounded-2xl flex items-center justify-center mb-3" aria-hidden="true">
                     <Star className="w-7 h-7 text-accent-foreground" />
@@ -212,7 +212,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
               </Card>
             </li>
             <li>
-              <Card className="border-2 shadow-lg h-full">
+              <Card className="border-2 shadow-lg h-full transition-transform duration-200 hover:scale-105">
                 <CardContent className="p-5 flex flex-col items-center text-center">
                   <div className="w-14 h-14 bg-chart-4/20 rounded-2xl flex items-center justify-center mb-3" aria-hidden="true">
                     <Clock className="w-7 h-7 text-chart-4" />

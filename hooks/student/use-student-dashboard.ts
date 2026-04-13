@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
+import { fechaTijuana, diferenciaDias } from "@/lib/utils"
 
 // ============================================================
 // Hook: useStudentDashboard
@@ -68,7 +69,7 @@ export function useStudentDashboard(): UseStudentDashboardReturn {
       const [gamiResult, inscripcionesResult] = await Promise.all([
         supabase
           .from("gamificacion")
-          .select("puntos_totales, estrellas_totales, nivel, streaks_dias")
+          .select("puntos_totales, estrellas_totales, nivel, streaks_dias, ultimo_acceso")
           .eq("id_alumno", user.id)
           .single(),
         supabase
@@ -80,6 +81,18 @@ export function useStudentDashboard(): UseStudentDashboardReturn {
       if (gamiResult.data) {
         const nivelActual: number = gamiResult.data.nivel ?? 1
         const nivelInfo = NIVELES[nivelActual] ?? NIVELES[1]
+
+        // Cálculo lazy de racha visible (sin escribir en DB)
+        let rachaVisible = gamiResult.data.streaks_dias ?? 0
+        if (gamiResult.data.ultimo_acceso) {
+          const ultimoDiaMx = fechaTijuana(gamiResult.data.ultimo_acceso)
+          const hoyMx = fechaTijuana(new Date())
+          const diff = diferenciaDias(ultimoDiaMx, hoyMx)
+          if (diff >= 2) {
+            rachaVisible = 0
+          }
+        }
+
         setGamification({
           totalStars: gamiResult.data.puntos_totales ?? 0,
           estrellasTotales: gamiResult.data.estrellas_totales ?? 0,
@@ -88,7 +101,7 @@ export function useStudentDashboard(): UseStudentDashboardReturn {
           nivelEmoji: nivelInfo.emoji,
           nivelMin: nivelInfo.min,
           nivelMax: nivelInfo.max,
-          streakDays: gamiResult.data.streaks_dias ?? 0,
+          streakDays: rachaVisible,
         })
       }
 

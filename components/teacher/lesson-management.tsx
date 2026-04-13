@@ -15,7 +15,6 @@ import {
   FileText,
   Play,
   CheckCircle,
-  Settings,
 } from "lucide-react"
 
 interface LessonManagementProps {
@@ -62,16 +61,6 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="lg"
-              className="h-12 px-5 border-2"
-              onClick={() => onNavigate(`edit-course-${courseId}`)}
-              disabled={!courseId}
-            >
-              <Settings className="w-5 h-5 mr-2" aria-hidden="true" />
-              Editar Curso
-            </Button>
             {settings.voiceEnabled && (
               <Button variant="outline" size="lg" onClick={handleReadInstructions} className="h-12">
                 <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />

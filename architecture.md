@@ -359,3 +359,61 @@ NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...    # pública — cliente
 SUPABASE_SERVICE_ROLE_KEY=...        # privada — SOLO API routes
 ```
+### Lógica de racha (streaks_dias en gamificacion)
+
+**Objetivo pedagógico:** motivar el hábito diario de estudio. Cualquier 
+lección completada cuenta (nueva o repaso).
+
+**Zona horaria:** todas las comparaciones de fecha se hacen en 
+`America/Mexico_City` (hora de Tijuana). No UTC ni zona del servidor.
+Se compara por día calendario, no por 24 horas.
+
+**Campos involucrados (tabla gamificacion):**
+- `streaks_dias` (int, default 0) — contador de días consecutivos
+- `ultimo_acceso` (timestamptz, nullable) — última lección completada
+
+**Trigger de actualización:** al finalizar una lección, después de guardar
+el `intento_leccion` y actualizar `progresion_alumno`, se ejecuta la
+lógica de racha sobre `gamificacion`.
+
+**Reglas:**
+
+| Condición                              | Resultado               |
+|----------------------------------------|-------------------------|
+| ultimo_acceso is null                  | streaks_dias = 1        |
+| diff === 0 (mismo día Tijuana)         | streaks_dias no cambia  |
+| diff === 1 (día siguiente)             | streaks_dias += 1       |
+| diff >= 2 (pasó 1+ días sin jugar)     | streaks_dias = 1        |
+
+Donde `diff = diferencia en días calendario entre fechaTijuana(ultimo_acceso) 
+y fechaTijuana(hoy)`.
+
+**Cálculo lazy en el dashboard:**
+
+El dashboard del alumno NO escribe en la DB. Solo calcula al momento:
+
+- Si `diff >= 2` al abrir el dashboard → muestra racha = 0 con texto
+  "¡Recupera tu racha hoy!". El valor en DB sigue siendo el anterior
+  hasta que complete una nueva lección.
+- Si `diff < 2` → muestra el valor guardado en DB.
+
+Esto evita escrituras innecesarias y centraliza la lógica de incremento
+en el momento de completar una lección.
+
+**Estados visibles:**
+
+| racha | Significado                                  |
+|-------|----------------------------------------------|
+| 0     | Perdió la racha, aún no ha completado hoy    |
+| 1     | Primera lección de hoy (nuevo o recuperando) |
+| 2+    | Días consecutivos acumulados                 |
+
+**Helpers (lib/utils.ts):**
+
+```ts
+fechaTijuana(date): string  
+// → "YYYY-MM-DD" en America/Mexico_City
+
+diferenciaDias(fechaVieja, fechaNueva): number  
+// → días calendario entre ambas fechas
+```

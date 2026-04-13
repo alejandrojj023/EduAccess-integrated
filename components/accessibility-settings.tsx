@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import {
   ArrowLeft, Volume2, Type, Eye, EyeOff, Mic, Sparkles, Check,
-  User, Bell, Settings, Gauge, MessageSquare, ZapOff,
+  User, Settings, Gauge, MessageSquare, ZapOff,
   Sun, Moon, Contrast, X, Pencil, Lock, AlertCircle,
 } from "lucide-react"
 import type { ContrastLevel, TooltipMode } from "@/lib/accessibility-context"
@@ -19,7 +19,7 @@ interface AccessibilitySettingsProps {
   onBack: () => void
 }
 
-type Tab = "perfil" | "notificaciones" | "accesibilidad"
+type Tab = "perfil" | "accesibilidad"
 
 // ── Avatar color options ───────────────────────────────────
 const AVATAR_COLOR_KEY = "ea_avatar_color"
@@ -42,22 +42,6 @@ const AVATAR_COLORS = [
 function loadAvatarColor(): string | null {
   if (typeof window === "undefined") return null
   return localStorage.getItem(AVATAR_COLOR_KEY)
-}
-
-// ── Notification settings stored in localStorage ──────────
-const NOTIF_KEYS = {
-  newLesson:   "ea_notif_lesson",
-  activity:    "ea_notif_activity",
-  teacher:     "ea_notif_teacher",
-}
-
-function loadNotifSettings() {
-  if (typeof window === "undefined") return { newLesson: true, activity: true, teacher: true }
-  return {
-    newLesson: localStorage.getItem(NOTIF_KEYS.newLesson)  !== "false",
-    activity:  localStorage.getItem(NOTIF_KEYS.activity)   !== "false",
-    teacher:   localStorage.getItem(NOTIF_KEYS.teacher)    !== "false",
-  }
 }
 
 // ── Available Spanish voices ──────────────────────────────
@@ -104,17 +88,6 @@ export function AccessibilitySettings({ onBack }: AccessibilitySettingsProps) {
     localStorage.setItem(AVATAR_COLOR_KEY, opt.color)
     setShowColorPicker(false)
     speak(`Color de avatar: ${opt.name}`)
-  }
-
-  // ── Notification state ────────────────────────────────────
-  const [notif, setNotif] = useState(loadNotifSettings)
-
-  const toggleNotif = (key: keyof typeof notif) => {
-    const next = { ...notif, [key]: !notif[key] }
-    setNotif(next)
-    if (typeof window !== "undefined") {
-      localStorage.setItem(NOTIF_KEYS[key], String(next[key]))
-    }
   }
 
   // ── Password change state ─────────────────────────────────
@@ -187,7 +160,6 @@ export function AccessibilitySettings({ onBack }: AccessibilitySettingsProps) {
   // ── Tabs ──────────────────────────────────────────────────
   const tabs: { id: Tab; label: string; icon: typeof User; title: string }[] = [
     { id: "perfil",         label: "Perfil",         icon: User,     title: "Gestiona tu información personal, nombre y correo."           },
-    { id: "notificaciones", label: "Notificaciones", icon: Bell,     title: "Configura alertas de nuevas lecciones, actividades y mensajes." },
     { id: "accesibilidad",  label: "Accesibilidad",  icon: Settings, title: "Ajusta contraste, tamaño de texto, lectura por voz y tooltips." },
   ]
 
@@ -215,7 +187,7 @@ export function AccessibilitySettings({ onBack }: AccessibilitySettingsProps) {
             <Button
               variant="outline"
               size="lg"
-              onClick={() => speak("Ajustes. Tienes tres secciones: Perfil, Notificaciones y Accesibilidad.")}
+              onClick={() => speak("Ajustes. Tienes dos secciones: Perfil y Accesibilidad.")}
               className="h-12"
             >
               <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />
@@ -258,7 +230,7 @@ export function AccessibilitySettings({ onBack }: AccessibilitySettingsProps) {
             TAB: PERFIL
         ══════════════════════════════════════════════ */}
         {activeTab === "perfil" && (
-          <section role="tabpanel" id="tabpanel-perfil" aria-labelledby="tab-perfil">
+          <section role="tabpanel" id="tabpanel-perfil" aria-labelledby="tab-perfil" className="space-y-6">
 
             {/* Color picker modal */}
             {showColorPicker && (
@@ -388,136 +360,91 @@ export function AccessibilitySettings({ onBack }: AccessibilitySettingsProps) {
                   />
                   <p className="text-xs text-muted-foreground">El correo no se puede cambiar desde aquí</p>
                 </div>
-
-                {/* Separador */}
-                <div className="border-t border-border pt-5 space-y-4">
-                  <p className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-primary" aria-hidden="true" />
-                    Cambiar contraseña
-                  </p>
-
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <label className="text-sm text-muted-foreground block">Nueva contraseña</label>
-                      <div className="relative">
-                        <Input
-                          type={showNew ? "text" : "password"}
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          placeholder="Mínimo 6 caracteres"
-                          className="h-12 text-lg border-2 pr-12"
-                          aria-label="Nueva contraseña"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowNew((v) => !v)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                          aria-label={showNew ? "Ocultar contraseña" : "Mostrar contraseña"}
-                        >
-                          {showNew ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-sm text-muted-foreground block">Confirmar contraseña</label>
-                      <div className="relative">
-                        <Input
-                          type={showConfirm ? "text" : "password"}
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          placeholder="Repite la nueva contraseña"
-                          className="h-12 text-lg border-2 pr-12"
-                          aria-label="Confirmar nueva contraseña"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirm((v) => !v)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                          aria-label={showConfirm ? "Ocultar contraseña" : "Mostrar contraseña"}
-                        >
-                          {showConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {passwordMsg && (
-                    <div
-                      className={`flex items-center gap-2 text-sm px-4 py-3 rounded-lg ${
-                        passwordMsg.ok
-                          ? "bg-success/10 text-success"
-                          : "bg-destructive/10 text-destructive"
-                      }`}
-                      role="alert"
-                    >
-                      {passwordMsg.ok
-                        ? <Check className="w-4 h-4 shrink-0" aria-hidden="true" />
-                        : <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
-                      }
-                      {passwordMsg.text}
-                    </div>
-                  )}
-
-                  <Button
-                    size="lg"
-                    className="w-full h-12"
-                    onClick={handleChangePassword}
-                    disabled={savingPassword || !newPassword || !confirmPassword}
-                  >
-                    <Lock className="w-4 h-4 mr-2" aria-hidden="true" />
-                    {savingPassword ? "Guardando..." : "Actualizar contraseña"}
-                  </Button>
-                </div>
               </CardContent>
             </Card>
-          </section>
-        )}
 
-        {/* ══════════════════════════════════════════════
-            TAB: NOTIFICACIONES
-        ══════════════════════════════════════════════ */}
-        {activeTab === "notificaciones" && (
-          <section role="tabpanel" id="tabpanel-notificaciones" aria-labelledby="tab-notificaciones">
-          <Card className="border-2 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl flex items-center gap-3">
-                <Bell className="w-6 h-6 text-primary" aria-hidden="true" />
-                Preferencias de notificación
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="divide-y divide-border">
-              {[
-                {
-                  key: "newLesson" as const,
-                  label: "Nueva lección disponible",
-                  desc:  "Aviso cuando el docente publica una nueva lección",
-                },
-                {
-                  key: "activity" as const,
-                  label: "Recordatorio de actividades",
-                  desc:  "Recordatorio de actividades pendientes en tus cursos",
-                },
-                {
-                  key: "teacher" as const,
-                  label: "Mensajes del docente",
-                  desc:  "Alertas cuando el docente envía un mensaje al grupo",
-                },
-              ].map(({ key, label, desc }) => (
-                <div key={key} className="flex items-center justify-between py-5">
-                  <div>
-                    <p className="text-lg font-semibold text-foreground">{label}</p>
-                    <p className="text-muted-foreground mt-0.5 text-sm">{desc}</p>
+            {/* Cambiar contraseña */}
+            <Card className="border-2 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-3">
+                  <Lock className="w-6 h-6 text-primary" aria-hidden="true" />
+                  Cambiar contraseña
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-sm text-muted-foreground block">Nueva contraseña</label>
+                    <div className="relative">
+                      <Input
+                        type={showNew ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Mínimo 6 caracteres"
+                        className="h-12 text-lg border-2 pr-12"
+                        aria-label="Nueva contraseña"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNew((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label={showNew ? "Ocultar contraseña" : "Mostrar contraseña"}
+                      >
+                        {showNew ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
                   </div>
-                  <Switch
-                    checked={notif[key]}
-                    onCheckedChange={() => toggleNotif(key)}
-                    className="scale-150"
-                    aria-label={label}
-                  />
+                  <div className="space-y-1">
+                    <label className="text-sm text-muted-foreground block">Confirmar contraseña</label>
+                    <div className="relative">
+                      <Input
+                        type={showConfirm ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Repite la nueva contraseña"
+                        className="h-12 text-lg border-2 pr-12"
+                        aria-label="Confirmar nueva contraseña"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirm((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label={showConfirm ? "Ocultar contraseña" : "Mostrar contraseña"}
+                      >
+                        {showConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+
+                {passwordMsg && (
+                  <div
+                    className={`flex items-center gap-2 text-sm px-4 py-3 rounded-lg ${
+                      passwordMsg.ok
+                        ? "bg-success/10 text-success"
+                        : "bg-destructive/10 text-destructive"
+                    }`}
+                    role="alert"
+                  >
+                    {passwordMsg.ok
+                      ? <Check className="w-4 h-4 shrink-0" aria-hidden="true" />
+                      : <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+                    }
+                    {passwordMsg.text}
+                  </div>
+                )}
+
+                <Button
+                  size="lg"
+                  className="w-full h-12"
+                  onClick={handleChangePassword}
+                  disabled={savingPassword || !newPassword || !confirmPassword}
+                >
+                  <Lock className="w-4 h-4 mr-2" aria-hidden="true" />
+                  {savingPassword ? "Guardando..." : "Actualizar contraseña"}
+                </Button>
+              </CardContent>
+            </Card>
           </section>
         )}
 

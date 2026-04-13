@@ -4,7 +4,9 @@
       "Bash(\"/c/Users/Asus Rog Zephyrus/Desktop/EduAccess-final/claude.md\")",
       "Bash(npx tsc:*)",
       "Bash(npm install:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(ls \"/c/Users/Asus Rog Zephyrus/Desktop/EduAccess-final/\"*.d.ts)",
+      "Bash(npx next:*)"
     ]
   }
 }

@@ -112,3 +112,20 @@ SUPABASE_SERVICE_ROLE_KEY=...        # servidor — NUNCA en cliente
 ## Referencia completa
 Ver `docs/architecture.md` para esquema de DB, componentes, hooks, accesibilidad y decisiones de diseño.
 
+### Racha (streaks_dias)
+Se actualiza al completar cualquier lección (guardar intento_leccion + 
+actualizar progresion_alumno → después actualizar gamificacion).
+
+Lógica:
+- Comparar fecha del último acceso vs hoy, ambas en zona America/Mexico_City.
+- diff === 0 → no cambia (Regla 1: mismo día)
+- diff === 1 → suma 1 (Regla 2: día siguiente)
+- diff >= 2 → reinicia a 1 (Regla 3: perdió racha)
+- ultimo_acceso null → inicia en 1 (primera lección)
+
+El dashboard calcula racha visible lazy: si diff >= 2 muestra 0 con
+texto "¡Recupera tu racha hoy!" sin escribir en la DB.
+
+Helpers: fechaTijuana(), diferenciaDias() en lib/utils.ts.
+Lógica detallada en docs/architecture.md sección Racha.
+

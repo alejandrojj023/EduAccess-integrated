@@ -37,6 +37,11 @@ import {
   BookOpen,
   Video,
   FileText as FilePdf,
+  CheckCircle,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
@@ -66,7 +71,7 @@ interface SesionLeccion {
   id: string            // id_intento_leccion
   id_leccion: string
   numero_intento: number
-  fecha: string         // fecha_creacion del intento_leccion
+  fecha: string         // fecha_completado del intento_leccion
   puntaje_promedio: number   // 0–100 promedio del intento
   estrellas: number          // 0–5 desde fn_calcular_estrellas (DB)
   actividades: { titulo: string; puntaje: number }[]
@@ -191,6 +196,31 @@ function BarraIntento({
   )
 }
 
+/* ─── Helpers compartidos ───────────────────────────────────────────────── */
+function StarRow({ stars, size = "w-5 h-5" }: { stars: number | null; size?: string }) {
+  if (stars === null) return null
+  return (
+    <div className="flex gap-0.5" aria-label={`${stars?.toFixed(1) ?? 0} de 5 estrellas`}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star
+          key={i}
+          className={`${size} ${
+            stars >= i
+              ? "text-amber-400 fill-amber-400"
+              : stars >= i - 0.5
+              ? "text-amber-300 fill-amber-100"
+              : "text-gray-300 fill-gray-100"
+          }`}
+        />
+      ))}
+    </div>
+  )
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })
+}
+
 /* ─── Componente principal ───────────────────────────────────────────────── */
 export function CourseStudents({ courseId, courseName, onBack, onInvite, openStudentId }: CourseStudentsProps) {
   const [students, setStudents] = useState<CourseStudent[]>([])
@@ -202,6 +232,8 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
   const [loadingReporte, setLoadingReporte] = useState(false)
   const [barrasExpandidas, setBarrasExpandidas] = useState<Record<string, boolean>>({})
   const [autoOpenedId, setAutoOpenedId] = useState<string | null>(null)
+  const [expandedDetailLessonId, setExpandedDetailLessonId] = useState<string | null>(null)
+  const [expandedDetailAttemptId, setExpandedDetailAttemptId] = useState<string | null>(null)
 
   const fetchStudents = useCallback(async () => {
     setLoading(true)
@@ -289,6 +321,8 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
   const openReporte = async (student: CourseStudent) => {
     setLoadingReporte(true)
     setBarrasExpandidas({})
+    setExpandedDetailLessonId(null)
+    setExpandedDetailAttemptId(null)
     setReporte({ student, lecciones: [], progresion: [], sesiones: [] })
 
     // 1. Lecciones del curso
@@ -341,7 +375,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
         id: il.id_intento_leccion,
         id_leccion: il.id_leccion,
         numero_intento: il.numero_intento ?? 1,
-        fecha: il.fecha_creacion ?? new Date().toISOString(),
+        fecha: il.fecha_completado ?? il.fecha_creacion ?? new Date().toISOString(),
         puntaje_promedio: Math.round(il.promedio_puntaje ?? 0),
         estrellas: il.estrellas ?? 0,
         actividades,
@@ -630,7 +664,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
 
               {/* Material Educativo */}
               <h3 className="font-bold text-foreground text-base mb-4">Material Educativo Disponible</h3>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 mb-8">
                 {reporte.lecciones.map(leccion => (
                   <div key={leccion.id_leccion} className="flex items-center justify-between bg-muted/40 rounded-lg px-4 py-3 border border-border">
                     <p className="text-sm font-medium text-foreground">{leccion.titulo}</p>
@@ -642,6 +676,130 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Detalle por Lección */}
+              <h3 className="font-bold text-foreground text-base mb-4">Detalle por Lección</h3>
+              <div className="rounded-xl border-2 border-border overflow-hidden">
+                <ul className="divide-y divide-border list-none p-0">
+                  {reporte.lecciones.map((leccion, index) => {
+                    const prog = reporte.progresion.find(p => p.id_leccion === leccion.id_leccion)
+                    const completada = (prog?.pct_completado ?? 0) >= 100
+                    const score = prog?.pct_completado ?? 0
+                    const estrellas = prog?.estrellas ?? null
+                    const sesionesLeccion = reporte.sesiones
+                      .filter(s => s.id_leccion === leccion.id_leccion)
+                      .sort((a, b) => a.numero_intento - b.numero_intento)
+                    const isExpanded = expandedDetailLessonId === leccion.id_leccion
+
+                    return (
+                      <li key={leccion.id_leccion}>
+                        {/* Fila principal */}
+                        <div className="p-4 hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${completada ? "bg-success/10" : "bg-muted"}`} aria-hidden="true">
+                                {completada
+                                  ? <CheckCircle className="w-5 h-5 text-success" />
+                                  : <span className="text-sm font-bold text-muted-foreground">{index + 1}</span>}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-foreground truncate">{leccion.titulo}</p>
+                                {completada
+                                  ? <p className="text-xs text-muted-foreground">Completada en {sesionesLeccion.length} {sesionesLeccion.length === 1 ? "intento" : "intentos"}</p>
+                                  : <p className="text-xs text-muted-foreground">Pendiente</p>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                              {completada && (
+                                <div className="text-right">
+                                  <p className={`text-lg font-bold ${score >= 90 ? "text-success" : score >= 70 ? "text-amber-600" : "text-foreground"}`}>
+                                    {score}%
+                                  </p>
+                                  <StarRow stars={estrellas} size="w-3.5 h-3.5" />
+                                </div>
+                              )}
+                              {sesionesLeccion.length > 0 && (
+                                <button
+                                  onClick={() => {
+                                    setExpandedDetailLessonId(isExpanded ? null : leccion.id_leccion)
+                                    setExpandedDetailAttemptId(null)
+                                  }}
+                                  className="flex flex-col items-center gap-0.5 text-primary hover:text-primary/80 transition-colors px-2"
+                                  aria-expanded={isExpanded}
+                                >
+                                  <span className="text-xs font-medium">{sesionesLeccion.length} intentos</span>
+                                  {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Historial expandido */}
+                        {isExpanded && sesionesLeccion.length > 0 && (
+                          <div className="border-t border-border bg-muted/30 px-4 py-3 space-y-2">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Historial de intentos</p>
+                            {sesionesLeccion.map((sesion) => {
+                              const isAttemptExpanded = expandedDetailAttemptId === sesion.id
+                              return (
+                                <div key={sesion.id} className="rounded-lg border border-border bg-background overflow-hidden">
+                                  <button
+                                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors text-left"
+                                    onClick={() => setExpandedDetailAttemptId(isAttemptExpanded ? null : sesion.id)}
+                                    aria-expanded={isAttemptExpanded}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                                        {sesion.numero_intento}
+                                      </span>
+                                      <div>
+                                        <p className="text-sm font-medium text-foreground">Intento {sesion.numero_intento}</p>
+                                        <p className="text-xs text-muted-foreground">{formatDate(sesion.fecha)}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <div className="text-right">
+                                        <p className={`text-sm font-bold ${sesion.puntaje_promedio >= 90 ? "text-success" : sesion.puntaje_promedio >= 70 ? "text-amber-600" : "text-foreground"}`}>
+                                          {sesion.puntaje_promedio}%
+                                        </p>
+                                        <StarRow stars={sesion.estrellas} size="w-3 h-3" />
+                                      </div>
+                                      {isAttemptExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
+                                    </div>
+                                  </button>
+                                  {isAttemptExpanded && (
+                                    <div className="border-t border-border px-4 py-3 bg-muted/20">
+                                      {sesion.actividades.length > 0 ? (
+                                        <ul className="space-y-2 list-none p-0">
+                                          {sesion.actividades.map((act, ai) => (
+                                            <li key={ai} className="flex items-center justify-between gap-2">
+                                              <div className="flex items-center gap-2 min-w-0">
+                                                {act.puntaje >= 70
+                                                  ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
+                                                  : <XCircle className="w-4 h-4 text-destructive shrink-0" />}
+                                                <span className="text-sm text-foreground truncate">{act.titulo}</span>
+                                              </div>
+                                              <span className={`text-sm font-semibold shrink-0 ${act.puntaje >= 90 ? "text-success" : act.puntaje >= 70 ? "text-amber-600" : "text-destructive"}`}>
+                                                {act.puntaje}%
+                                              </span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      ) : (
+                                        <p className="text-xs text-muted-foreground py-1">Sin detalle de actividades disponible.</p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
               </div>
             </div>
           )}

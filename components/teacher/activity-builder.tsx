@@ -24,7 +24,6 @@ import {
   BookOpen,
   FileText,
   List,
-  Settings2,
   Upload,
   AlignLeft,
   Search,
@@ -168,7 +167,6 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
   const [loadingData, setLoadingData] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState("")
-  const [showGearMenu, setShowGearMenu] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -1531,35 +1529,6 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                 Escuchar
               </Button>
             )}
-            <div className="relative">
-              <Button
-                variant="outline"
-                size="lg"
-                className="h-12 w-12 p-0"
-                aria-label="Opciones de modo"
-                onClick={() => setShowGearMenu((prev) => !prev)}
-              >
-                <Settings2 className="w-5 h-5" />
-              </Button>
-              {showGearMenu && (
-                <div className="absolute right-0 top-14 z-20 w-64 bg-card border-2 border-border rounded-xl shadow-xl overflow-hidden">
-                  <button
-                    className="w-full px-5 py-4 text-left text-base font-medium hover:bg-primary/10 transition-colors flex items-center gap-3"
-                    onClick={() => { setView("grid"); setShowGearMenu(false) }}
-                  >
-                    <Plus className="w-5 h-5 text-primary" />
-                    Crear nueva actividad
-                  </button>
-                  <button
-                    className="w-full px-5 py-4 text-left text-base font-medium hover:bg-primary/10 transition-colors flex items-center gap-3"
-                    onClick={() => { setView("existing"); setShowGearMenu(false) }}
-                  >
-                    <List className="w-5 h-5 text-primary" />
-                    {loadingData ? "Cargando..." : `Ver actividades existentes (${existingActivities.length})`}
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </header>
@@ -1587,7 +1556,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
               onClick={() => openConfigForNew(type.id)}
               className="p-8 bg-card rounded-2xl border-2 border-border shadow-lg hover:border-primary hover:shadow-xl transition-all text-left group"
             >
-              <div className={`w-16 h-16 ${type.color} rounded-2xl flex items-center justify-center mb-5`}>
+              <div className={`w-16 h-16 ${type.color} rounded-2xl flex items-center justify-center mb-5 transition-transform duration-200 group-hover:scale-110`}>
                 <type.icon className="w-8 h-8 text-primary-foreground" aria-hidden="true" />
               </div>
               <h3 className="text-xl font-bold text-foreground mb-2">{type.label}</h3>
