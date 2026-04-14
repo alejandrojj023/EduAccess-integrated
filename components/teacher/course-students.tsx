@@ -75,6 +75,9 @@ interface SesionLeccion {
   puntaje_promedio: number   // 0–100 promedio del intento
   estrellas: number          // 0–5 desde fn_calcular_estrellas (DB)
   actividades: { titulo: string; puntaje: number }[]
+  correctasPrimerIntento: number
+  totalActividades: number
+  totalReintentos: number
 }
 
 interface LeccionData {
@@ -88,6 +91,7 @@ interface LeccionData {
 interface ProgresionData {
   id_leccion: string
   pct_completado: number
+  promedio_puntaje: number | null
   estrellas: number | null
   total_reintentos: number
 }
@@ -342,7 +346,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
       leccionIds.length > 0
         ? supabase
             .from("progresion_alumno")
-            .select("id_leccion, pct_completado, estrellas, total_reintentos")
+            .select("id_leccion, pct_completado, promedio_puntaje, estrellas, total_reintentos")
             .eq("id_alumno", student.id)
             .in("id_leccion", leccionIds)
         : { data: [] },
@@ -371,14 +375,22 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
         titulo: actTitulo[ia.id_actividad] ?? "Actividad",
         puntaje: ia.puntaje_total ?? 0,
       }))
+
+      // Puntaje basado en estrellas: estrellas * 20 = % (5★=100%, 4★=80%, 3★=60%...)
+      // Las estrellas siempre se guardan correctamente en todos los intentos.
+      const puntaje_promedio = Math.round((il.estrellas ?? 0) * 20)
+
       return {
         id: il.id_intento_leccion,
         id_leccion: il.id_leccion,
         numero_intento: il.numero_intento ?? 1,
         fecha: il.fecha_completado ?? il.fecha_creacion ?? new Date().toISOString(),
-        puntaje_promedio: Math.round(il.promedio_puntaje ?? 0),
+        puntaje_promedio,
         estrellas: il.estrellas ?? 0,
         actividades,
+        correctasPrimerIntento: il.correctas_primer_intento ?? 0,
+        totalActividades: il.total_actividades ?? 0,
+        totalReintentos: il.total_reintentos ?? 0,
       }
     })
 
@@ -614,7 +626,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                         id_leccion: leccion.id_leccion,
                         numero_intento: 1,
                         fecha: new Date().toISOString(),
-                        puntaje_promedio: prog?.pct_completado ?? 0,
+                        puntaje_promedio: Math.round((prog?.estrellas ?? 0) * 20),
                         estrellas: prog?.estrellas ?? 0,
                         actividades: [],
                       }]
@@ -685,7 +697,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                   {reporte.lecciones.map((leccion, index) => {
                     const prog = reporte.progresion.find(p => p.id_leccion === leccion.id_leccion)
                     const completada = (prog?.pct_completado ?? 0) >= 100
-                    const score = prog?.pct_completado ?? 0
+                    const score = Math.round((prog?.estrellas ?? 0) * 20)
                     const estrellas = prog?.estrellas ?? null
                     const sesionesLeccion = reporte.sesiones
                       .filter(s => s.id_leccion === leccion.id_leccion)
@@ -713,7 +725,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                             <div className="flex items-center gap-3 shrink-0">
                               {completada && (
                                 <div className="text-right">
-                                  <p className={`text-lg font-bold ${score >= 90 ? "text-success" : score >= 70 ? "text-amber-600" : "text-foreground"}`}>
+                                  <p className="text-lg font-bold" style={{ color: "#2f2c79" }}>
                                     {score}%
                                   </p>
                                   <StarRow stars={estrellas} size="w-3.5 h-3.5" />
@@ -760,7 +772,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                                     </div>
                                     <div className="flex items-center gap-3">
                                       <div className="text-right">
-                                        <p className={`text-sm font-bold ${sesion.puntaje_promedio >= 90 ? "text-success" : sesion.puntaje_promedio >= 70 ? "text-amber-600" : "text-foreground"}`}>
+                                        <p className="text-sm font-bold" style={{ color: "#2f2c79" }}>
                                           {sesion.puntaje_promedio}%
                                         </p>
                                         <StarRow stars={sesion.estrellas} size="w-3 h-3" />
@@ -788,6 +800,14 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                                         </ul>
                                       ) : (
                                         <p className="text-xs text-muted-foreground py-1">Sin detalle de actividades disponible.</p>
+                                      )}
+                                      {sesion.totalActividades > 0 && (
+                                        <div className="mt-3 pt-2 border-t border-border/50 flex gap-4 text-xs text-muted-foreground">
+                                          <span>✓ Correctas al 1er intento: <strong>{sesion.correctasPrimerIntento}/{sesion.totalActividades}</strong></span>
+                                          {sesion.totalReintentos > 0 && (
+                                            <span>↺ Reintentos: <strong>{sesion.totalReintentos}</strong></span>
+                                          )}
+                                        </div>
                                       )}
                                     </div>
                                   )}

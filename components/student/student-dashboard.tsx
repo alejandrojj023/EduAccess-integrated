@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -48,10 +48,9 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
   const { speak, settings } = useAccessibility()
   const { courses, gamification, loading } = useStudentDashboard()
 
-  const [avatarColor, setAvatarColor] = useState<string | null>(null)
-  useEffect(() => {
-    setAvatarColor(localStorage.getItem("ea_avatar_color"))
-  }, [])
+  const [avatarColor] = useState<string | null>(() =>
+    typeof window !== "undefined" ? localStorage.getItem("ea_avatar_color") : null
+  )
 
   // Hover-to-speak para botones con texto visible
   const hoverContinuar   = useSpeakOnHover("Continuar Aprendiendo")
@@ -69,43 +68,35 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
     streakDays,
   } = gamification
 
-  const progressToNext =
+  const progressToNext = useMemo(() =>
     nivelMax === Infinity
       ? 100
-      : Math.min(
-          100,
-          Math.round(((estrellasTotales - nivelMin) / (nivelMax - nivelMin + 1)) * 100)
-        )
+      : Math.min(100, Math.round(((estrellasTotales - nivelMin) / (nivelMax - nivelMin + 1)) * 100))
+  , [nivelMax, estrellasTotales, nivelMin])
 
-  const handleContinuar = () => {
+  const handleContinuar = useCallback(() => {
     if (courses.length === 0) return
-
-    // Prioridad 1: cursos no iniciados (progress === 0)
     const noIniciados = courses.filter(c => c.progress === 0)
     if (noIniciados.length > 0) {
       const elegido = noIniciados[Math.floor(Math.random() * noIniciados.length)]
       onNavigate(`course-${elegido.id}|${elegido.name}`)
       return
     }
-
-    // Prioridad 2: cursos en progreso (0 < progress < 100)
     const enProgreso = courses.filter(c => c.progress > 0 && c.progress < 100)
     if (enProgreso.length > 0) {
       const elegido = enProgreso[Math.floor(Math.random() * enProgreso.length)]
       onNavigate(`course-${elegido.id}|${elegido.name}`)
       return
     }
-
-    // Todos completados: elige uno al azar
     const elegido = courses[Math.floor(Math.random() * courses.length)]
     onNavigate(`course-${elegido.id}|${elegido.name}`)
-  }
+  }, [courses, onNavigate])
 
-  const handleReadInstructions = () => {
+  const handleReadInstructions = useCallback(() => {
     speak(
       `Hola ${user?.name}! Bienvenido a tu panel de aprendizaje. Tienes ${courses.length} cursos asignados. Tu nivel actual es ${nivelNombre} y has ganado ${estrellasTotales} estrellas. Presiona el boton Continuar Aprendiendo para seguir con tu leccion actual.`
     )
-  }
+  }, [speak, user?.name, courses.length, nivelNombre, estrellasTotales])
 
   return (
     <div className="min-h-screen bg-background">

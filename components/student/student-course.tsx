@@ -6,7 +6,32 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
-import { ArrowLeft, BookOpen, ChevronRight, CheckCircle2 } from "lucide-react"
+import { ArrowLeft, BookOpen, ChevronRight, CheckCircle2, Star } from "lucide-react"
+
+function StarRow({ stars, size = "w-5 h-5" }: { stars: number | null; size?: string }) {
+  if (stars == null || stars === 0) return null
+  return (
+    <div
+      className="flex gap-0.5 cursor-default"
+      title={`${stars.toFixed(1)} ⭐`}
+      aria-label={`${stars.toFixed(1)} de 5 estrellas`}
+    >
+      {[1, 2, 3, 4, 5].map((i) => {
+        const fillPct = stars >= i ? 100 : stars > i - 1 ? Math.round((stars - (i - 1)) * 100) : 0
+        return (
+          <span key={i} className="relative inline-flex shrink-0">
+            <Star className={`${size} text-gray-300 fill-gray-100`} />
+            {fillPct > 0 && (
+              <span className="absolute inset-0 overflow-hidden" style={{ width: `${fillPct}%` }}>
+                <Star className={`${size} text-amber-400 fill-amber-400`} />
+              </span>
+            )}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
 
 interface Lesson {
   id_leccion: string
@@ -15,6 +40,7 @@ interface Lesson {
   orden: number
   pct_completado: number
   total_actividades: number
+  estrellas: number | null
 }
 
 interface StudentCourseProps {
@@ -51,7 +77,7 @@ export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: 
     const [progResult, actCountResult] = await Promise.all([
       supabase
         .from("progresion_alumno")
-        .select("id_leccion, pct_completado")
+        .select("id_leccion, pct_completado, estrellas")
         .eq("id_alumno", user!.id)
         .in("id_leccion", ids),
       supabase
@@ -61,7 +87,7 @@ export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: 
         .eq("publicado", true),
     ])
 
-    const progMap = new Map(progResult.data?.map(p => [p.id_leccion, p.pct_completado]) ?? [])
+    const progMap = new Map(progResult.data?.map(p => [p.id_leccion, p]) ?? [])
     const actCount = new Map<string, number>()
     for (const a of actCountResult.data ?? []) {
       actCount.set(a.id_leccion, (actCount.get(a.id_leccion) ?? 0) + 1)
@@ -69,7 +95,8 @@ export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: 
 
     setLessons(leccionesRaw.map(l => ({
       ...l,
-      pct_completado:    progMap.get(l.id_leccion) ?? 0,
+      pct_completado:    progMap.get(l.id_leccion)?.pct_completado ?? 0,
+      estrellas:         progMap.get(l.id_leccion)?.estrellas ?? null,
       total_actividades: actCount.get(l.id_leccion) ?? 0,
     })))
     setLoading(false)
@@ -139,9 +166,12 @@ export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: 
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-foreground text-lg leading-tight">
-                            {lesson.titulo}
-                          </p>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-semibold text-foreground text-lg leading-tight min-w-0 truncate">
+                              {lesson.titulo}
+                            </p>
+                            <StarRow stars={lesson.estrellas} size="w-10 h-10" />
+                          </div>
                           {lesson.contenido && (
                             <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">
                               {lesson.contenido}

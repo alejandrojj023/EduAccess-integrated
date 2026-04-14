@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -12,7 +12,6 @@ import {
   ArrowLeft,
   Volume2,
   Star,
-  Trophy,
   CheckCircle,
   Clock,
   TrendingUp,
@@ -36,22 +35,36 @@ interface ActivityAttemptDetail {
   puntaje: number
 }
 
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })
+}
+
 function StarRow({ stars, size = "w-5 h-5" }: { stars: number | null; size?: string }) {
   if (stars === null) return null
   return (
-    <div className="flex gap-0.5" aria-label={`${stars?.toFixed(1) ?? 0} de 5 estrellas`}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <Star
-          key={i}
-          className={`${size} ${stars >= i ? "text-amber-400 fill-amber-400" : stars >= i - 0.5 ? "text-amber-300 fill-amber-100" : "text-gray-300 fill-gray-100"}`}
-        />
-      ))}
+    <div
+      className="flex gap-0.5 cursor-default"
+      title={`${stars?.toFixed(1) ?? 0} ⭐`}
+      aria-label={`${stars?.toFixed(1) ?? 0} de 5 estrellas`}
+    >
+      {[1, 2, 3, 4, 5].map((i) => {
+        const fillPct = stars >= i ? 100 : stars > i - 1 ? Math.round((stars - (i - 1)) * 100) : 0
+        return (
+          <span key={i} className="relative inline-flex shrink-0">
+            <Star className={`${size} text-gray-300 fill-gray-100`} />
+            {fillPct > 0 && (
+              <span
+                className="absolute inset-0 overflow-hidden"
+                style={{ width: `${fillPct}%` }}
+              >
+                <Star className={`${size} text-amber-400 fill-amber-400`} />
+              </span>
+            )}
+          </span>
+        )
+      })}
     </div>
   )
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })
 }
 
 export function StudentProgress({ onBack }: StudentProgressProps) {
@@ -63,6 +76,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
   const [expandedAttemptId, setExpandedAttemptId] = useState<string | null>(null)
   const [attemptDetails, setAttemptDetails] = useState<Record<string, ActivityAttemptDetail[]>>({})
   const [loadingAttempt, setLoadingAttempt] = useState<string | null>(null)
+  const [animatedProgress, setAnimatedProgress] = useState(0)
 
   const {
     completedLessons,
@@ -73,15 +87,16 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
     currentStreak,
   } = stats
 
+  useEffect(() => {
+    if (overallProgress > 0) {
+      const t = setTimeout(() => setAnimatedProgress(overallProgress), 100)
+      return () => clearTimeout(t)
+    }
+  }, [overallProgress])
+
   const totalEstrellas = Math.round(
     lessonProgressData.reduce((acc, l) => acc + (l.estrellas ?? 0), 0)
   )
-
-  const handleReadInstructions = () => {
-    speak(
-      `Tu reporte de progreso. Has completado ${completedLessons} de ${totalLessons} lecciones. Tu puntaje promedio es ${averageScore} por ciento. Tu racha actual es de ${currentStreak} dias.`
-    )
-  }
 
   function toggleLesson(lessonId: string) {
     setExpandedLessonId(prev => prev === lessonId ? null : lessonId)
@@ -115,6 +130,12 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
       }))
     }
     setLoadingAttempt(null)
+  }
+
+  const handleReadInstructions = () => {
+    speak(
+      `Tu reporte de progreso. Has completado ${completedLessons} de ${totalLessons} lecciones. Tu puntaje promedio es ${averageScore} por ciento. Tu racha actual es de ${currentStreak} dias.`
+    )
   }
 
   return (
@@ -160,7 +181,6 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
                   <h2 className="text-2xl font-bold text-foreground">{user?.name}</h2>
                   <div className="flex items-center gap-4 mt-2">
                     <span className="flex items-center gap-2 text-muted-foreground">
-                      <Trophy className="w-5 h-5 text-accent" aria-hidden="true" />
                       {totalEstrellas} ⭐ Estrellas
                     </span>
                     <span className="flex items-center gap-2 text-muted-foreground">
@@ -237,7 +257,15 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
             <CardContent>
               <div className="flex items-center gap-6">
                 <div className="flex-1">
-                  <Progress value={overallProgress} className="h-6" aria-label={`${overallProgress}% completado`} />
+                  <div className="bg-primary/20 relative h-6 w-full overflow-hidden rounded-full" role="progressbar" aria-valuenow={overallProgress} aria-valuemin={0} aria-valuemax={100} aria-label={`${overallProgress}% completado`}>
+                    <div
+                      className="bg-primary h-full rounded-full"
+                      style={{
+                        width: `${animatedProgress}%`,
+                        transition: "width 3000ms linear",
+                      }}
+                    />
+                  </div>
                 </div>
                 <span className="text-3xl font-bold text-primary" aria-hidden="true">{overallProgress}%</span>
               </div>
@@ -292,21 +320,8 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
 
                           <div className="flex items-center gap-3 shrink-0">
                             {lesson.completed && (
-                              <div className="text-right" aria-label={`Puntaje: ${lesson.score}%`}>
-                                <p
-                                  className={`text-2xl font-bold ${
-                                    lesson.score >= 90
-                                      ? "text-success"
-                                      : lesson.score >= 70
-                                      ? "text-accent-foreground"
-                                      : "text-foreground"
-                                  }`}
-                                >
-                                  {lesson.score}%
-                                </p>
-                                <div className="flex justify-end mt-1">
-                                  <StarRow stars={lesson.estrellas} size="w-4 h-4" />
-                                </div>
+                              <div className="flex justify-end">
+                                <StarRow stars={lesson.estrellas} size="w-10 h-10" />
                               </div>
                             )}
 
@@ -335,7 +350,6 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
                           </p>
                           {lesson.historial.map((attempt) => (
                             <div key={attempt.id} className="rounded-lg border border-border bg-background overflow-hidden">
-                              {/* Fila del intento */}
                               <button
                                 className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors text-left"
                                 onClick={() => toggleAttempt(attempt)}
@@ -355,15 +369,8 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                  <div className="text-right">
-                                    <p className={`text-sm font-bold ${
-                                      attempt.puntaje >= 90 ? "text-success"
-                                      : attempt.puntaje >= 70 ? "text-amber-600"
-                                      : "text-foreground"
-                                    }`}>
-                                      {attempt.puntaje}%
-                                    </p>
-                                    <StarRow stars={attempt.estrellas} size="w-3 h-3" />
+                                  <div className="flex justify-end">
+                                    <StarRow stars={attempt.estrellas} size="w-9 h-9" />
                                   </div>
                                   {expandedAttemptId === attempt.id
                                     ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -371,7 +378,6 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
                                 </div>
                               </button>
 
-                              {/* Detalle de actividades del intento */}
                               {expandedAttemptId === attempt.id && (
                                 <div className="border-t border-border px-4 py-3 bg-muted/20">
                                   {loadingAttempt === attempt.id ? (
@@ -386,13 +392,6 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
                                               : <XCircle className="w-4 h-4 text-destructive shrink-0" />}
                                             <span className="text-sm text-foreground truncate">{act.titulo}</span>
                                           </div>
-                                          <span className={`text-sm font-semibold shrink-0 ${
-                                            act.puntaje >= 90 ? "text-success"
-                                            : act.puntaje >= 70 ? "text-amber-600"
-                                            : "text-destructive"
-                                          }`}>
-                                            {act.puntaje}%
-                                          </span>
                                         </li>
                                       ))}
                                     </ul>

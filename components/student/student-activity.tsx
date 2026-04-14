@@ -311,6 +311,34 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     return () => clearInterval(timer)
   }, [phase, earnedStars])
 
+  // Audio announcement on lesson completion (always plays, independent of voiceEnabled setting)
+  useEffect(() => {
+    if (phase !== "lesson-done") return
+    if (!("speechSynthesis" in window)) return
+    const rounded = Math.round(earnedStars)
+    const starMsg =
+      rounded >= 5 ? "¡Perfecto! Dominas esta lección." :
+      rounded >= 4 ? "¡Excelente trabajo! Casi lo tienes perfecto." :
+      rounded >= 3 ? "¡Muy bien! Sigue practicando para mejorar." :
+      rounded >= 2 ? "¡Buen esfuerzo! Puedes lograrlo mejor." :
+      rounded >= 1 ? "¡Lo intentaste! Sigue practicando." :
+                     "Sigue practicando, lo lograrás la próxima vez."
+    const text = `¡Lección completada! Obtuviste ${rounded} estrella${rounded !== 1 ? "s" : ""}. ${starMsg}`
+    const t = setTimeout(() => {
+      window.speechSynthesis.cancel()
+      const utt = new SpeechSynthesisUtterance(text)
+      utt.lang = "es-ES"
+      utt.rate = settings.voiceRate ?? 1
+      if (settings.voiceName) {
+        const voice = window.speechSynthesis.getVoices().find(v => v.name === settings.voiceName)
+        if (voice) utt.voice = voice
+      }
+      window.speechSynthesis.speak(utt)
+    }, 600)
+    return () => { clearTimeout(t); window.speechSynthesis.cancel() }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, earnedStars])
+
   function handleWsCellClick(row: number, col: number) {
     if (phase !== "question") return
     const key = `${row}-${col}`
