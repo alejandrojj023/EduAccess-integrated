@@ -280,12 +280,12 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
   // ── Estilos comunes Tooltip ─────────────────────────────────
   const tooltipStyle = {
     contentStyle: {
-      backgroundColor: "hsl(var(--card))",
-      border: "2px solid hsl(var(--border))",
+      backgroundColor: "var(--card)",
+      border: "2px solid var(--border)",
       borderRadius: "8px",
     },
-    itemStyle:  { color: "hsl(var(--foreground))" },
-    labelStyle: { color: "hsl(var(--foreground))", fontWeight: 600 },
+    itemStyle:  { color: "var(--foreground)" },
+    labelStyle: { color: "var(--foreground)", fontWeight: 600 },
   }
 
   // ── Helpers ─────────────────────────────────────────────────
@@ -581,14 +581,14 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={processedPerf} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis
                       dataKey="lessonFull"
-                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                      tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
                       tickFormatter={(v: string) => v.length > 14 ? v.substring(0, 14) + "…" : v}
                     />
                     <YAxis
-                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                      tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
                       domain={perfCfg.metrica === "total_intentos" ? [0, "auto"] : [0, 100]}
                       tickFormatter={(v) => perfCfg.metrica === "total_intentos" ? v : `${v}%`}
                     />
@@ -602,13 +602,13 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                     />
                     <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
                     {perfCfg.metrica === "promedio_puntaje" && (
-                      <Bar dataKey="promedio_puntaje" name="Puntaje promedio" fill="#0d9488" radius={[4, 4, 0, 0]}>
-                        <LabelList dataKey="promedio_puntaje" position="top" formatter={(v: number) => `${v}%`} style={{ fill: "hsl(var(--foreground))", fontSize: 11, fontWeight: 600 }} />
+                      <Bar dataKey="promedio_puntaje" name="Puntaje promedio" fill="var(--color-chart-1)" radius={[4, 4, 0, 0]}>
+                        <LabelList dataKey="promedio_puntaje" position="top" formatter={(v: number) => `${v}%`} style={{ fill: "var(--foreground)", fontSize: 11, fontWeight: 600 }} />
                       </Bar>
                     )}
                     {perfCfg.metrica === "total_intentos" && (
-                      <Bar dataKey="total_intentos" name="Total intentos" fill="#8b5cf6" radius={[4, 4, 0, 0]}>
-                        <LabelList dataKey="total_intentos" position="top" style={{ fill: "hsl(var(--foreground))", fontSize: 11, fontWeight: 600 }} />
+                      <Bar dataKey="total_intentos" name="Total intentos" fill="var(--color-chart-2)" radius={[4, 4, 0, 0]}>
+                        <LabelList dataKey="total_intentos" position="top" style={{ fill: "var(--foreground)", fontSize: 11, fontWeight: 600 }} />
                       </Bar>
                     )}
                   </BarChart>
@@ -662,17 +662,17 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={processedProg}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="week" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                    <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="week" tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
+                    <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
                     <Tooltip {...tooltipStyle} />
                     <Line
                       type="monotone"
                       dataKey={progDataKey}
                       name={progCfg.metrica === "intentos" ? "Intentos" : progCfg.metrica === "puntaje" ? "Puntaje" : "Progreso %"}
-                      stroke="hsl(var(--primary))"
+                      stroke="var(--primary)"
                       strokeWidth={3}
-                      dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 5 }}
+                      dot={{ fill: "var(--primary)", strokeWidth: 2, r: 5 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -754,9 +754,9 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={processedTipos} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis type="number" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
-                      <YAxis dataKey="name" type="category" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} width={90} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis type="number" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
+                      <YAxis dataKey="name" type="category" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} width={90} />
                       <Tooltip {...tooltipStyle} />
                       <Bar dataKey="value" name="Actividades" radius={[0, 4, 4, 0]}>
                         {processedTipos.map((entry, i) => (
