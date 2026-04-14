@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/lib/auth-context"
@@ -34,10 +34,9 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
   const { speak, settings } = useAccessibility()
   const { stats: dashboardStats, recentActivity, loading, refetch } = useTeacherDashboard()
 
-  const [avatarColor, setAvatarColor] = useState<string | null>(null)
-  useEffect(() => {
-    setAvatarColor(localStorage.getItem("ea_avatar_color"))
-  }, [])
+  const [avatarColor] = useState<string | null>(() =>
+    typeof window !== "undefined" ? localStorage.getItem("ea_avatar_color") : null
+  )
 
   // Hover-to-speak para botones con texto visible
   const hoverCursos      = useSpeakOnHover("Cursos: gestionar tus cursos y lecciones")
@@ -52,17 +51,17 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
   const hoverCursosCard       = useSpeakOnHover(`Cursos: número de cursos que tienes activos. Actualmente ${dashboardStats.cursos}`)
   const hoverProgresoCard     = useSpeakOnHover(`Progreso General: porcentaje promedio de avance de todos tus alumnos en los cursos activos. Actualmente ${dashboardStats.progresoGeneral}`)
 
-  const stats = [
+  const stats = useMemo(() => [
     { label: "Estudiantes",     sub: "Total inscritos",     value: dashboardStats.estudiantes,    icon: Users,      color: "bg-primary", hover: hoverEstudiantesCard },
     { label: "Cursos",          sub: "Material disponible", value: dashboardStats.cursos,         icon: BookOpen,   color: "bg-accent",  hover: hoverCursosCard      },
     { label: "Progreso General",sub: "Media de completado", value: dashboardStats.progresoGeneral,icon: TrendingUp, color: "bg-success", hover: hoverProgresoCard     },
-  ]
+  ], [dashboardStats, hoverEstudiantesCard, hoverCursosCard, hoverProgresoCard])
 
-  const handleReadInstructions = () => {
+  const handleReadInstructions = useCallback(() => {
     speak(
       `Panel del docente. Bienvenido ${user?.name}. Tienes ${dashboardStats.estudiantes} estudiantes, ${dashboardStats.cursos} cursos activos, y el progreso general es del ${dashboardStats.progresoGeneral}. Puedes gestionar cursos, lecciones, actividades y ver las analiticas.`
     )
-  }
+  }, [speak, user?.name, dashboardStats])
 
   return (
     <div className="min-h-screen bg-background">

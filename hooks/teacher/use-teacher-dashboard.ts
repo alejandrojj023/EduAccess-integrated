@@ -88,7 +88,7 @@ export function useTeacherDashboard(): UseTeacherDashboardReturn {
         return
       }
 
-      // 2. Alumnos y cursos en paralelo
+      // 2. Alumnos, cursos y progresión en paralelo
       const [alumnosResult, cursosResult] = await Promise.all([
         supabase.from("alumno_grupo").select("id_alumno").in("id_grupo", grupoIds),
         supabase.from("curso").select("id_curso").in("id_grupo", grupoIds),
@@ -97,10 +97,14 @@ export function useTeacherDashboard(): UseTeacherDashboardReturn {
       const alumnosUnicos = new Set(alumnosResult.data?.map(a => a.id_alumno) ?? [])
       const totalCursos = cursosResult.data?.length ?? 0
 
-      // 3. Progresión general
+      // 3. Progresión general — limitada a 2000 filas para performance
       const alumnosArray = Array.from(alumnosUnicos)
       const { data: progresiones } = alumnosArray.length > 0
-        ? await supabase.from("progresion_alumno").select("pct_completado").in("id_alumno", alumnosArray)
+        ? await supabase
+            .from("progresion_alumno")
+            .select("pct_completado")
+            .in("id_alumno", alumnosArray)
+            .limit(2000)
         : { data: [] as { pct_completado: number }[] }
 
       const promedio = progresiones && progresiones.length > 0
