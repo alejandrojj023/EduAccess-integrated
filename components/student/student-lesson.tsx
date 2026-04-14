@@ -37,14 +37,14 @@ interface StudentLessonProps {
 }
 
 const TIPO_META: Record<string, { label: string; Icon: React.ElementType; color: string }> = {
-  identificacion:        { label: "Identificación",   Icon: ImageIcon,   color: "bg-blue-100   text-blue-700"   },
-  reconocimiento_sonidos:{ label: "Sonidos",          Icon: Volume2,     color: "bg-purple-100 text-purple-700" },
-  secuenciacion:         { label: "Secuenciación",    Icon: List,        color: "bg-orange-100 text-orange-700" },
-  seleccion_guiada:      { label: "Opción múltiple",  Icon: HelpCircle,  color: "bg-teal-100   text-teal-700"   },
-  respuesta_corta:       { label: "Respuesta corta",  Icon: PencilLine,  color: "bg-yellow-100 text-yellow-700" },
-  respuesta_oral:        { label: "Oral / Voz",       Icon: Mic,         color: "bg-green-100  text-green-700"  },
-  completar_oracion:     { label: "Completar oración",Icon: AlignLeft,   color: "bg-cyan-100   text-cyan-700"   },
-  sopa_letras:           { label: "Sopa de letras",   Icon: Search,      color: "bg-pink-100   text-pink-700"   },
+  identificacion:        { label: "Identificación",   Icon: ImageIcon,   color: "bg-primary/10 text-primary"   },
+  reconocimiento_sonidos:{ label: "Sonidos",          Icon: Volume2,     color: "bg-accent/10 text-accent" },
+  secuenciacion:         { label: "Secuenciación",    Icon: List,        color: "bg-secondary/10 text-secondary-foreground" },
+  seleccion_guiada:      { label: "Opción múltiple",  Icon: HelpCircle,  color: "bg-primary/10 text-primary"   },
+  respuesta_corta:       { label: "Respuesta corta",  Icon: PencilLine,  color: "bg-success/10 text-success" },
+  respuesta_oral:        { label: "Oral / Voz",       Icon: Mic,         color: "bg-success/10 text-success"  },
+  completar_oracion:     { label: "Completar oración",Icon: AlignLeft,   color: "bg-secondary/10 text-secondary-foreground"   },
+  sopa_letras:           { label: "Sopa de letras",   Icon: Search,      color: "bg-accent/10 text-accent"   },
 }
 
 const diffMeta = (n: number) =>

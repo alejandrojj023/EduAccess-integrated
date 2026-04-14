@@ -149,7 +149,7 @@ export function CreateCourse({ onBack, onSave }: CreateCourseProps) {
           </div>
         </header>
         <main className="max-w-2xl mx-auto px-4 py-12 flex flex-col items-center text-center gap-6">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
+          <div className="w-20 h-20 bg-success/10 rounded-full flex items-center justify-center">
             <Check className="w-10 h-10 text-green-600" />
           </div>
           <h2 className="text-3xl font-bold text-foreground">¡Curso creado!</h2>

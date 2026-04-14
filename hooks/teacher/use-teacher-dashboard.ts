@@ -5,8 +5,9 @@ import { useAuth } from "@/lib/auth-context"
 // ============================================================
 // Hook: useTeacherDashboard
 // ============================================================
-// Reemplaza los datos mock del teacher-dashboard.tsx
-// Consume: perfil, grupo, alumno_grupo, curso, intento_actividad
+// Stats: supabase cliente (grupo, alumno_grupo, curso, progresion_alumno)
+// Actividad reciente: API /api/teacher/recent-activity con supabaseAdmin
+//   → necesario para saltar RLS de intento_leccion (solo el alumno puede leer sus filas)
 // ============================================================
 
 interface DashboardStats {
@@ -42,22 +43,24 @@ export function useTeacherDashboard(): UseTeacherDashboardReturn {
 
   const refetch = () => setTick(t => t + 1)
 
-  // Auto-refresh every 60 seconds (background, no loading state)
+  // Auto-refresh cada 60 s en segundo plano
   useEffect(() => {
     const interval = setInterval(() => setTick(t => t + 1), 60_000)
     return () => clearInterval(interval)
   }, [])
 
-  // Suscripción en tiempo real con debounce: evita múltiples refetches en ráfaga
+  // Realtime: cuando un alumno completa lección o actividad → refetch con debounce
   useEffect(() => {
     if (!user) return
     let timeout: ReturnType<typeof setTimeout>
+    const trigger = () => {
+      clearTimeout(timeout)
+      timeout = setTimeout(() => setTick(t => t + 1), 1500)
+    }
     const channel = supabase
       .channel("dashboard-realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "intento_actividad" }, () => {
-        clearTimeout(timeout)
-        timeout = setTimeout(() => setTick((t) => t + 1), 2000)
-      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "intento_leccion" }, trigger)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "intento_actividad" }, trigger)
       .subscribe()
     return () => { clearTimeout(timeout); supabase.removeChannel(channel) }
   }, [user])
@@ -66,53 +69,43 @@ export function useTeacherDashboard(): UseTeacherDashboardReturn {
     if (!user) return
 
     const fetchData = async () => {
-      // Solo mostrar spinner en la carga inicial, no en los refetches de fondo
       if (isFirstLoad.current) setLoading(true)
 
-      // 1. Obtener grupos del docente
+      // --- STATS (cliente, respeta RLS del docente) ---
+
+      // 1. Grupos del docente
       const { data: grupos } = await supabase
         .from("grupo")
         .select("id_grupo")
         .eq("id_docente", user.id)
 
-      const grupoIds = grupos?.map((g) => g.id_grupo) ?? []
+      const grupoIds = grupos?.map(g => g.id_grupo) ?? []
 
       if (grupoIds.length === 0) {
+        setRecentActivity([])
         isFirstLoad.current = false
         setLoading(false)
         return
       }
 
-      // 2 + 3. Alumnos y cursos en paralelo
+      // 2. Alumnos y cursos en paralelo
       const [alumnosResult, cursosResult] = await Promise.all([
         supabase.from("alumno_grupo").select("id_alumno").in("id_grupo", grupoIds),
-        supabase.from("curso").select("id_curso", { count: "exact", head: true }).in("id_grupo", grupoIds),
+        supabase.from("curso").select("id_curso").in("id_grupo", grupoIds),
       ])
 
-      const alumnosUnicos = new Set(alumnosResult.data?.map((a) => a.id_alumno) ?? [])
-      const totalCursos = cursosResult.count ?? 0
+      const alumnosUnicos = new Set(alumnosResult.data?.map(a => a.id_alumno) ?? [])
+      const totalCursos = cursosResult.data?.length ?? 0
 
-      // 4 + 5. Progresiones e intentos recientes en paralelo
+      // 3. Progresión general
       const alumnosArray = Array.from(alumnosUnicos)
-      const [progresionesResult, intentosResult] = await Promise.all([
-        alumnosArray.length > 0
-          ? supabase.from("progresion_alumno").select("pct_completado").in("id_alumno", alumnosArray)
-          : Promise.resolve({ data: [] as { pct_completado: number }[] }),
-        supabase
-          .from("intento_actividad")
-          .select(`fecha_creacion, perfil:id_alumno ( nombre ), actividad:id_actividad ( titulo, tipo )`)
-          .in("id_grupo", grupoIds)
-          .order("fecha_creacion", { ascending: false })
-          .limit(5),
-      ])
+      const { data: progresiones } = alumnosArray.length > 0
+        ? await supabase.from("progresion_alumno").select("pct_completado").in("id_alumno", alumnosArray)
+        : { data: [] as { pct_completado: number }[] }
 
-      const progresiones = progresionesResult.data ?? []
-      const promedio =
-        progresiones.length > 0
-          ? Math.round(
-              progresiones.reduce((acc, p) => acc + p.pct_completado, 0) / progresiones.length
-            )
-          : 0
+      const promedio = progresiones && progresiones.length > 0
+        ? Math.round(progresiones.reduce((acc, p) => acc + p.pct_completado, 0) / progresiones.length)
+        : 0
 
       setStats({
         estudiantes: alumnosUnicos.size,
@@ -120,29 +113,25 @@ export function useTeacherDashboard(): UseTeacherDashboardReturn {
         progresoGeneral: `${promedio}%`,
       })
 
-      const intentos = intentosResult.data
+      // --- ACTIVIDAD RECIENTE (API route con supabaseAdmin, bypasea RLS) ---
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
+        if (!token) throw new Error("Sin sesión")
 
-      const actividadReciente: RecentActivity[] = (intentos ?? []).map((i: any) => {
-        const nombre = i.perfil?.nombre ?? "Alumno"
-        const tipoActividad = i.actividad?.titulo ?? i.actividad?.tipo ?? "actividad"
-        const fecha = new Date(i.fecha_creacion)
-        const ahora = new Date()
-        const diffMin = Math.round((ahora.getTime() - fecha.getTime()) / 60000)
+        const res = await fetch("/api/teacher/recent-activity", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        })
 
-        let time: string
-        if (diffMin < 1) time = "Justo ahora"
-        else if (diffMin < 60) time = `Hace ${diffMin} min`
-        else if (diffMin < 1440) time = `Hace ${Math.round(diffMin / 60)} hora${Math.round(diffMin / 60) > 1 ? "s" : ""}`
-        else time = `Hace ${Math.round(diffMin / 1440)} dia${Math.round(diffMin / 1440) > 1 ? "s" : ""}`
-
-        return {
-          student: nombre,
-          activity: `Completo ${tipoActividad}`,
-          time,
+        if (res.ok) {
+          const json = await res.json()
+          setRecentActivity(json.activity ?? [])
         }
-      })
+      } catch (err) {
+        console.error("[useTeacherDashboard] actividad reciente:", err)
+      }
 
-      setRecentActivity(actividadReciente)
       isFirstLoad.current = false
       setLoading(false)
     }

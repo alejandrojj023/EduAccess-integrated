@@ -127,7 +127,7 @@ export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: 
                         <div
                           className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg shrink-0 ${
                             lesson.pct_completado >= 100
-                              ? "bg-green-100 text-green-700"
+                              ? "bg-success/10 text-success"
                               : "bg-primary/10 text-primary"
                           }`}
                           aria-hidden="true"

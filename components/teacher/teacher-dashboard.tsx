@@ -114,7 +114,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Welcome Banner */}
         <section aria-label="Bienvenida" className="mb-8">
-          <div className="bg-primary rounded-2xl p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <div className="bg-primary rounded-[2rem] p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6 shadow-[0_24px_80px_rgba(0,0,0,0.08)]">
             {/* Izquierda: avatar + saludo */}
             <div className="flex items-center gap-5">
               <div
@@ -187,7 +187,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
             <li>
               <Button
                 variant="outline"
-                className="w-full h-auto p-8 flex flex-col items-center gap-4 border-2 hover:border-primary hover:bg-primary/5 group"
+                className="w-full h-auto p-8 flex flex-col items-center gap-4 rounded-[1.75rem] border-2 hover:border-primary hover:bg-primary/5 group"
                 onClick={() => onNavigate("courses")}
                 {...hoverCursos}
               >
@@ -200,7 +200,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
             <li>
               <Button
                 variant="outline"
-                className="w-full h-auto p-8 flex flex-col items-center gap-4 border-2 hover:border-primary hover:bg-primary/5 group"
+                className="w-full h-auto p-8 flex flex-col items-center gap-4 rounded-[1.75rem] border-2 hover:border-primary hover:bg-primary/5 group"
                 onClick={() => onNavigate("courses")}
                 {...hoverLecciones}
               >
@@ -213,7 +213,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
             <li>
               <Button
                 variant="outline"
-                className="w-full h-auto p-8 flex flex-col items-center gap-4 border-2 hover:border-primary hover:bg-primary/5 group"
+                className="w-full h-auto p-8 flex flex-col items-center gap-4 rounded-[1.75rem] border-2 hover:border-primary hover:bg-primary/5 group"
                 onClick={() => onNavigate("activities")}
                 {...hoverActividades}
               >
@@ -226,7 +226,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
             <li>
               <Button
                 variant="outline"
-                className="w-full h-auto p-8 flex flex-col items-center gap-4 border-2 hover:border-primary hover:bg-primary/5 group"
+                className="w-full h-auto p-8 flex flex-col items-center gap-4 rounded-[1.75rem] border-2 hover:border-primary hover:bg-primary/5 group"
                 onClick={() => onNavigate("analytics")}
                 {...hoverAnaliticas}
               >
@@ -262,26 +262,64 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
             </CardHeader>
             <CardContent className="p-0">
               {recentActivity.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <History className="w-14 h-14 text-muted-foreground mb-4" aria-hidden="true" />
-                  <p className="text-lg font-bold text-foreground mb-1">Sin actividad reciente</p>
-                  <p className="text-base text-muted-foreground">
-                    Aquí aparecerán los avances de tus alumnos cuando completen actividades
-                  </p>
+                <div className="space-y-4 p-4">
+                  <div className="flex flex-col items-center justify-center py-10 text-center rounded-[1.5rem] border border-dashed border-border/50 bg-card/80">
+                    <History className="w-14 h-14 text-muted-foreground mb-4" aria-hidden="true" />
+                    <p className="text-lg font-bold text-foreground mb-1">Sin actividad reciente</p>
+                    <p className="text-base text-muted-foreground max-w-xl">
+                      Aquí aparecerán los avances de tus alumnos cuando completen actividades. Mientras tanto, este espacio te muestra el formato de la lista de actividad reciente.
+                    </p>
+                  </div>
+                  <ul className="space-y-3" aria-label="Ejemplo de actividad reciente">
+                    {[
+                      { student: "Nicolás", activity: "Completó Comprensión de lectura", time: "Hace 12 min" },
+                      { student: "Sofía", activity: "Completó Sopa de letras", time: "Hace 45 min" },
+                    ].map((item, index) => (
+                      <li key={index} className="rounded-[1.5rem] border border-border/70 bg-card/90 p-4 shadow-sm transition hover:border-primary/40 hover:bg-primary/5">
+                        <article>
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 rounded-3xl bg-primary/10 flex items-center justify-center text-primary">
+                                <CheckCircle className="w-6 h-6" aria-hidden="true" />
+                              </div>
+                              <div>
+                                <p className="text-lg font-semibold text-foreground">{item.student}</p>
+                                <p className="text-sm text-muted-foreground">Actividad completada</p>
+                              </div>
+                            </div>
+                            <time className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                              {item.time}
+                            </time>
+                          </div>
+                          <div className="mt-4 rounded-3xl border border-border/70 bg-muted/50 p-4">
+                            <p className="text-base text-foreground">{item.activity}</p>
+                          </div>
+                        </article>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ) : (
-                <ul className="divide-y divide-border" aria-label="Lista de actividad reciente">
+                <ul className="space-y-3 p-4" aria-label="Lista de actividad reciente">
                   {recentActivity.map((activity, index) => (
-                    <li key={index} className="p-5 hover:bg-muted/50 transition-colors">
+                    <li key={index} className="rounded-[1.5rem] border border-border/70 bg-card/90 p-4 shadow-sm transition hover:border-primary/40 hover:bg-primary/5">
                       <article aria-label={`${activity.student}: ${activity.activity}`}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-lg font-semibold text-foreground">{activity.student}</p>
-                            <p className="text-base text-muted-foreground">{activity.activity}</p>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-3xl bg-primary/10 flex items-center justify-center text-primary">
+                              <CheckCircle className="w-6 h-6" aria-hidden="true" />
+                            </div>
+                            <div>
+                              <p className="text-lg font-semibold text-foreground">{activity.student}</p>
+                              <p className="text-sm text-muted-foreground">Actividad completada</p>
+                            </div>
                           </div>
-                          <time className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                          <time className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground bg-muted px-3 py-1 rounded-full">
                             {activity.time}
                           </time>
+                        </div>
+                        <div className="mt-4 rounded-3xl border border-border/70 bg-muted/50 p-4">
+                          <p className="text-base text-foreground">{activity.activity}</p>
                         </div>
                       </article>
                     </li>

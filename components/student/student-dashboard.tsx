@@ -33,14 +33,14 @@ interface StudentDashboardProps {
 }
 
 const COURSE_COLORS = [
-  { bg: "bg-teal-100",    icon: "text-teal-600"    },
-  { bg: "bg-violet-100",  icon: "text-violet-600"  },
-  { bg: "bg-amber-100",   icon: "text-amber-600"   },
-  { bg: "bg-rose-100",    icon: "text-rose-600"    },
-  { bg: "bg-sky-100",     icon: "text-sky-600"     },
-  { bg: "bg-emerald-100", icon: "text-emerald-600" },
-  { bg: "bg-orange-100",  icon: "text-orange-600"  },
-  { bg: "bg-pink-100",    icon: "text-pink-600"    },
+  { bg: "bg-primary/10",    icon: "text-primary"    },
+  { bg: "bg-accent/10",  icon: "text-accent"  },
+  { bg: "bg-secondary/10",   icon: "text-secondary-foreground"   },
+  { bg: "bg-success/10",    icon: "text-success"    },
+  { bg: "bg-muted/10", icon: "text-muted-foreground" },
+  { bg: "bg-primary/5", icon: "text-primary" },
+  { bg: "bg-accent/5",  icon: "text-accent"  },
+  { bg: "bg-secondary/5",    icon: "text-secondary-foreground"    },
 ]
 
 export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps) {
@@ -162,9 +162,9 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Welcome Section */}
         <section aria-label="Bienvenida">
-          <Card className="border-2 shadow-xl mb-8 overflow-hidden">
+          <Card className="border-0 shadow-[0_24px_80px_rgba(0,0,0,0.08)] mb-8 overflow-hidden">
             <CardContent className="p-0">
-              <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-8">
+              <div className="rounded-[2rem] bg-gradient-to-r from-primary/10 to-accent/10 p-8">
                 <div className="flex flex-col sm:flex-row items-center gap-6">
                   <div
                     className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-lg"
@@ -212,7 +212,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
         {/* Main Action Button */}
         <Button
           size="lg"
-          className="w-full h-20 text-2xl mb-8 shadow-lg"
+          className="w-full h-20 rounded-full text-2xl mb-8 shadow-[0_24px_40px_rgba(0,0,0,0.12)]"
           onClick={handleContinuar}
           disabled={loading || courses.length === 0}
           {...hoverContinuar}

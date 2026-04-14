@@ -398,16 +398,16 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
         {/* Result */}
         {phase === "result" && (
           <section aria-live="polite">
-            <Card className={`border-4 shadow-xl rounded-3xl ${isCorrect ? "border-green-400 bg-green-50/40" : "border-destructive bg-destructive/5"}`}>
+            <Card className={`border-4 shadow-xl rounded-3xl ${isCorrect ? "border-success bg-success/5" : "border-destructive bg-destructive/5"}`}>
               <CardContent className="p-8 text-center space-y-5">
                 {/* Icon */}
-                <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center ${isCorrect ? "bg-green-500" : "bg-destructive"}`}>
+                <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center ${isCorrect ? "bg-success" : "bg-destructive"}`}>
                   {isCorrect
                     ? <Check className="w-12 h-12 text-white" aria-hidden="true" />
                     : <X     className="w-12 h-12 text-white" aria-hidden="true" />}
                 </div>
 
-                <h2 className={`text-3xl font-bold ${isCorrect ? "text-green-700" : "text-destructive"}`}>
+                <h2 className={`text-3xl font-bold ${isCorrect ? "text-success" : "text-destructive"}`}>
                   {isCorrect ? "¡Muy bien!" : attempts >= MAX_ATTEMPTS ? "Sigue practicando" : "Inténtalo de nuevo"}
                 </h2>
 

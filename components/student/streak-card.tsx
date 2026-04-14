@@ -24,11 +24,12 @@ export function StreakCard({ streakDays }: StreakCardProps) {
     <Card className="border-2 shadow-lg h-full transition-transform duration-200 hover:scale-105" onMouseEnter={handleHover}>
       <CardContent className="p-6 flex items-center gap-5">
         <div
-          className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${
-            streakDays > 0
-              ? "bg-gradient-to-br from-orange-400 to-red-500"
-              : "bg-gradient-to-br from-slate-300 to-slate-400"
-          }`}
+          className="w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-md"
+          style={{
+            background: streakDays > 0
+              ? `linear-gradient(135deg, var(--accent) 0%, var(--success) 100%)`
+              : `linear-gradient(135deg, var(--muted) 0%, var(--muted-foreground) 100%)`,
+          }}
           aria-hidden="true"
         >
           <Flame className="w-9 h-9 text-white fill-white" />
@@ -38,7 +39,7 @@ export function StreakCard({ streakDays }: StreakCardProps) {
             <span className="text-4xl font-bold text-foreground leading-none">{streakDays}</span>
             <Flame
               className={`w-6 h-6 shrink-0 ${
-                streakDays > 0 ? "text-orange-500 fill-orange-500" : "text-slate-400 fill-slate-400"
+                streakDays > 0 ? "text-accent fill-accent" : "text-muted-foreground fill-muted-foreground"
               }`}
               aria-hidden="true"
             />
@@ -48,12 +49,12 @@ export function StreakCard({ streakDays }: StreakCardProps) {
               {streakDays === 1 ? "Día seguido" : "Días seguidos"}
             </p>
             {streakDays > 1 && (
-              <span className="inline-flex items-center gap-1 text-sm font-semibold text-orange-600 bg-orange-100 rounded-full px-2.5 py-0.5">
+              <span className="inline-flex items-center gap-1 text-sm font-semibold text-accent bg-accent/10 rounded-full px-2.5 py-0.5">
                 🔥 ¡Sigue así!
               </span>
             )}
             {streakDays === 1 && (
-              <span className="inline-flex items-center gap-1 text-sm font-semibold text-orange-600 bg-orange-100 rounded-full px-2.5 py-0.5">
+              <span className="inline-flex items-center gap-1 text-sm font-semibold text-accent bg-accent/10 rounded-full px-2.5 py-0.5">
                 🔥 ¡Buen inicio!
               </span>
             )}

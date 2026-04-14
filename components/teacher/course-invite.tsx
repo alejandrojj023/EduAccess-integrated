@@ -38,9 +38,9 @@ interface Alumno {
 }
 
 const ESTADO_CONFIG = {
-  pendiente:  { label: "Pendiente",  icon: Clock,         color: "text-amber-600  bg-amber-50  border-amber-200"  },
-  aceptada:   { label: "Aceptada",   icon: CheckCircle2,  color: "text-green-600  bg-green-50  border-green-200"  },
-  rechazada:  { label: "Rechazada",  icon: XCircle,       color: "text-red-600    bg-red-50    border-red-200"    },
+  pendiente:  { label: "Pendiente",  icon: Clock,         color: "text-accent bg-accent/10 border-accent/30"  },
+  aceptada:   { label: "Aceptada",   icon: CheckCircle2,  color: "text-success bg-success/10 border-success/30"  },
+  rechazada:  { label: "Rechazada",  icon: XCircle,       color: "text-destructive bg-destructive/10 border-destructive/30"    },
 }
 
 export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps) {
@@ -324,8 +324,8 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
                   <p
                     className={`text-sm rounded-md px-3 py-2 border ${
                       emailMsg.ok
-                        ? "bg-green-50 text-green-700 border-green-200"
-                        : "bg-red-50 text-red-700 border-red-200"
+                        ? "bg-success/10 text-success border-success/30"
+                        : "bg-destructive/10 text-destructive border-destructive/30"
                     }`}
                     role="alert"
                   >
@@ -391,8 +391,8 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
                     <p
                       className={`text-sm rounded-md px-3 py-2 border ${
                         listMsg.ok
-                          ? "bg-green-50 text-green-700 border-green-200"
-                          : "bg-red-50 text-red-700 border-red-200"
+                          ? "bg-success/10 text-success border-success/30"
+                          : "bg-destructive/10 text-destructive border-destructive/30"
                       }`}
                       role="alert"
                     >

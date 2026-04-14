@@ -32,14 +32,14 @@ interface CourseListProps {
 }
 
 const COURSE_COLORS = [
-  { bg: "bg-teal-100",    icon: "text-teal-600"    },
-  { bg: "bg-violet-100",  icon: "text-violet-600"  },
-  { bg: "bg-amber-100",   icon: "text-amber-600"   },
-  { bg: "bg-rose-100",    icon: "text-rose-600"    },
-  { bg: "bg-sky-100",     icon: "text-sky-600"     },
-  { bg: "bg-emerald-100", icon: "text-emerald-600" },
-  { bg: "bg-orange-100",  icon: "text-orange-600"  },
-  { bg: "bg-pink-100",    icon: "text-pink-600"    },
+  { bg: "bg-primary/10",  icon: "text-primary"  },
+  { bg: "bg-accent/10",  icon: "text-accent"  },
+  { bg: "bg-secondary/10",   icon: "text-secondary-foreground"   },
+  { bg: "bg-success/10",    icon: "text-success"    },
+  { bg: "bg-muted/10", icon: "text-muted-foreground" },
+  { bg: "bg-primary/5", icon: "text-primary" },
+  { bg: "bg-accent/5",  icon: "text-accent"  },
+  { bg: "bg-secondary/5",    icon: "text-secondary-foreground"    },
 ]
 
 export function CourseList({ onNavigate, onBack }: CourseListProps) {

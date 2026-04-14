@@ -971,7 +971,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                       type="button"
                       onClick={() => setActOptions(actOptions.map((o) => ({ ...o, isCorrect: o.id === option.id })))}
                       className={`w-12 h-12 rounded-xl border-2 flex items-center justify-center shrink-0 transition-all ${option.isCorrect
-                        ? "bg-green-500 border-green-500 text-white"
+                        ? "bg-success border-success text-white"
                         : "border-border hover:border-primary"
                         }`}
                       aria-label={option.isCorrect ? "Respuesta correcta" : "Marcar como correcta"}

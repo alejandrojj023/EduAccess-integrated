@@ -1302,7 +1302,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                               <img
                                 src={item.imagen_url}
                                 alt={`Imagen ${item.orden}`}
-                                className="w-full h-44 object-contain bg-white"
+                                className="w-full h-44 object-contain bg-card"
                                 draggable={false}
                               />
                             ) : (
@@ -1365,7 +1365,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                                   <img
                                     src={zoneItem.imagen_url}
                                     alt={`Imagen colocada en zona ${idx + 1}`}
-                                    className="w-full h-44 object-contain bg-white group-hover:opacity-80 transition-opacity"
+                                    className="w-full h-44 object-contain bg-card group-hover:opacity-80 transition-opacity"
                                     draggable={false}
                                   />
                                 ) : (
@@ -1433,7 +1433,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                         <span
                           key={word}
                           className={`px-3 py-1.5 rounded-lg border-2 font-bold text-base transition-all ${wsFoundWords.has(word)
-                              ? "bg-green-100 border-green-400 text-green-700 line-through"
+                              ? "bg-success/10 border-success text-success line-through"
                               : "bg-muted border-border text-foreground"
                             }`}
                         >

@@ -669,8 +669,8 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                   <div key={leccion.id_leccion} className="flex items-center justify-between bg-muted/40 rounded-lg px-4 py-3 border border-border">
                     <p className="text-sm font-medium text-foreground">{leccion.titulo}</p>
                     <div className="flex gap-2 flex-wrap justify-end">
-                      {leccion.material_lectura && <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1"><BookOpen className="w-3 h-3" />Lectura</span>}
-                      {leccion.material_audiovisual && <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full flex items-center gap-1"><Video className="w-3 h-3" />Video</span>}
+                      {leccion.material_lectura && <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-1"><BookOpen className="w-3 h-3" />Lectura</span>}
+                      {leccion.material_audiovisual && <span className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full flex items-center gap-1"><Video className="w-3 h-3" />Video</span>}
                       {leccion.material_pdf_url && <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full flex items-center gap-1"><FilePdf className="w-3 h-3" />PDF</span>}
                       {!leccion.material_lectura && !leccion.material_audiovisual && !leccion.material_pdf_url && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Sin material</span>}
                     </div>

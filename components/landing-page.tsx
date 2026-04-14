@@ -85,7 +85,7 @@ export function LandingPage({ onStudentLogin, onTeacherLogin }: LandingPageProps
 
       {/* ── Top bar ───────────────────────────────────────── */}
       <header className="relative z-10 flex justify-start items-center px-6 py-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card/80 px-4 py-3 shadow-sm backdrop-blur-xl">
           <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shadow-sm bg-[#008e92]">
             <img src="/2.svg" alt="EduAccess logo" className="w-full h-full object-cover" aria-hidden="true" />
           </div>
@@ -100,7 +100,7 @@ export function LandingPage({ onStudentLogin, onTeacherLogin }: LandingPageProps
         <div className="flex flex-col items-center mb-10">
           <div className="relative mb-6">
             <div className="absolute inset-0 bg-primary/20 rounded-[2rem] blur-xl scale-110" aria-hidden="true" />
-            <div className="relative w-24 h-24 rounded-[1.75rem] overflow-hidden flex items-center justify-center shadow-2xl bg-[#008e92]">
+            <div className="relative w-28 h-28 rounded-[2rem] overflow-hidden flex items-center justify-center shadow-[0_36px_80px_rgba(0,0,0,0.16)] bg-[#008e92]">
               <img src="/2.svg" alt="EduAccess logo" className="w-full h-full object-cover" aria-hidden="true" />
             </div>
           </div>
@@ -139,7 +139,7 @@ export function LandingPage({ onStudentLogin, onTeacherLogin }: LandingPageProps
           <button
             onClick={onStudentLogin}
             {...speakStudent}
-            className="group flex-1 relative overflow-hidden rounded-2xl border-2 border-border bg-card hover:border-primary/50 hover:shadow-xl transition-all duration-300 active:scale-[0.98] cursor-pointer text-left"
+            className="group flex-1 relative overflow-hidden rounded-[2rem] border border-border bg-card/95 hover:border-primary/50 hover:shadow-[0_25px_60px_rgba(15,23,42,0.12)] transition-all duration-300 active:scale-[0.98] cursor-pointer text-left"
             aria-label="Ingresar como estudiante"
           >
             <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -161,7 +161,7 @@ export function LandingPage({ onStudentLogin, onTeacherLogin }: LandingPageProps
           <button
             onClick={onTeacherLogin}
             {...speakTeacher}
-            className="group flex-1 relative overflow-hidden rounded-2xl border-2 border-border bg-card hover:border-primary/50 hover:shadow-xl transition-all duration-300 active:scale-[0.98] cursor-pointer text-left"
+            className="group flex-1 relative overflow-hidden rounded-[2rem] border border-border bg-card/95 hover:border-primary/50 hover:shadow-[0_25px_60px_rgba(15,23,42,0.12)] transition-all duration-300 active:scale-[0.98] cursor-pointer text-left"
             aria-label="Ingresar como docente"
           >
             <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
