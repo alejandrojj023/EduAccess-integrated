@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Volume2, VolumeX, RotateCcw, CheckCircle, XCircle } from 'lucide-react';
+import { getAudioManager } from '@/lib/audio-utils';
 
 interface ActivityB2Props {
   onComplete: (score: number, maxScore: number, errors: number) => void;
@@ -56,6 +57,19 @@ export function ActivityB2({ onComplete, onAudioIssue }: ActivityB2Props) {
   const [currentLevel, setCurrentLevel] = useState(2);
   const [maxLevelReached, setMaxLevelReached] = useState(1);
   const [attempts, setAttempts] = useState(0);
+  const [hasPlayedSequence, setHasPlayedSequence] = useState(false);
+  const [showVisualHints, setShowVisualHints] = useState(false);
+
+  // Auto-play sequence when round starts
+  useEffect(() => {
+    if (!hasPlayedSequence && !isPlaying && !showFeedback && sequence.length === 0) {
+      const timer = setTimeout(() => {
+        playSequence();
+        setHasPlayedSequence(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [currentSequence, hasPlayedSequence, isPlaying, showFeedback, sequence.length]);
 
   useEffect(() => {
     if (showFeedback) {
@@ -77,6 +91,7 @@ export function ActivityB2({ onComplete, onAudioIssue }: ActivityB2Props) {
   const resetRound = () => {
     setSequence([]);
     setUserSequence([]);
+    setHasPlayedSequence(false);
     setIsPlaying(false);
     setShowFeedback(false);
     setCurrentLevel(2);
@@ -91,24 +106,22 @@ export function ActivityB2({ onComplete, onAudioIssue }: ActivityB2Props) {
     return newSequence;
   };
 
-  const playSequence = () => {
+  const playSequence = async () => {
     const seqData = SEQUENCES[currentSequence];
     const newSequence = generateSequence(currentLevel);
     setSequence(newSequence);
     setUserSequence([]);
     setIsPlaying(true);
 
-    // Simulate playing sounds with delays
-    newSequence.forEach((soundIndex, position) => {
-      setTimeout(() => {
-        // Sound would play here
-        console.log(`Playing sound: ${seqData.sounds[soundIndex]}`);
-      }, position * 1000);
-    });
-
-    setTimeout(() => {
+    try {
+      const audioManager = getAudioManager();
+      const soundsToPlay = newSequence.map(index => seqData.sounds[index]);
+      await audioManager.playRandomSequence(soundsToPlay, 500);
+    } catch (error) {
+      console.error('Error playing sequence:', error);
+    } finally {
       setIsPlaying(false);
-    }, newSequence.length * 1000 + 500);
+    }
   };
 
   const handleSoundClick = (soundIndex: number) => {
@@ -160,32 +173,45 @@ export function ActivityB2({ onComplete, onAudioIssue }: ActivityB2Props) {
         </h3>
         
         <div className="bg-white rounded-2xl p-8 shadow-inner mb-6">
-          <h4 className="text-lg font-medium text-gray-700 mb-4">
-            {seqData.name}
-          </h4>
-          
-          {/* Level Indicator */}
-          <div className="mb-4">
-            <span className="text-sm text-gray-600">Nivel: </span>
-            <span className="font-bold text-purple-600">{currentLevel}</span>
-            <span className="text-sm text-gray-600">/{seqData.maxLength}</span>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h4 className="text-lg font-medium text-gray-700">
+                {seqData.name}
+              </h4>
+              <div className="text-sm text-gray-600">
+                Nivel: <span className="font-bold text-purple-600">{currentLevel}</span>
+                <span className="text-gray-600">/{seqData.maxLength}</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowVisualHints(prev => !prev)}
+              className="text-sm text-purple-600 hover:text-purple-800"
+            >
+              {showVisualHints ? 'Ocultar pistas visuales' : 'Mostrar pistas visuales'}
+            </button>
           </div>
 
           {/* Sequence Display */}
           <div className="flex justify-center items-center min-h-[80px] mb-6">
-            {sequence.length > 0 && (
-              <div className="flex gap-2">
-                {sequence.map((sound, index) => (
-                  <div
-                    key={index}
-                    className="text-4xl p-3 bg-purple-100 rounded-lg border-2 border-purple-300"
-                  >
-                    {seqData.icons[sound]}
-                  </div>
-                ))}
-              </div>
-            )}
-            {sequence.length === 0 && (
+            {sequence.length > 0 ? (
+              showVisualHints ? (
+                <div className="flex gap-2">
+                  {sequence.map((sound, index) => (
+                    <div
+                      key={index}
+                      className="text-4xl p-3 bg-purple-100 rounded-lg border-2 border-purple-300"
+                    >
+                      {seqData.icons[sound]}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500">
+                  La secuencia se reproduce en audio. Activa las pistas visuales si quieres ver los animales.
+                </p>
+              )
+            ) : (
               <p className="text-gray-500">
                 Presiona "Reproducir" para escuchar la secuencia
               </p>
@@ -195,16 +221,36 @@ export function ActivityB2({ onComplete, onAudioIssue }: ActivityB2Props) {
           {/* User Input Display */}
           {userSequence.length > 0 && (
             <div className="mb-4">
-              <p className="text-sm text-gray-600 mb-2">Tu secuencia:</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-gray-600">Tu secuencia:</p>
+                <button
+                  type="button"
+                  onClick={() => setShowVisualHints(prev => !prev)}
+                  className="text-sm text-purple-600 hover:text-purple-800"
+                >
+                  {showVisualHints ? 'Ocultar pistas visuales' : 'Mostrar pistas visuales'}
+                </button>
+              </div>
               <div className="flex justify-center gap-2">
-                {userSequence.map((sound, index) => (
-                  <div
-                    key={index}
-                    className="text-3xl p-2 bg-blue-100 rounded-lg border-2 border-blue-300"
-                  >
-                    {seqData.icons[sound]}
-                  </div>
-                ))}
+                {showVisualHints ? (
+                  userSequence.map((sound, index) => (
+                    <div
+                      key={index}
+                      className="text-3xl p-2 bg-blue-100 rounded-lg border-2 border-blue-300"
+                    >
+                      {seqData.icons[sound]}
+                    </div>
+                  ))
+                ) : (
+                  userSequence.map((_, index) => (
+                    <div
+                      key={index}
+                      className="w-10 h-10 flex items-center justify-center text-sm font-semibold bg-blue-100 rounded-lg border-2 border-blue-300"
+                    >
+                      {index + 1}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}

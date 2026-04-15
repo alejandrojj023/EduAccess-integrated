@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Volume2, VolumeX, RotateCcw, CheckCircle, XCircle } from 'lucide-react';
+import { getAudioManager } from '@/lib/audio-utils';
 
 interface ActivityB1Props {
   onComplete: (score: number, maxScore: number, errors: number) => void;
@@ -13,45 +14,72 @@ const QUESTIONS = [
     correctImage: "🐱",
     options: ["🐱", "🐶", "🐭", "🐹"],
     soundName: "gato",
+    description: "la palabra 'Gato'",
     hasNoise: false,
-    correctIndex: 0
+    correctIndex: 0 // Will be randomized
   },
   {
     correctImage: "🚗",
     options: ["🚗", "🚕", "🚌", "🚙"],
     soundName: "auto",
+    description: "la palabra 'Automóvil'",
     hasNoise: false,
-    correctIndex: 0
+    correctIndex: 0 // Will be randomized
   },
   {
     correctImage: "🌊",
     options: ["🌊", "💧", "🌧️", "⛈️"],
     soundName: "olas",
-    hasNoise: true,
-    correctIndex: 0
+    description: "la palabra 'Olas'",
+    hasNoise: false,
+    correctIndex: 0 // Will be randomized
   },
   {
     correctImage: "🔔",
     options: ["🔔", "📢", "📣", "🎺"],
     soundName: "campana",
-    hasNoise: true,
-    correctIndex: 0
+    description: "la palabra 'Campana'",
+    hasNoise: false,
+    correctIndex: 0 // Will be randomized
   },
   {
     correctImage: "🍎",
     options: ["🍎", "🍊", "🍋", "🍌"],
     soundName: "manzana",
+    description: "la palabra 'Manzana'",
     hasNoise: false,
-    correctIndex: 0
+    correctIndex: 0 // Will be randomized
   },
   {
     correctImage: "🎵",
     options: ["🎵", "🎶", "🎤", "🎸"],
     soundName: "musica",
-    hasNoise: true,
-    correctIndex: 0
+    description: "la palabra 'Música'",
+    hasNoise: false,
+    correctIndex: 0 // Will be randomized
   }
 ];
+
+// Function to shuffle array and return shuffled version with correct index
+function shuffleOptions(question: typeof QUESTIONS[0]) {
+  const shuffledOptions = [...question.options];
+  const correctImage = question.correctImage;
+  
+  // Fisher-Yates shuffle
+  for (let i = shuffledOptions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledOptions[i], shuffledOptions[j]] = [shuffledOptions[j], shuffledOptions[i]];
+  }
+  
+  // Find new index of correct image
+  const correctIndex = shuffledOptions.indexOf(correctImage);
+  
+  return {
+    ...question,
+    options: shuffledOptions,
+    correctIndex
+  };
+}
 
 export function ActivityB1({ onComplete, onAudioIssue }: ActivityB1Props) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -60,35 +88,72 @@ export function ActivityB1({ onComplete, onAudioIssue }: ActivityB1Props) {
   const [answers, setAnswers] = useState<number[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [attempts, setAttempts] = useState(0);
+  const [shuffledQuestions, setShuffledQuestions] = useState<typeof QUESTIONS>([]);
+
+  // Shuffle questions on mount
+  useEffect(() => {
+    const shuffled = QUESTIONS.map(shuffleOptions);
+    setShuffledQuestions(shuffled);
+  }, []);
+
+  // Auto-play sound when question changes
+  useEffect(() => {
+    if (shuffledQuestions.length === 0) return; // Wait for questions to be shuffled
+    
+    const autoPlaySound = async () => {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      setIsPlaying(true);
+      try {
+        const audioManager = getAudioManager();
+        await audioManager.playSound(shuffledQuestions[currentQuestion].soundName);
+      } catch (error) {
+        console.error('Error auto-playing sound:', error);
+      } finally {
+        setIsPlaying(false);
+      }
+    };
+    
+    if (!showFeedback) {
+      autoPlaySound();
+    }
+  }, [currentQuestion, showFeedback, shuffledQuestions]);
 
   useEffect(() => {
+    if (shuffledQuestions.length === 0) return; // Wait for questions to be shuffled
+    
     if (showFeedback) {
       const timer = setTimeout(() => {
-        if (currentQuestion < QUESTIONS.length - 1) {
+        if (currentQuestion < shuffledQuestions.length - 1) {
           setCurrentQuestion(prev => prev + 1);
           setSelectedAnswer(null);
           setShowFeedback(false);
         } else {
           // Calculate results
           const correctAnswers = answers.filter((answer, index) => 
-            answer === QUESTIONS[index].correctIndex
-          ).length + (selectedAnswer === QUESTIONS[currentQuestion].correctIndex ? 1 : 0);
+            answer === shuffledQuestions[index].correctIndex
+          ).length + (selectedAnswer === shuffledQuestions[currentQuestion].correctIndex ? 1 : 0);
           
-          const errors = QUESTIONS.length - correctAnswers;
-          onComplete(correctAnswers, QUESTIONS.length, errors);
+          const errors = shuffledQuestions.length - correctAnswers;
+          onComplete(correctAnswers, shuffledQuestions.length, errors);
         }
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [showFeedback, currentQuestion, answers, selectedAnswer, onComplete]);
+  }, [showFeedback, currentQuestion, answers, selectedAnswer, onComplete, shuffledQuestions]);
 
-  const playSound = () => {
+  const playSound = async () => {
+    if (shuffledQuestions.length === 0) return;
+    
     setIsPlaying(true);
     
-    // Simulate sound playing
-    setTimeout(() => {
+    try {
+      const audioManager = getAudioManager();
+      await audioManager.playSound(shuffledQuestions[currentQuestion].soundName);
+    } catch (error) {
+      console.error('Error playing sound:', error);
+    } finally {
       setIsPlaying(false);
-    }, 2000);
+    }
   };
 
   const handleAnswer = (answerIndex: number) => {
@@ -102,31 +167,39 @@ export function ActivityB1({ onComplete, onAudioIssue }: ActivityB1Props) {
     setAnswers(newAnswers);
   };
 
-  const question = QUESTIONS[currentQuestion];
+  if (shuffledQuestions.length === 0) {
+    return <div className="flex justify-center items-center h-64">
+      <div className="text-lg">Cargando actividad...</div>
+    </div>;
+  }
+
+  const question = shuffledQuestions[currentQuestion];
   const isCorrect = selectedAnswer === question.correctIndex;
 
-  
   return (
     <div className="text-center">
       {/* Progress */}
       <div className="mb-6">
         <div className="flex justify-between text-sm text-gray-600 mb-2">
-          <span>Pregunta {currentQuestion + 1} de {QUESTIONS.length}</span>
-          <span>{Math.round(((currentQuestion + 1) / QUESTIONS.length) * 100)}%</span>
+          <span>Pregunta {currentQuestion + 1} de {shuffledQuestions.length}</span>
+          <span>{Math.round(((currentQuestion + 1) / shuffledQuestions.length) * 100)}%</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div 
             className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${((currentQuestion + 1) / QUESTIONS.length) * 100}%` }}
+            style={{ width: `${((currentQuestion + 1) / shuffledQuestions.length) * 100}%` }}
           />
         </div>
       </div>
 
       {/* Question */}
       <div className="mb-8">
-        <h3 className="text-xl font-bold text-gray-800 mb-6">
+        <h3 className="text-xl font-bold text-gray-800 mb-2">
           Escucha el sonido y selecciona la imagen correcta
         </h3>
+        <p className="text-sm text-gray-600 mb-6">
+          Vas a escuchar {question.description}
+        </p>
         
         {question.hasNoise && (
           <div className="bg-yellow-100 border-2 border-yellow-300 rounded-lg p-3 mb-4">

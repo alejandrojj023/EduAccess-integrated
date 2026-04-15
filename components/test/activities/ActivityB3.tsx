@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Volume2, VolumeX, RotateCcw, CheckCircle, XCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import { getAudioManager } from '@/lib/audio-utils';
 
 interface ActivityB3Props {
   onComplete: (score: number, maxScore: number, errors: number) => void;
@@ -48,6 +49,18 @@ export function ActivityB3({ onComplete, onAudioIssue }: ActivityB3Props) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [answers, setAnswers] = useState<boolean[]>([]);
   const [attempts, setAttempts] = useState(0);
+  const [hasPlayedPattern, setHasPlayedPattern] = useState(false);
+
+  // Auto-play pattern when it loads
+  useEffect(() => {
+    if (!hasPlayedPattern && !isPlaying && !showFeedback) {
+      const timer = setTimeout(() => {
+        playPattern();
+        setHasPlayedPattern(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [currentPattern, hasPlayedPattern, isPlaying, showFeedback]);
 
   useEffect(() => {
     if (showFeedback) {
@@ -56,6 +69,7 @@ export function ActivityB3({ onComplete, onAudioIssue }: ActivityB3Props) {
           setCurrentPattern(prev => prev + 1);
           setSelectedAnswer([]);
           setShowFeedback(false);
+          setHasPlayedPattern(false);
         } else {
           // Calculate results
           const correctAnswers = answers.filter(Boolean).length;
@@ -67,21 +81,18 @@ export function ActivityB3({ onComplete, onAudioIssue }: ActivityB3Props) {
     }
   }, [showFeedback, currentPattern, answers, onComplete]);
 
-  const playPattern = () => {
+  const playPattern = async () => {
     setIsPlaying(true);
     const pattern = PATTERNS[currentPattern];
     
-    // Simulate playing the pattern
-    pattern.pattern.forEach((direction, index) => {
-      setTimeout(() => {
-        console.log(`Playing ${direction} sound`);
-        // Sound would play here
-      }, index * 1000);
-    });
-
-    setTimeout(() => {
+    try {
+      const audioManager = getAudioManager();
+      await audioManager.playPitchPattern(pattern.pattern as Array<'up' | 'down'>);
+    } catch (error) {
+      console.error('Error playing pattern:', error);
+    } finally {
       setIsPlaying(false);
-    }, pattern.pattern.length * 1000 + 500);
+    }
   };
 
   const handleDirectionClick = (direction: 'up' | 'down') => {

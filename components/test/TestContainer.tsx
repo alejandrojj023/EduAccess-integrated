@@ -13,6 +13,8 @@ export function TestContainer() {
   const {
     state,
     startTest,
+    startVisualTest,
+    startAuditivoTest,
     nextActivity,
     addResult,
     completeTest,
@@ -25,7 +27,7 @@ export function TestContainer() {
     completeTest();
     
     // Apply accessibility settings based on recommendations
-    summary.recommendations.forEach(recommendation => {
+    summary.recommendations.forEach((recommendation: string) => {
       if (recommendation === 'ALTA_VISIBILIDAD') {
         document.documentElement.classList.add('high-contrast');
         document.documentElement.style.fontSize = '18px';
@@ -40,7 +42,11 @@ export function TestContainer() {
   const renderCurrentStep = () => {
     switch (state.currentStep) {
       case 'intro':
-        return <TestIntro onStart={startTest} />;
+        return <TestIntro 
+          onStart={startTest} 
+          onStartVisual={startVisualTest}
+          onStartAuditivo={startAuditivoTest}
+        />;
       
       case 'visual':
         return (
@@ -77,7 +83,11 @@ export function TestContainer() {
         return <TestCompleted onRestart={resetTest} />;
       
       default:
-        return <TestIntro onStart={startTest} />;
+        return <TestIntro 
+          onStart={startTest} 
+          onStartVisual={startVisualTest}
+          onStartAuditivo={startAuditivoTest}
+        />;
     }
   };
 

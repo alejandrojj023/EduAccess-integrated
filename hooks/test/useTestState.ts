@@ -15,6 +15,7 @@ interface TestState {
   moduleStartTime: number;
   activityStartTime: number;
   isCompleted: boolean;
+  modulesToRun: ('visual' | 'auditivo')[]; // Track which modules to run
 }
 
 export function useTestState() {
@@ -26,7 +27,8 @@ export function useTestState() {
     startTime: Date.now(),
     moduleStartTime: 0,
     activityStartTime: 0,
-    isCompleted: false
+    isCompleted: false,
+    modulesToRun: ['visual', 'auditivo']
   });
 
   const startTest = useCallback(() => {
@@ -37,7 +39,34 @@ export function useTestState() {
       currentActivity: 0,
       startTime: Date.now(),
       moduleStartTime: Date.now(),
-      activityStartTime: Date.now()
+      activityStartTime: Date.now(),
+      modulesToRun: ['visual', 'auditivo']
+    }));
+  }, []);
+
+  const startVisualTest = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      currentStep: 'visual',
+      currentModule: 'visual',
+      currentActivity: 0,
+      startTime: Date.now(),
+      moduleStartTime: Date.now(),
+      activityStartTime: Date.now(),
+      modulesToRun: ['visual']
+    }));
+  }, []);
+
+  const startAuditivoTest = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      currentStep: 'auditivo',
+      currentModule: 'auditivo',
+      currentActivity: 0,
+      startTime: Date.now(),
+      moduleStartTime: Date.now(),
+      activityStartTime: Date.now(),
+      modulesToRun: ['auditivo']
     }));
   }, []);
 
@@ -46,14 +75,25 @@ export function useTestState() {
       const nextActivity = prev.currentActivity + 1;
       
       if (prev.currentModule === 'visual' && nextActivity >= 3) {
-        return {
-          ...prev,
-          currentStep: 'auditivo',
-          currentModule: 'auditivo',
-          currentActivity: 0,
-          moduleStartTime: Date.now(),
-          activityStartTime: Date.now()
-        };
+        // Check if auditivo is in the modules to run
+        if (prev.modulesToRun.includes('auditivo')) {
+          return {
+            ...prev,
+            currentStep: 'auditivo',
+            currentModule: 'auditivo',
+            currentActivity: 0,
+            moduleStartTime: Date.now(),
+            activityStartTime: Date.now()
+          };
+        } else {
+          // No more modules, go to results
+          return {
+            ...prev,
+            currentStep: 'results',
+            currentModule: null,
+            currentActivity: 0
+          };
+        }
       }
       
       if (prev.currentModule === 'auditivo' && nextActivity >= 3) {
@@ -97,7 +137,8 @@ export function useTestState() {
       startTime: Date.now(),
       moduleStartTime: 0,
       activityStartTime: 0,
-      isCompleted: false
+      isCompleted: false,
+      modulesToRun: ['visual', 'auditivo']
     });
   }, []);
 
@@ -112,6 +153,8 @@ export function useTestState() {
   return {
     state,
     startTest,
+    startVisualTest,
+    startAuditivoTest,
     nextActivity,
     addResult,
     completeTest,
