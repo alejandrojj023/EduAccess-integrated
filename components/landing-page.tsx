@@ -207,6 +207,16 @@ export function LandingPage({ onStudentLogin, onTeacherLogin }: LandingPageProps
                     />
                   </button>
                 </div>
+
+                <div className="mt-4 text-center">
+                  <a
+                    href="/test"
+                    className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+                  >
+                    <Accessibility className="w-4 h-4" />
+                    Tomar test de accesibilidad
+                  </a>
+                </div>
                 
                 <div className="mt-6 flex justify-center">
                   <img 
@@ -237,7 +247,7 @@ export function LandingPage({ onStudentLogin, onTeacherLogin }: LandingPageProps
                 ¿Qué retos puedes encontrar aquí?
               </h2>
               <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-                Siete retos distintos: cada uno con su color para encontrarlo fácil y pasos claros.
+                Siete ejercicios distintos: cada uno con su color para encontrarlo fácil y pasos claros.
               </p>
             </header>
 
