@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate Educational Image</title>
+</head>
+<body>
+    <h1>Generating AI Image...</h1>
+    <div id="image-container"></div>
+    
+    <script src="https://js.puter.com/v2/"></script>
+    <script>
+        puter.ai.txt2img("Colorful cartoon illustration of diverse elementary school students and teacher learning together in a modern classroom, with books, computers and educational games, bright and friendly style, for children aged 6-9, educational technology theme")
+        .then(imageElement => {
+            document.getElementById('image-container').appendChild(imageElement);
+            
+            // Convert the generated image to a downloadable format
+            setTimeout(() => {
+                const img = imageElement.querySelector('img');
+                if (img) {
+                    // Create a download link
+                    const link = document.createElement('a');
+                    link.download = 'educational-image.webp';
+                    link.href = img.src;
+                    link.textContent = 'Download Image';
+                    document.body.appendChild(link);
+                }
+            }, 2000);
+        })
+        .catch(error => {
+            console.error('Error generating image:', error);
+            document.body.innerHTML += '<p>Error generating image. Please try again.</p>';
+        });
+    </script>
+</body>
+</html>

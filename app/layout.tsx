@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Nunito } from 'next/font/google'
+import { Nunito, Source_Serif_4 } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
@@ -8,6 +8,13 @@ const nunito = Nunito({
   weight: ["400", "500", "600", "700", "800"],
   variable: "--font-nunito"
 });
+
+const sourceSerif = Source_Serif_4({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  variable: "--font-source-serif",
+  display: "swap",
+})
 
 export const metadata: Metadata = {
   title: 'EduAccess - Plataforma Educativa Accesible',
@@ -38,7 +45,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${nunito.variable} font-sans antialiased`}>
+      <body className={`${nunito.variable} ${sourceSerif.variable} font-sans antialiased`}>
         {children}
         <Analytics />
       </body>

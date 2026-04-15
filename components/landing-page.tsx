@@ -1,11 +1,10 @@
 "use client"
 
-import { useState } from "react"
 import {
   BookOpen, GraduationCap, Users,
-  Volume2, Eye, Type, Sparkles, ChevronRight,
+  Volume2, Eye, Type, Sparkles, ChevronRight, Star,
   ImageIcon, ArrowUpDown, CheckSquare, Mic, PenLine, Search,
-  Gamepad2, BarChart3, Heart, Star, Settings, Accessibility,
+  Gamepad2, BarChart3, Heart, Accessibility,
 } from "lucide-react"
 import {
   Accordion,
@@ -18,46 +17,44 @@ import { SpeakableText, useSpeakOnHover } from "@/components/ui/accessible-toolt
 /* ─────────────────────────────────── DATA ─────────────────────────────────── */
 
 const ACTIVITY_TYPES = [
-  { Icon: ImageIcon,    color: "bg-chart-1",   name: "Identificación de imágenes",   desc: "Observa la imagen y selecciona la respuesta correcta" },
-  { Icon: Volume2,      color: "bg-chart-2",   name: "Reconocimiento de sonidos",    desc: "Escucha y arma la oración con las palabras correctas" },
-  { Icon: ArrowUpDown,  color: "bg-chart-3",   name: "Ordenar secuencias",           desc: "Arrastra las imágenes para ordenar la historia" },
-  { Icon: CheckSquare,  color: "bg-chart-4",   name: "Opción múltiple",              desc: "Selecciona la respuesta correcta entre varias opciones" },
-  { Icon: Mic,          color: "bg-primary",   name: "Respuesta por voz",            desc: "Escucha la pregunta y responde hablando" },
-  { Icon: PenLine,      color: "bg-teal-500",  name: "Completar oración",            desc: "Observa el patrón y completa con la palabra correcta" },
-  { Icon: Search,       color: "bg-pink-500",  name: "Sopa de letras",               desc: "Encuentra las palabras ocultas en la cuadrícula" },
+  { Icon: ImageIcon,    color: "bg-chart-1",   ring: "ring-chart-1/20",   name: "Identificación de imágenes",   desc: "Observa la imagen y selecciona la respuesta correcta" },
+  { Icon: Volume2,      color: "bg-chart-2",   ring: "ring-chart-2/20",   name: "Reconocimiento de sonidos",    desc: "Escucha y arma la oración con las palabras correctas" },
+  { Icon: ArrowUpDown,  color: "bg-chart-3",   ring: "ring-chart-3/20",   name: "Ordenar secuencias",           desc: "Arrastra las imágenes para ordenar la historia" },
+  { Icon: CheckSquare,  color: "bg-chart-4",   ring: "ring-chart-4/20",   name: "Opción múltiple",              desc: "Selecciona la respuesta correcta entre varias opciones" },
+  { Icon: Mic,          color: "bg-primary",   ring: "ring-primary/20",   name: "Respuesta por voz",            desc: "Escucha la pregunta y responde hablando" },
+  { Icon: PenLine,      color: "bg-teal-500",  ring: "ring-teal-500/20",  name: "Completar oración",            desc: "Observa el patrón y completa con la palabra correcta" },
+  { Icon: Search,       color: "bg-pink-500",  ring: "ring-pink-500/20",  name: "Sopa de letras",               desc: "Encuentra las palabras ocultas en la cuadrícula" },
 ]
 
 const BENEFITS = [
-  { Icon: BookOpen,      title: "Diseño Universal para el Aprendizaje", desc: "Currículo sin barreras que se adapta a cada estudiante" },
-  { Icon: Volume2,       title: "Lectura por voz integrada",            desc: "Todo el contenido puede ser escuchado con un clic" },
-  { Icon: Gamepad2,      title: "Actividades interactivas",             desc: "7 tipos de actividades que hacen el aprendizaje divertido" },
-  { Icon: BarChart3,     title: "Seguimiento de alumnos",               desc: "Ver cuando un alumno completa una lección y métricas generales." },
-  { Icon: Heart,         title: "Evaluación sin frustración",           desc: "Sistema de estrellas que premia el esfuerzo, no castiga el error" },
-  { Icon: Accessibility, title: "Accesibilidad total",                  desc: "Alto contraste, texto ajustable e interfaz simplificada" },
-  { Icon: Star,          title: "Gamificación motivadora",              desc: "5 niveles, estrellas y rachas que mantienen la motivación" },
-  { Icon: Settings,      title: "Personalización por alumno",           desc: "Cada estudiante configura su experiencia según sus necesidades" },
+  { Icon: BookOpen,      title: "Aprende a tu ritmo",           desc: "Lecciones claras para 1.º a 3.º de primaria, sin prisas." },
+  { Icon: Volume2,       title: "Te lo leemos en voz alta",     desc: "Instrucciones y textos que puedes escuchar cuando quieras." },
+  { Icon: Gamepad2,      title: "Juegos que enseñan",           desc: "Varias actividades para leer, escuchar, ordenar y más." },
+  { Icon: BarChart3,     title: "Todo claro para docentes",     desc: "Ve el avance y organiza cursos sin complicaciones." },
+  { Icon: Heart,         title: "Estrellas que animan",         desc: "Premiamos el esfuerzo: practicar también cuenta." },
+  { Icon: Accessibility, title: "Tu pantalla, a tu manera",   desc: "Alto contraste, texto más grande y ayudas visibles." },
 ]
 
 const FAQS = [
   {
     q: "¿Qué es EduAccess?",
-    a: "EduAccess es una plataforma educativa web diseñada para niños de primero a tercero de primaria. Integra herramientas de accesibilidad como lectura por voz, alto contraste y texto ajustable para que todos los estudiantes puedan aprender sin barreras.",
+    a: "Es una página para aprender en primaria con juegos, voz y letras grandes. Está hecha para que todos puedan usarla.",
   },
   {
-    q: "¿Para qué edades está diseñado?",
-    a: "Está diseñado para niños de 6 a 9 años (primero, segundo y tercer grado de primaria), con especial atención a estudiantes con baja visión y Trastorno del Procesamiento Auditivo Central (TPAC).",
+    q: "¿Para qué edades es?",
+    a: "Para niñas y niños de unos 6 a 9 años (1.º, 2.º y 3.º de primaria). También ayuda si ves u oyes mejor con apoyos extra.",
   },
   {
-    q: "¿Qué es el Diseño Universal para el Aprendizaje (DUA)?",
-    a: "Es un enfoque pedagógico que busca que el currículo no genere barreras. EduAccess aplica el DUA ofreciendo múltiples formas de representación (texto, voz, imágenes), múltiples formas de acción (clic, arrastrar, hablar) y múltiples formas de motivación (estrellas, niveles, retroalimentación positiva).",
+    q: "¿Puedo usar voz y letras grandes?",
+    a: "Sí. Puedes activar lectura en voz alta, alto contraste y tamaño de texto más grande desde los ajustes de accesibilidad.",
   },
   {
-    q: "¿Cómo se adapta a niños con baja visión o TPAC?",
-    a: "Para baja visión: alto contraste, texto ajustable y fuentes grandes. Para TPAC: lectura por voz integrada, instrucciones auditivas, palabras clave con definiciones instantáneas y actividades que no dependen exclusivamente del canal auditivo.",
+    q: "¿Qué son las estrellas?",
+    a: "Cada lección puede darte estrellas según cómo vaya. Sirven para ver tu avance y motivarte; equivocarse forma parte de aprender.",
   },
   {
-    q: "¿Cómo funciona el sistema de estrellas y niveles?",
-    a: "Cada lección completada otorga de 0 a 5 estrellas según el rendimiento. Las estrellas se acumulan y desbloquean 5 niveles: Explorador, Aprendiz, Aventurero, Experto y Maestro. El sistema premia el esfuerzo y la persistencia, no castiga el error.",
+    q: "¿Qué significa que siga el DUA?",
+    a: "Significa que hay más de una forma de ver, escuchar y responder, para que nadie se quede fuera por cómo aprende mejor.",
   },
 ]
 
@@ -69,234 +66,283 @@ interface LandingPageProps {
 }
 
 export function LandingPage({ onStudentLogin, onTeacherLogin }: LandingPageProps) {
-  const [isPaused, setIsPaused] = useState(false)
-  const speakStudent = useSpeakOnHover("Soy Estudiante. Accede a tus cursos, actividades y sigue tu progreso.")
-  const speakTeacher = useSpeakOnHover("Soy Docente. Crea cursos, gestiona lecciones y ve el avance de tus alumnos.")
+  const speakStudent = useSpeakOnHover(
+    "Soy estudiante. Entra para ver tus lecciones, jugar actividades y ganar estrellas.",
+  )
+  const speakTeacher = useSpeakOnHover(
+    "Soy docente. Entra para crear cursos, lecciones y ver el avance de tus alumnos.",
+  )
 
   return (
-    <div className="min-h-screen bg-background relative overflow-x-hidden flex flex-col">
+    <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-chart-2/12 via-background to-chart-3/10"
+      />
+      <div aria-hidden="true" className="pointer-events-none fixed -top-20 right-[-10%] -z-10 h-56 w-56 rounded-full bg-accent/25 blur-3xl" />
+      <div aria-hidden="true" className="pointer-events-none fixed top-1/3 left-[-5%] -z-10 h-48 w-48 rounded-full bg-primary/15 blur-3xl" />
 
-      {/* ── Decorative background blobs ──────────────────── */}
-      <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute -bottom-40 -right-40 w-[500px] h-[500px] rounded-full bg-primary/8 blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full bg-primary/5 blur-2xl" />
-      </div>
-
-      {/* ── Top bar ───────────────────────────────────────── */}
-      <header className="relative z-10 flex justify-start items-center px-6 py-4">
-        <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card/80 px-4 py-3 shadow-sm backdrop-blur-xl">
-          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shadow-sm bg-[#008e92]">
-            <img src="/2.svg" alt="EduAccess logo" className="w-full h-full object-cover" aria-hidden="true" />
+      <header className="sticky top-0 z-50 border-b border-border/60 bg-background/85 backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-6xl items-center px-4 sm:h-16 sm:px-6">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-[#008e92] shadow-md ring-2 ring-chart-2/35">
+              <img src="/2.svg" alt="" className="h-full w-full object-cover" width={40} height={40} />
+            </div>
+            <span className="text-lg font-bold tracking-tight text-foreground">EduAccess</span>
           </div>
-          <span className="font-bold text-foreground text-lg tracking-tight">EduAccess</span>
         </div>
       </header>
 
-      {/* ── Hero ──────────────────────────────────────────── */}
-      <main className="relative z-10 flex flex-col items-center justify-center px-4 pb-16 pt-4">
+      <main id="contenido-principal" className="relative">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:py-20">
+          <div className="grid gap-12 lg:grid-cols-2 lg:items-start lg:gap-16">
+            {/* Columna valor */}
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/30 px-3 py-1 text-sm font-semibold text-accent-foreground">
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                  Para primaria
+                </span>
+                <span className="text-sm font-medium text-primary">Accesible y divertida</span>
+              </div>
+              <h1 className="font-serif mt-4 text-[2rem] font-semibold leading-[1.15] tracking-tight text-foreground text-balance sm:text-5xl lg:text-[2.85rem]">
+                Aprender también puede ser{" "}
+                <span className="text-primary">¡genial!</span>
+              </h1>
+              <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
+                Juegos de lectura y actividades para 1.º a 3.º grado: voz, colores claros y letras grandes cuando las necesitas. Los docentes tienen todo a la mano para acompañar el avance.
+              </p>
 
-        {/* Hero logo */}
-        <div className="flex flex-col items-center mb-10">
-          <div className="relative mb-6">
-            <div className="absolute inset-0 bg-primary/20 rounded-[2rem] blur-xl scale-110" aria-hidden="true" />
-            <div className="relative w-28 h-28 rounded-[2rem] overflow-hidden flex items-center justify-center shadow-[0_36px_80px_rgba(0,0,0,0.16)] bg-[#008e92]">
-              <img src="/2.svg" alt="EduAccess logo" className="w-full h-full object-cover" aria-hidden="true" />
+              <div
+                className="mt-6 flex flex-wrap gap-2.5"
+                aria-label="Herramientas de accesibilidad"
+              >
+                {[
+                  { Icon: Volume2, label: "Te leemos en voz", className: "bg-chart-1/15 border-chart-1/25 text-foreground" },
+                  { Icon: Eye, label: "Alto contraste", className: "bg-chart-4/12 border-chart-4/25 text-foreground" },
+                  { Icon: Type, label: "Texto más grande", className: "bg-chart-3/15 border-chart-3/25 text-foreground" },
+                  { Icon: Sparkles, label: "Pantalla amigable", className: "bg-chart-2/20 border-chart-2/30 text-foreground" },
+                ].map(({ Icon, label, className }) => (
+                  <span
+                    key={label}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm font-semibold shadow-sm ${className}`}
+                  >
+                    <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                    {label}
+                  </span>
+                ))}
+              </div>
+
+              <div
+                className="relative mt-10 hidden overflow-hidden rounded-3xl border-2 border-primary/15 bg-gradient-to-br from-primary/10 via-card to-accent/15 p-8 shadow-sm lg:block"
+                aria-hidden="true"
+              >
+                <Star className="absolute right-4 top-4 h-6 w-6 fill-chart-2 text-chart-2/90" />
+                <Star className="absolute bottom-4 left-1 h-5 w-5 fill-accent text-accent/80" />
+                <BookOpen className="absolute -right-4 -top-4 h-36 w-36 text-primary/10" />
+                <div className="relative z-10 max-w-md">
+                  <p className="font-serif text-xl font-semibold leading-snug text-foreground drop-shadow-sm">
+                    Aquí el esfuerzo cuenta: ganas estrellas, subes de nivel y aprendes a tu ritmo.
+                  </p>
+                  <p className="mt-3 text-sm font-medium text-accent-foreground drop-shadow-sm">
+                    Sin prisas, con apoyo cuando lo pides
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <h1 className="text-5xl sm:text-6xl font-black text-foreground tracking-tight text-center">
-            EduAccess
-          </h1>
-          <p className="text-muted-foreground text-lg mt-3 text-center max-w-sm leading-relaxed">
-            Plataforma educativa diseñada para <span className="text-primary font-semibold">todos</span>,
-            con herramientas de accesibilidad integradas
-          </p>
+            {/* Columna acceso */}
+            <div className="lg:sticky lg:top-24">
+              <div className="rounded-3xl border-2 border-primary/15 bg-card/95 p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)] sm:p-8">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-foreground">¡Entra y juega a aprender!</h2>
+                  <span className="hidden sm:inline-flex" aria-hidden="true">
+                    <Star className="h-5 w-5 fill-chart-2 text-chart-2" />
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">Toca tu rol (estudiante o docente).</p>
 
-          {/* Feature pills */}
-          <div className="flex flex-wrap gap-2 mt-5 justify-center" aria-label="Características de accesibilidad">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20">
-              <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
-              Lectura por Voz
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20">
-              <Eye className="w-3.5 h-3.5" aria-hidden="true" />
-              Alto Contraste
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20">
-              <Type className="w-3.5 h-3.5" aria-hidden="true" />
-              Texto Ajustable
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20">
-              <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
-              Interfaz Adaptable
-            </span>
+                <div className="mt-6 flex flex-col gap-3" role="group" aria-label="Elige cómo entrar">
+                  <button
+                    type="button"
+                    onClick={onStudentLogin}
+                    {...speakStudent}
+                    className="group flex w-full min-h-[3.5rem] items-center justify-between gap-4 rounded-2xl border-2 border-chart-3/40 bg-chart-3/10 px-4 py-4 text-left transition-all hover:border-chart-3/60 hover:bg-chart-3/15 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-colors"
+                    aria-label="Soy estudiante: entrar a mis lecciones"
+                  >
+                    <div className="flex min-w-0 flex-1 items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-chart-3 text-white shadow-sm">
+                        <GraduationCap className="h-5 w-5" aria-hidden="true" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-bold leading-snug text-foreground">Soy estudiante</div>
+                        <div className="text-sm text-muted-foreground">Mis lecciones, retos y estrellas</div>
+                      </div>
+                    </div>
+                    <ChevronRight
+                      className="h-5 w-5 shrink-0 text-chart-3 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
+                      aria-hidden="true"
+                    />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onTeacherLogin}
+                    {...speakTeacher}
+                    className="group flex w-full min-h-[3.5rem] items-center justify-between gap-4 rounded-2xl border-2 border-chart-4/40 bg-chart-4/10 px-4 py-4 text-left transition-all hover:border-chart-4/55 hover:bg-chart-4/15 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-colors"
+                    aria-label="Soy docente: entrar a gestionar cursos"
+                  >
+                    <div className="flex min-w-0 flex-1 items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-chart-4 text-white shadow-sm">
+                        <Users className="h-5 w-5" aria-hidden="true" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-bold leading-snug text-foreground">Soy docente</div>
+                        <div className="text-sm text-muted-foreground">Cursos, lecciones y tu clase</div>
+                      </div>
+                    </div>
+                    <ChevronRight
+                      className="h-5 w-5 shrink-0 text-chart-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </div>
+                
+                <div className="mt-6 flex justify-center">
+                  <img 
+                    src="/classroom.webp" 
+                    alt="Aula con estudiantes y docentes" 
+                    className="h-auto max-h-40 w-full rounded-2xl object-cover shadow-lg ring-2 ring-primary/10"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Role cards */}
-        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-xl" role="group" aria-label="Selecciona tu rol para ingresar">
-          <button
-            onClick={onStudentLogin}
-            {...speakStudent}
-            className="group flex-1 relative overflow-hidden rounded-[2rem] border border-border bg-card/95 hover:border-primary/50 hover:shadow-[0_25px_60px_rgba(15,23,42,0.12)] transition-all duration-300 active:scale-[0.98] cursor-pointer text-left"
-            aria-label="Ingresar como estudiante"
-          >
-            <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="relative p-7 flex flex-col gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 border-2 border-primary/20 flex items-center justify-center group-hover:bg-primary group-hover:border-primary transition-all duration-300 shadow-sm">
-                <GraduationCap className="w-7 h-7 text-primary group-hover:text-primary-foreground transition-colors duration-300" aria-hidden="true" />
+        <section
+          className="border-t border-border/60 bg-gradient-to-b from-muted/50 to-muted/25 py-14 sm:py-20"
+          aria-labelledby="actividades-heading"
+        >
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <header className="mb-10 sm:mb-12">
+              <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
+                <Star className="h-6 w-6 fill-chart-2 text-chart-2" />
+                <Star className="h-4 w-4 fill-primary/80 text-primary" />
               </div>
-              <div>
-                <p className="text-xl font-bold text-foreground">Soy Estudiante</p>
-                <p className="text-muted-foreground text-sm mt-1 leading-relaxed">Accede a tus cursos, actividades y sigue tu progreso</p>
-              </div>
-              <div className="flex items-center gap-1 text-primary text-sm font-semibold mt-auto">
-                Ingresar
-                <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1 duration-200" aria-hidden="true" />
-              </div>
-            </div>
-          </button>
+              <h2
+                id="actividades-heading"
+                className="font-serif mt-3 text-3xl font-semibold tracking-tight text-foreground text-balance sm:text-4xl"
+              >
+                ¿Qué retos puedes encontrar aquí?
+              </h2>
+              <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+                Siete retos distintos: cada uno con su color para encontrarlo fácil y pasos claros.
+              </p>
+            </header>
 
-          <button
-            onClick={onTeacherLogin}
-            {...speakTeacher}
-            className="group flex-1 relative overflow-hidden rounded-[2rem] border border-border bg-card/95 hover:border-primary/50 hover:shadow-[0_25px_60px_rgba(15,23,42,0.12)] transition-all duration-300 active:scale-[0.98] cursor-pointer text-left"
-            aria-label="Ingresar como docente"
-          >
-            <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="relative p-7 flex flex-col gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 border-2 border-primary/20 flex items-center justify-center group-hover:bg-primary group-hover:border-primary transition-all duration-300 shadow-sm">
-                <Users className="w-7 h-7 text-primary group-hover:text-primary-foreground transition-colors duration-300" aria-hidden="true" />
-              </div>
-              <div>
-                <p className="text-xl font-bold text-foreground">Soy Docente</p>
-                <p className="text-muted-foreground text-sm mt-1 leading-relaxed">Crea cursos, gestiona lecciones y ve el avance de tus alumnos</p>
-              </div>
-              <div className="flex items-center gap-1 text-primary text-sm font-semibold mt-auto">
-                Ingresar
-                <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1 duration-200" aria-hidden="true" />
-              </div>
-            </div>
-          </button>
-        </div>
+            <ul
+              className="grid list-none grid-cols-1 gap-5 p-0 sm:grid-cols-2 lg:grid-cols-3 [&>li:last-child]:lg:col-span-full [&>li:last-child]:lg:flex [&>li:last-child]:lg:justify-center [&>li:last-child>article]:lg:max-w-md"
+              role="list"
+            >
+              {ACTIVITY_TYPES.map(({ Icon, color, ring, name, desc }) => (
+                <li key={name} className="min-w-0">
+                  <article className="flex h-full min-h-[180px] flex-col rounded-2xl border-2 border-border/70 bg-card p-5 shadow-sm transition-[box-shadow,transform] duration-200 hover:-translate-y-1 hover:shadow-lg motion-reduce:transform-none motion-reduce:transition-shadow">
+                    <div
+                      className={`mb-3 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${color} shadow-md ring-4 ${ring}`}
+                    >
+                      <Icon className="h-7 w-7 text-white drop-shadow-sm" aria-hidden="true" />
+                    </div>
+                    <h3 className="text-lg font-bold leading-snug text-foreground">{name}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{desc}</p>
+                  </article>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section className="py-14 sm:py-20" aria-labelledby="beneficios-heading">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <header className="mb-10 max-w-2xl sm:mb-12">
+              <p className="inline-flex items-center gap-1.5 rounded-full bg-primary/12 px-3 py-1 text-sm font-bold text-primary">
+                <Heart className="h-3.5 w-3.5 fill-primary/30" aria-hidden="true" />
+                ¿Por qué nos gusta?
+              </p>
+              <h2
+                id="beneficios-heading"
+                className="font-serif mt-3 text-3xl font-semibold tracking-tight text-foreground text-balance sm:text-4xl"
+              >
+                Cosas buenas para ti y para tu clase
+              </h2>
+              <p className="mt-3 text-muted-foreground leading-relaxed sm:text-lg">
+                Menos trabas para aprender y más claridad para quien guía.
+              </p>
+            </header>
+
+            <ul className="grid list-none grid-cols-1 gap-5 p-0 sm:grid-cols-2 lg:grid-cols-3">
+              {BENEFITS.map(({ Icon, title, desc }) => (
+                <li
+                  key={title}
+                  className="rounded-2xl border-2 border-border/60 bg-card p-5 shadow-sm transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-md motion-reduce:transform-none motion-reduce:transition-shadow"
+                >
+                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/12 ring-2 ring-primary/15">
+                    <Icon className="h-6 w-6 text-primary" aria-hidden="true" />
+                  </div>
+                  <h3 className="font-bold leading-snug text-foreground">{title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{desc}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section
+          className="border-t border-border/60 bg-muted/35 py-14 sm:py-20"
+          aria-labelledby="faq-heading"
+        >
+          <div className="mx-auto max-w-2xl px-4 sm:px-6">
+            <header className="mb-8 text-center sm:mb-10">
+              <h2 id="faq-heading" className="font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                Dudas frecuentes
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+                Respuestas sencillas para niños, familias y maestros.
+              </p>
+            </header>
+
+            <Accordion type="multiple" className="w-full rounded-2xl border-2 border-border/70 bg-card px-3 shadow-md sm:px-4">
+              {FAQS.map((faq, i) => (
+                <AccordionItem key={i} value={`faq-${i}`} className="border-border/80 last:border-b-0">
+                  <AccordionTrigger className="py-4 text-left text-[15px] font-medium text-foreground hover:no-underline hover:text-primary [&[data-state=open]]:text-primary">
+                    <SpeakableText as="span" speakText={faq.q}>
+                      {faq.q}
+                    </SpeakableText>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <SpeakableText as="p" speakText={faq.a} className="pb-4 text-sm leading-relaxed text-muted-foreground">
+                      {faq.a}
+                    </SpeakableText>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        </section>
       </main>
 
-      {/* ══════════════════════════════════════════════════════
-          SECCIÓN 1 — Tipos de Actividades (Carrusel)
-      ══════════════════════════════════════════════════════ */}
-      <section className="relative z-10 bg-background py-16 sm:py-20" aria-label="Tipos de actividades">
-        <style>{`
-          @keyframes marquee {
-            from { transform: translateX(0); }
-            to   { transform: translateX(-50%); }
-          }
-        `}</style>
-
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-foreground">Tipos de Actividades</h2>
-            <p className="text-muted-foreground mt-2">Actividades interactivas diseñadas para el aprendizaje accesible</p>
-          </div>
+      <footer className="border-t border-border/60 bg-muted/30 py-10">
+        <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
+          <p className="text-sm font-bold text-foreground">
+            <span className="mr-1.5 inline-block align-middle" aria-hidden="true">
+              <Star className="inline h-4 w-4 fill-chart-2 text-chart-2" />
+            </span>
+            © {new Date().getFullYear()} EduAccess
+          </p>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+            Aprender con apoyo: en la app puedes activar voz, contraste y texto más grande cuando quieras.
+          </p>
         </div>
-
-        {/* Marquee — full width, overflow hidden */}
-        <div
-          className="overflow-hidden"
-          onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
-          onTouchStart={() => setIsPaused(true)}
-          onTouchEnd={() => setIsPaused(false)}
-        >
-          <div
-            className="flex gap-6"
-            style={{
-              width: "max-content",
-              animation: "marquee 35s linear infinite",
-              animationPlayState: isPaused ? "paused" : "running",
-            }}
-          >
-            {/* Render twice for seamless loop */}
-            {[...ACTIVITY_TYPES, ...ACTIVITY_TYPES].map(({ Icon, color, name, desc }, i) => (
-              <div
-                key={i}
-                className="w-[280px] bg-card border border-border rounded-2xl p-6 shadow-sm flex-shrink-0"
-              >
-                <div className={`w-14 h-14 ${color} rounded-xl flex items-center justify-center mb-4`}>
-                  <Icon className="w-7 h-7 text-white" aria-hidden="true" />
-                </div>
-                <p className="font-semibold text-lg text-foreground leading-snug">{name}</p>
-                <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════════════════
-          SECCIÓN 2 — Beneficios (Grid)
-      ══════════════════════════════════════════════════════ */}
-      <section className="relative z-10 bg-muted/30 py-16 sm:py-20" aria-label="Beneficios de EduAccess">
-        <div className="max-w-6xl mx-auto px-4">
-          {/* Heading */}
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground">Beneficios</h2>
-            <p className="text-muted-foreground mt-2 max-w-xl mx-auto">
-              EduAccess es una plataforma diseñada para que todos los niños aprendan sin barreras
-            </p>
-          </div>
-
-          {/* Grid */}
-          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 list-none p-0">
-            {BENEFITS.map(({ Icon, title, desc }) => (
-              <li
-                key={title}
-                className="flex flex-col gap-3 pl-4 border-l-[3px] border-primary"
-              >
-                <div className="w-10 h-10 flex items-center justify-center">
-                  <Icon className="w-10 h-10 text-muted-foreground" aria-hidden="true" />
-                </div>
-                <div>
-                  <p className="font-medium text-base text-foreground leading-snug">{title}</p>
-                  <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{desc}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════════════════
-          SECCIÓN 3 — Preguntas Frecuentes (Acordeón)
-      ══════════════════════════════════════════════════════ */}
-      <section className="relative z-10 bg-background py-16 sm:py-20" aria-label="Preguntas frecuentes">
-        <div className="max-w-3xl mx-auto px-4">
-          {/* Heading */}
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-foreground">Preguntas Frecuentes</h2>
-            <p className="text-muted-foreground mt-2">Todo lo que necesitas saber sobre EduAccess</p>
-          </div>
-
-          <Accordion type="multiple" className="w-full">
-            {FAQS.map((faq, i) => (
-              <AccordionItem key={i} value={`faq-${i}`} className="border-b border-border">
-                <AccordionTrigger className="font-medium text-base text-left text-foreground hover:no-underline hover:text-primary">
-                  <SpeakableText as="span" speakText={faq.q}>{faq.q}</SpeakableText>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <SpeakableText as="p" speakText={faq.a} className="text-foreground/80 text-sm leading-relaxed">
-                    {faq.a}
-                  </SpeakableText>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </div>
-      </section>
-
-      {/* ── Footer ────────────────────────────────────────── */}
-      <footer className="relative z-10 bg-background border-t border-border py-6 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} EduAccess · Plataforma Educativa Accesible
       </footer>
     </div>
   )
