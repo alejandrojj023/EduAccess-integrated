@@ -129,3 +129,8 @@ texto "¡Recupera tu racha hoy!" sin escribir en la DB.
 Helpers: fechaTijuana(), diferenciaDias() en lib/utils.ts.
 Lógica detallada en docs/architecture.md sección Racha.
 
+## El ajuste
+Al dar refresh no se reinicia la leccion asta el inicio ,mantiene lo que ya se a respondido.
+
+## Regra
+Cada vez que realices un ajuste,este juste no debe modificar la logica ya existente.por ejemplo si pido que cambies el color de una actividad ,no lo vas a cambiar a todos.
