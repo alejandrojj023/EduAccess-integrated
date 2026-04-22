@@ -176,12 +176,44 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     loadActivity()
   }, [user, activityId, lessonId])
 
+  // ── Session storage helpers ────────────────────────────────
+  function lessonKey() { return lessonId ? `lesson_progress_${lessonId}` : null }
+
+  function saveLessonProgress(index: number, results: ActivityResult[]) {
+    const key = lessonKey()
+    if (!key) return
+    sessionStorage.setItem(key, JSON.stringify({
+      lessonActIndex: index,
+      activityResults: results,
+      lessonStartTime: lessonStartRef.current,
+    }))
+  }
+
+  function clearLessonProgress() {
+    const key = lessonKey()
+    if (key) sessionStorage.removeItem(key)
+  }
+
+  function savePendingResult(correct: boolean, scoreVal: number, attempts: number) {
+    if (!isLessonMode || !activity) return
+    const tiempoSeg = Math.round((Date.now() - activityStartRef.current) / 1000)
+    const key = lessonKey()
+    if (!key) return
+    try {
+      const raw = sessionStorage.getItem(key)
+      const saved = raw ? JSON.parse(raw) : {}
+      sessionStorage.setItem(key, JSON.stringify({
+        ...saved,
+        pendingResult: { id: activity.id_actividad, correct, score: scoreVal, attempts, tiempoSeg },
+      }))
+    } catch { /* ignore */ }
+  }
+
   async function loadActivity() {
     setPhase("loading")
     setError(null)
     setRetryBanner(null)
     setActAttempts(0)
-    lessonStartRef.current = Date.now()
     activityStartRef.current = Date.now()
 
     if (isLessonMode && lessonId) {
@@ -204,6 +236,53 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
 
       setGlosario((glosarioData as GlosarioEntry[]) ?? [])
       setLessonActivities(filtered)
+
+      // Restore saved progress if exists (refresh mid-lesson)
+      const savedRaw = sessionStorage.getItem(`lesson_progress_${lessonId}`)
+      if (savedRaw) {
+        try {
+          const saved = JSON.parse(savedRaw)
+          const savedIndex = Math.min(saved.lessonActIndex ?? 0, filtered.length - 1)
+          const savedResults: ActivityResult[] = saved.activityResults ?? []
+          lessonStartRef.current = saved.lessonStartTime ?? Date.now()
+
+          if (saved.pendingResult) {
+            // Activity was answered (result shown) but Siguiente not clicked — auto-advance
+            const pr = saved.pendingResult
+            const { data: { session } } = await supabase.auth.getSession()
+            if (session?.access_token) {
+              await fetch("/api/attempts", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+                body: JSON.stringify({ activityId: pr.id, puntaje: pr.score, tiempoSegundos: pr.tiempoSeg }),
+              })
+            }
+            const result: ActivityResult = { id: pr.id, correct: pr.correct, attempts: pr.attempts }
+            const newResults = [...savedResults, result]
+            const nextIndex = savedIndex + 1
+            if (nextIndex >= filtered.length) {
+              clearLessonProgress()
+              await handleLessonComplete(newResults)
+            } else {
+              clearLessonProgress()
+              saveLessonProgress(nextIndex, newResults)
+              setLessonActIndex(nextIndex)
+              setActivityResults(newResults)
+              loadActivityData(filtered[nextIndex])
+            }
+          } else {
+            setLessonActIndex(savedIndex)
+            setActivityResults(savedResults)
+            loadActivityData(filtered[savedIndex])
+          }
+          return
+        } catch {
+          sessionStorage.removeItem(`lesson_progress_${lessonId}`)
+        }
+      }
+
+      // Fresh start
+      lessonStartRef.current = Date.now()
       setLessonActIndex(0)
       setActivityResults([])
       loadActivityData(filtered[0])
@@ -386,6 +465,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
       if (newFound.size === wsPalabras.length) {
         setIsCorrect(true)
         setScore(100)
+        savePendingResult(true, 100, 1)
         setTimeout(() => setPhase("result"), 400)
         speak("¡Felicidades! Encontraste todas las palabras.")
       }
@@ -475,11 +555,13 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     if (correct) {
       setIsCorrect(true)
       setScore(100)
+      savePendingResult(true, 100, 1)
       setPhase("result")
       speak("¡Muy bien! Respuesta correcta.")
     } else if (newAttempts >= 2) {
       setIsCorrect(false)
       setScore(0)
+      savePendingResult(false, 0, newAttempts)
       setPhase("result")
       if (settings.voiceEnabled) speakWord(`La respuesta correcta es ${fillPregunta.respuesta_esperada}`)
     } else {
@@ -556,6 +638,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     if (allCorrect) {
       setIsCorrect(true)
       setScore(100)
+      savePendingResult(true, 100, 1)
       setPhase("result")
       speak("¡Excelente! Ordenaste la secuencia correctamente.")
     } else if (newAttempts >= 2) {
@@ -568,6 +651,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
         setTimeout(() => {
           setIsCorrect(false)
           setScore(0)
+          savePendingResult(false, 0, newAttempts)
           setPhase("result")
           speak("Este es el orden correcto de la secuencia.")
         }, 800)
@@ -616,6 +700,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     setIsCorrect(correct)
     setScore(correct ? 100 : 0)
     if (correct) {
+      savePendingResult(true, 100, 1)
       setPhase("result")
       speak("¡Muy bien! Respuesta correcta.")
     } else {
@@ -651,6 +736,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
       setRetryBanner(null)
       const msg = MENSAJES_CORRECTO[Math.floor(Math.random() * MENSAJES_CORRECTO.length)]
       setResultMessage(msg)
+      savePendingResult(true, 100, actAttempts || 1)
       setPhase("result")
       if (settings.voiceEnabled) speak(msg)
     } else {
@@ -661,6 +747,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
         setScore(0)
         setRetryBanner(null)
         setResultMessage("")
+        savePendingResult(false, 0, newAttempts)
         setPhase("result")
         const correctOp = opciones.find((o) => o.correcta)
         if (settings.voiceEnabled && correctOp) speak(`La respuesta correcta es: ${correctOp.texto}`)
@@ -684,6 +771,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
       setRetryBanner(null)
       const msg = MENSAJES_CORRECTO[Math.floor(Math.random() * MENSAJES_CORRECTO.length)]
       setResultMessage(msg)
+      savePendingResult(true, 100, actAttempts || 1)
       setPhase("result")
       if (settings.voiceEnabled) speak(msg)
     } else {
@@ -694,6 +782,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
         setScore(0)
         setRetryBanner(null)
         setResultMessage("")
+        savePendingResult(false, 0, newAttempts)
         setPhase("result")
         if (settings.voiceEnabled && config?.respuesta_correcta) speak(`La respuesta correcta es: ${config.respuesta_correcta}`)
       } else {
@@ -766,12 +855,14 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     if (nextIndex >= lessonActivities.length) {
       await handleLessonComplete(newResults)
     } else {
+      saveLessonProgress(nextIndex, newResults)
       setLessonActIndex(nextIndex)
       loadActivityData(lessonActivities[nextIndex])
     }
   }
 
   async function handleLessonComplete(results: ActivityResult[]) {
+    clearLessonProgress()
     setPhase("loading")
     const totalSecs = Math.round((Date.now() - lessonStartRef.current) / 1000)
     setLessonElapsedSecs(totalSecs)
@@ -788,12 +879,15 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     if (nextIndex >= lessonActivities.length) {
       await handleLessonComplete(newResults)
     } else {
+      saveLessonProgress(nextIndex, newResults)
       setLessonActIndex(nextIndex)
       loadActivityData(lessonActivities[nextIndex])
     }
   }
 
   async function handleRetryLesson() {
+    clearLessonProgress()
+
     // Increment total_reintentos via admin API (bypasses RLS)
     if (user && lessonId) {
       const { data: { session } } = await supabase.auth.getSession()
@@ -1449,63 +1543,68 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
 
             {/* Word search activity — sopa de letras */}
             {activity?.tipo === "sopa_letras" && wsGrid.length > 0 && (
-              <div className="space-y-5">
-                {/* Word list */}
-                <Card className="border-2">
-                  <CardContent className="p-5">
-                    <p className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
-                      Palabras a encontrar ({wsFoundWords.size}/{wsPalabras.length})
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {wsPalabras.map(word => (
-                        <span
-                          key={word}
-                          className={`px-3 py-1.5 rounded-lg border-2 font-bold text-base transition-all ${wsFoundWords.has(word)
-                              ? "bg-success/10 border-success text-success line-through"
-                              : "bg-muted border-border text-foreground"
-                            }`}
-                        >
-                          {word}
-                        </span>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-                {/* Grid */}
-                <Card className={`border-2 transition-all ${wsWrongFlash ? "border-destructive" : "border-border"}`}>
-                  <CardContent className="p-3 overflow-x-auto">
-                    <div
-                      className="inline-grid gap-0.5"
-                      style={{ gridTemplateColumns: `repeat(${wsGrid[0]?.length ?? 12}, minmax(0, 1fr))` }}
-                      aria-label="Cuadrícula de sopa de letras"
-                    >
-                      {wsGrid.map((rowArr, r) =>
-                        rowArr.map((letter, c) => {
-                          const key = `${r}-${c}`
-                          const isFound = wsFoundCells.has(key)
-                          const isStart = wsStart?.row === r && wsStart?.col === c
-                          return (
-                            <button
-                              key={key}
-                              onClick={() => handleWsCellClick(r, c)}
-                              className={`w-7 h-7 sm:w-8 sm:h-8 text-xs sm:text-sm font-bold rounded flex items-center justify-center transition-all select-none ${isFound
-                                  ? "bg-green-400 text-white"
-                                  : isStart
-                                    ? "bg-primary text-primary-foreground scale-110 z-10 relative"
-                                    : wsWrongFlash
-                                      ? "bg-destructive/20 text-foreground"
-                                      : "bg-muted hover:bg-primary/20 text-foreground"
-                                }`}
-                              aria-label={`Letra ${letter}`}
-                            >
-                              {letter}
-                            </button>
-                          )
-                        })
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+              <div className="space-y-4">
+                {/* Grid + word list side by side */}
+                <div className="flex gap-3 items-start">
+                  {/* Grid */}
+                  <Card className={`border-2 transition-all flex-1 min-w-0 ${wsWrongFlash ? "border-destructive" : "border-border"}`}>
+                    <CardContent className="p-3 flex justify-center overflow-x-auto">
+                      <div
+                        className="inline-grid gap-1"
+                        style={{ gridTemplateColumns: `repeat(${wsGrid[0]?.length ?? 12}, minmax(0, 1fr))` }}
+                        aria-label="Cuadrícula de sopa de letras"
+                      >
+                        {wsGrid.map((rowArr, r) =>
+                          rowArr.map((letter, c) => {
+                            const key = `${r}-${c}`
+                            const isFound = wsFoundCells.has(key)
+                            const isStart = wsStart?.row === r && wsStart?.col === c
+                            return (
+                              <button
+                                key={key}
+                                onClick={() => handleWsCellClick(r, c)}
+                                className={`w-7 h-7 sm:w-8 sm:h-8 text-xs sm:text-sm font-bold rounded flex items-center justify-center transition-all select-none ${isFound
+                                    ? "bg-green-400 text-white"
+                                    : isStart
+                                      ? "bg-primary text-primary-foreground scale-110 z-10 relative"
+                                      : wsWrongFlash
+                                        ? "bg-destructive/20 text-foreground"
+                                        : "bg-muted hover:bg-primary/20 text-foreground"
+                                  }`}
+                                aria-label={`Letra ${letter}`}
+                              >
+                                {letter}
+                              </button>
+                            )
+                          })
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Word list — vertical, right side */}
+                  <Card className="border-2 w-36 shrink-0">
+                    <CardContent className="p-3">
+                      <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                        {wsFoundWords.size}/{wsPalabras.length}
+                      </p>
+                      <div className="flex flex-col gap-1.5">
+                        {wsPalabras.map(word => (
+                          <span
+                            key={word}
+                            className={`px-2 py-1 rounded-lg border-2 font-bold text-sm text-center transition-all ${wsFoundWords.has(word)
+                                ? "bg-success/10 border-success text-success line-through"
+                                : "bg-muted border-border text-foreground"
+                              }`}
+                          >
+                            {word}
+                          </span>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
                 <p className="text-center text-sm text-muted-foreground">
                   Toca la primera y última letra de cada palabra para encontrarla
                 </p>
@@ -1516,8 +1615,11 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                     size="lg"
                     className="w-full h-12 border-2"
                     onClick={() => {
-                      setIsCorrect(wsFoundWords.size >= Math.ceil(wsPalabras.length / 2))
-                      setScore(Math.round((wsFoundWords.size / wsPalabras.length) * 100))
+                      const wsCorrect = wsFoundWords.size >= Math.ceil(wsPalabras.length / 2)
+                      const wsScore = Math.round((wsFoundWords.size / wsPalabras.length) * 100)
+                      setIsCorrect(wsCorrect)
+                      setScore(wsScore)
+                      savePendingResult(wsCorrect, wsScore, 1)
                       setPhase("result")
                     }}
                   >
@@ -1542,6 +1644,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                           setIsCorrect(true)
                           setScore(100)
                           setResultMessage("¡Actividad oral completada!")
+                          savePendingResult(true, 100, 1)
                           setPhase("result")
                           if (settings.voiceEnabled) speak("Actividad oral completada. Continuemos.")
                         }}
