@@ -1,29 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useCourses } from "@/hooks/teacher/use-courses"
 import {
-  ArrowLeft,
-  Plus,
-  Trash2,
-  BookOpen,
-  Users,
-  Volume2,
-  FolderOpen,
-  Settings,
-  Copy,
-  Check,
-  UserPlus,
-  MoreVertical,
+  ArrowLeft, Plus, Trash2, BookOpen, Users, Volume2,
+  FolderOpen, Settings, Copy, Check, UserPlus, MoreVertical,
 } from "lucide-react"
 
 interface CourseListProps {
@@ -31,20 +16,8 @@ interface CourseListProps {
   onBack: () => void
 }
 
-const COURSE_COLORS = [
-  { bg: "bg-primary/10",  icon: "text-primary"  },
-  { bg: "bg-accent/10",  icon: "text-accent"  },
-  { bg: "bg-secondary/10",   icon: "text-secondary-foreground"   },
-  { bg: "bg-success/10",    icon: "text-success"    },
-  { bg: "bg-muted/10", icon: "text-muted-foreground" },
-  { bg: "bg-primary/5", icon: "text-primary" },
-  { bg: "bg-accent/5",  icon: "text-accent"  },
-  { bg: "bg-secondary/5",    icon: "text-secondary-foreground"    },
-]
-
 export function CourseList({ onNavigate, onBack }: CourseListProps) {
   const { courses, loading, deleteCourse } = useCourses()
-  const [selectedCourse, setSelectedCourse] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const { speak, settings } = useAccessibility()
 
@@ -55,186 +28,136 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
   }
 
   const handleReadInstructions = () => {
-    speak(
-      `Lista de cursos. Tienes ${courses.length} cursos creados. Selecciona un curso para editar o eliminar, o crea uno nuevo con el boton Crear Curso.`
-    )
+    speak(`Lista de cursos. Tienes ${courses.length} cursos creados.`)
   }
 
   const handleDeleteCourse = async (courseId: string) => {
     const success = await deleteCourse(courseId)
     if (success) speak("Curso eliminado")
-    setSelectedCourse(null)
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card border-b-2 border-border sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={onBack}
-              className="h-12 w-12 p-0"
-              aria-label="Volver al panel"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </Button>
+      <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={onBack}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
+              aria-label="Volver al panel">
+              <ArrowLeft className="w-4 h-4" />
+            </button>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Mis Cursos</h1>
-              <p className="text-sm text-muted-foreground">{courses.length} cursos creados</p>
+              <h1 className="text-base font-bold text-foreground leading-none">Mis Cursos</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">{courses.length} cursos creados</p>
             </div>
           </div>
-          {settings.voiceEnabled && (
-            <Button variant="outline" size="lg" onClick={handleReadInstructions} className="h-12">
-              <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />
-              Escuchar
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {settings.voiceEnabled && (
+              <button type="button" onClick={handleReadInstructions}
+                className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
+                <Volume2 className="w-4 h-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Escuchar</span>
+              </button>
+            )}
+            <button type="button" onClick={() => onNavigate("create-course")}
+              className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 hover:shadow-md active:scale-[0.98]">
+              <Plus className="w-4 h-4" aria-hidden="true" />
+              Crear curso
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        {/* Create Button */}
-        <Button
-          size="lg"
-          className="h-16 text-xl w-full mb-8"
-          onClick={() => onNavigate("create-course")}
-        >
-          <Plus className="w-7 h-7 mr-3" aria-hidden="true" />
-          Crear Nuevo Curso
-        </Button>
-
-        {/* Course List */}
+      <main className="mx-auto max-w-5xl px-6 py-8">
         <section aria-label="Lista de cursos">
-        {courses.length === 0 ? (
-          <Card className="border-2 border-dashed">
-            <CardContent className="p-12 text-center">
-              <FolderOpen className="w-16 h-16 mx-auto text-muted-foreground mb-4" aria-hidden="true" />
-              <h3 className="text-2xl font-bold text-foreground mb-2">No hay cursos</h3>
-              <p className="text-lg text-muted-foreground mb-6">
-                Crea tu primer curso para comenzar
-              </p>
-              <Button size="lg" onClick={() => onNavigate("create-course")}>
-                <Plus className="w-6 h-6 mr-2" aria-hidden="true" />
-                Crear Curso
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <ul className="grid gap-6 list-none p-0">
-            {courses.map((course, idx) => {
-              const color = COURSE_COLORS[idx % COURSE_COLORS.length]
-              return (
-              <li key={course.id}>
-              <article aria-label={`Curso: ${course.name}`}>
-              <Card
-                className={`border-2 shadow-lg transition-all hover:border-primary/50 ${
-                  selectedCourse === course.id ? "border-primary ring-2 ring-primary/20" : ""
-                }`}
-              >
-                <CardContent className="p-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-start gap-5">
-                      <div className={`w-16 h-16 ${color.bg} rounded-2xl flex items-center justify-center shrink-0`} aria-hidden="true">
-                        <BookOpen className={`w-8 h-8 ${color.icon}`} />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold text-foreground">{course.name}</h3>
-                        <p className="text-base text-muted-foreground mt-1">{course.description}</p>
-                        <div className="flex flex-wrap items-center gap-4 mt-3">
-                          <span className="inline-flex items-center text-sm bg-secondary px-3 py-1 rounded-full font-medium">
-                            {course.grupoNombre || course.grade}
-                          </span>
-                          <span className="inline-flex items-center text-sm bg-primary/10 text-primary px-3 py-1 rounded-full font-medium">
-                            {course.materiaLabel}
-                          </span>
-                          <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-                            <Users className="w-4 h-4" aria-hidden="true" />
-                            {course.students} estudiantes
-                          </span>
-                          <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-                            <BookOpen className="w-4 h-4" aria-hidden="true" />
-                            {course.lessons} lecciones
-                          </span>
+          {courses.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card py-16 text-center">
+              <FolderOpen className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" aria-hidden="true" />
+              <h3 className="text-base font-bold text-foreground mb-1">No hay cursos</h3>
+              <p className="text-sm text-muted-foreground mb-5">Crea tu primer curso para comenzar</p>
+              <button type="button" onClick={() => onNavigate("create-course")}
+                className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 active:scale-[0.98]">
+                <Plus className="w-4 h-4" aria-hidden="true" />Crear curso
+              </button>
+            </div>
+          ) : (
+            <ul className="space-y-3 list-none p-0">
+              {courses.map((course, idx) => (
+                <li key={course.id}>
+                  <article aria-label={`Curso: ${course.name}`}
+                    className="rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:shadow-md hover:border-primary/20">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-4 min-w-0">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                          <BookOpen className="w-5 h-5 text-primary" aria-hidden="true" />
                         </div>
-                        {course.codigoCurso && (
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-sm text-muted-foreground">Código:</span>
-                            <span className="font-mono font-bold text-sm tracking-widest text-foreground bg-muted px-2 py-0.5 rounded">
-                              {course.codigoCurso}
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-bold text-foreground truncate">{course.name}</h3>
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{course.description}</p>
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground">
+                              {course.grupoNombre || course.grade}
                             </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2"
-                              onClick={() => handleCopyCode(course.id, course.codigoCurso)}
-                              aria-label={`Copiar código del curso ${course.name}`}
-                            >
-                              {copiedId === course.id
-                                ? <Check className="w-3.5 h-3.5 text-green-600" aria-hidden="true" />
-                                : <Copy className="w-3.5 h-3.5" aria-hidden="true" />
-                              }
-                            </Button>
+                            <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-medium">
+                              {course.materiaLabel}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                              <Users className="w-3 h-3" aria-hidden="true" />{course.students}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                              <BookOpen className="w-3 h-3" aria-hidden="true" />{course.lessons} lecciones
+                            </span>
                           </div>
-                        )}
+                          {course.codigoCurso && (
+                            <div className="flex items-center gap-1.5 mt-2">
+                              <span className="text-xs text-muted-foreground">Código:</span>
+                              <span className="font-mono font-bold text-xs tracking-widest text-foreground bg-muted px-2 py-0.5 rounded">
+                                {course.codigoCurso}
+                              </span>
+                              <button type="button"
+                                onClick={() => handleCopyCode(course.id, course.codigoCurso)}
+                                aria-label={`Copiar código del curso ${course.name}`}
+                                className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                                {copiedId === course.id
+                                  ? <Check className="w-3 h-3 text-green-600" aria-hidden="true" />
+                                  : <Copy className="w-3 h-3" aria-hidden="true" />}
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-
-                    <div className="shrink-0">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-12 w-12 border-2"
-                            aria-label={`Opciones del curso ${course.name}`}
-                          >
-                            <MoreVertical className="w-5 h-5" aria-hidden="true" />
-                          </Button>
+                          <button type="button"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
+                            aria-label={`Opciones del curso ${course.name}`}>
+                            <MoreVertical className="w-4 h-4" aria-hidden="true" />
+                          </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuItem
-                            className="text-base py-3 cursor-pointer"
-                            onClick={() => onNavigate(`lessons-${course.id}`)}
-                          >
-                            <BookOpen className="w-4 h-4 mr-3" aria-hidden="true" />
-                            Lecciones
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem className="cursor-pointer" onClick={() => onNavigate(`lessons-${course.id}`)}>
+                            <BookOpen className="w-4 h-4 mr-2" aria-hidden="true" />Lecciones
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-base py-3 cursor-pointer"
-                            onClick={() => onNavigate(`course-students-${course.id}?name=${encodeURIComponent(course.name)}`)}
-                          >
-                            <Users className="w-4 h-4 mr-3" aria-hidden="true" />
-                            Estudiantes
+                          <DropdownMenuItem className="cursor-pointer" onClick={() => onNavigate(`course-students-${course.id}?name=${encodeURIComponent(course.name)}`)}>
+                            <Users className="w-4 h-4 mr-2" aria-hidden="true" />Estudiantes
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-base py-3 cursor-pointer"
-                            onClick={() => onNavigate(`edit-course-${course.id}`)}
-                          >
-                            <Settings className="w-4 h-4 mr-3" aria-hidden="true" />
-                            Editar
+                          <DropdownMenuItem className="cursor-pointer" onClick={() => onNavigate(`invite-course-${course.id}?name=${encodeURIComponent(course.name)}`)}>
+                            <UserPlus className="w-4 h-4 mr-2" aria-hidden="true" />Invitar
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-base py-3 cursor-pointer text-destructive focus:text-destructive"
-                            onClick={() => handleDeleteCourse(course.id)}
-                          >
-                            <Trash2 className="w-4 h-4 mr-3" aria-hidden="true" />
-                            Eliminar
+                          <DropdownMenuItem className="cursor-pointer" onClick={() => onNavigate(`edit-course-${course.id}`)}>
+                            <Settings className="w-4 h-4 mr-2" aria-hidden="true" />Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={() => handleDeleteCourse(course.id)}>
+                            <Trash2 className="w-4 h-4 mr-2" aria-hidden="true" />Eliminar
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-              </article>
-              </li>
-              )
-            })}
-          </ul>
-        )}
+                  </article>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </main>
     </div>

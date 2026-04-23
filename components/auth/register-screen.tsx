@@ -1,12 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { useAuth } from "@/lib/auth-context"
 import { useAccessibility } from "@/lib/accessibility-context"
-import { Eye, EyeOff, BookOpen, Volume2, User, Mail, Lock, GraduationCap, Users } from "lucide-react"
+import { Eye, EyeOff, Volume2, User, Mail, Lock, GraduationCap, Users } from "lucide-react"
 
 interface RegisterScreenProps {
   onSwitchToLogin: () => void
@@ -35,183 +33,131 @@ export function RegisterScreen({ onSwitchToLogin, onRegisterSuccess }: RegisterS
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!role) {
-      speak("Por favor selecciona tu rol: Docente o Estudiante")
-      return
-    }
-    
+    if (!role) { speak("Por favor selecciona tu rol: Docente o Estudiante"); return }
     setIsLoading(true)
     const success = await register(name, email, password, role)
-    
-    if (success) {
-      speak("Registro exitoso. Bienvenido a EduAccess.")
-      onRegisterSuccess()
-    }
-    
+    if (success) { speak("Registro exitoso. Bienvenido a EduAccess."); onRegisterSuccess() }
     setIsLoading(false)
   }
 
   const handleReadInstructions = () => {
-    speakLocal("Crear cuenta en EduAccess. Escribe tu nombre completo, correo electrónico y contraseña. Selecciona tu rol: Docente o Estudiante. Luego presiona Crear cuenta.")
+    speakLocal("Crear cuenta en EduAccess. Escribe tu nombre, correo y contraseña. Selecciona tu rol: Docente o Estudiante.")
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md shadow-xl border-2 border-primary/20">
-        <CardHeader className="text-center space-y-4 pb-2">
-          <div className="mx-auto w-20 h-20 bg-primary rounded-2xl flex items-center justify-center">
-            <BookOpen className="w-10 h-10 text-primary-foreground" aria-hidden="true" />
+      <div className="w-full max-w-sm">
+
+        {/* Logo + title */}
+        <div className="mb-8 flex flex-col items-center gap-3 text-center">
+          <div className="w-14 h-14 rounded-2xl overflow-hidden bg-[#008e92] shadow-sm">
+            <img src="/2.svg" alt="EduAccess logo" className="w-full h-full object-cover" aria-hidden="true" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Crear Cuenta</h1>
-            <p className="text-lg text-muted-foreground mt-2">Unete a EduAccess</p>
+            <h1 className="text-2xl font-bold text-foreground">Crear cuenta</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Únete a EduAccess</p>
           </div>
-        </CardHeader>
-        
-        <CardContent className="space-y-5 pt-4">
-          <Button
+        </div>
+
+        {/* Card */}
+        <div className="rounded-2xl border border-border bg-card shadow-sm p-6 space-y-5">
+
+          {/* Voice */}
+          <button
             type="button"
-            variant="outline"
-            size="lg"
-            className="w-full h-14 text-lg border-2"
             onClick={handleReadInstructions}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
           >
-            <Volume2 className="w-6 h-6 mr-3" aria-hidden="true" />
+            <Volume2 className="w-4 h-4" aria-hidden="true" />
             Escuchar instrucciones
-          </Button>
+          </button>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <label htmlFor="name" className="text-lg font-semibold text-foreground block">
-                Nombre completo
-              </label>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Name */}
+            <div className="space-y-1.5">
+              <label htmlFor="name" className="text-sm font-semibold text-foreground block">Nombre completo</label>
               <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-muted-foreground" aria-hidden="true" />
-                <Input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Tu nombre"
-                  className="h-14 text-lg pl-14 border-2"
-                  required
-                />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                <Input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)}
+                  placeholder="Tu nombre" className="pl-9 border-border" required />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="register-email" className="text-lg font-semibold text-foreground block">
-                Correo electronico
-              </label>
+            {/* Email */}
+            <div className="space-y-1.5">
+              <label htmlFor="register-email" className="text-sm font-semibold text-foreground block">Correo electrónico</label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-muted-foreground" aria-hidden="true" />
-                <Input
-                  id="register-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="tu@correo.com"
-                  className="h-14 text-lg pl-14 border-2"
-                  required
-                />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                <Input id="register-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tu@correo.com" className="pl-9 border-border" required />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="register-password" className="text-lg font-semibold text-foreground block">
-                Contraseña
-              </label>
+            {/* Password */}
+            <div className="space-y-1.5">
+              <label htmlFor="register-password" className="text-sm font-semibold text-foreground block">Contraseña</label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-muted-foreground" aria-hidden="true" />
-                <Input
-                  id="register-password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Crea una contraseña"
-                  className="h-14 text-lg pl-14 pr-14 border-2"
-                  required
-                  minLength={6}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-6 h-6" />
-                  ) : (
-                    <Eye className="w-6 h-6" />
-                  )}
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                <Input id="register-password" type={showPassword ? "text" : "password"} value={password}
+                  onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres"
+                  className="pl-9 pr-9 border-border" required minLength={6} />
+                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <span className="text-lg font-semibold text-foreground block">
-                Selecciona tu rol
-              </span>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => setRole("teacher")}
-                  className={`p-6 rounded-xl border-3 flex flex-col items-center gap-3 transition-all ${
-                    role === "teacher"
-                      ? "border-primary bg-primary/10 ring-2 ring-primary"
-                      : "border-border hover:border-primary/50 hover:bg-muted"
-                  }`}
-                  aria-pressed={role === "teacher"}
-                >
-                  <GraduationCap className={`w-10 h-10 ${role === "teacher" ? "text-primary" : "text-muted-foreground"}`} aria-hidden="true" />
-                  <span className={`text-lg font-semibold ${role === "teacher" ? "text-primary" : "text-foreground"}`}>
-                    Docente
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole("student")}
-                  className={`p-6 rounded-xl border-3 flex flex-col items-center gap-3 transition-all ${
-                    role === "student"
-                      ? "border-primary bg-primary/10 ring-2 ring-primary"
-                      : "border-border hover:border-primary/50 hover:bg-muted"
-                  }`}
-                  aria-pressed={role === "student"}
-                >
-                  <Users className={`w-10 h-10 ${role === "student" ? "text-primary" : "text-muted-foreground"}`} aria-hidden="true" />
-                  <span className={`text-lg font-semibold ${role === "student" ? "text-primary" : "text-foreground"}`}>
-                    Estudiante
-                  </span>
-                </button>
+            {/* Role */}
+            <div className="space-y-2">
+              <span className="text-sm font-semibold text-foreground block">Selecciona tu rol</span>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: "teacher" as const, label: "Docente",    Icon: GraduationCap },
+                  { value: "student" as const, label: "Estudiante", Icon: Users },
+                ].map(({ value, label, Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setRole(value)}
+                    aria-pressed={role === value}
+                    className={`flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-all active:scale-[0.98] ${
+                      role === value
+                        ? "border-primary bg-primary/10 ring-1 ring-primary"
+                        : "border-border bg-background hover:bg-muted"
+                    }`}
+                  >
+                    <Icon className={`w-6 h-6 ${role === value ? "text-primary" : "text-muted-foreground"}`} aria-hidden="true" />
+                    <span className={`text-sm font-semibold ${role === value ? "text-primary" : "text-foreground"}`}>{label}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
-            <Button
+            {/* Submit */}
+            <button
               type="submit"
-              size="lg"
-              className="w-full h-16 text-xl font-bold"
               disabled={isLoading || !role}
+              className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? "Registrando..." : "Crear cuenta"}
-            </Button>
+            </button>
           </form>
 
-          <div className="text-center pt-4 border-t-2 border-border">
-            <p className="text-lg text-muted-foreground mb-3">
-              ¿Ya tienes cuenta?
-            </p>
-            <Button
+          {/* Switch */}
+          <div className="border-t border-border pt-4 text-center space-y-3">
+            <p className="text-sm text-muted-foreground">¿Ya tienes cuenta?</p>
+            <button
               type="button"
-              variant="outline"
-              size="lg"
-              className="w-full h-14 text-lg border-2"
               onClick={onSwitchToLogin}
+              className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-all hover:bg-muted active:scale-[0.98]"
             >
-              Iniciar sesion
-            </Button>
+              Iniciar sesión
+            </button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

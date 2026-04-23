@@ -1,8 +1,6 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -213,7 +211,7 @@ function StarRow({ stars, size = "w-5 h-5" }: { stars: number | null; size?: str
               ? "text-amber-400 fill-amber-400"
               : stars >= i - 0.5
               ? "text-amber-300 fill-amber-100"
-              : "text-gray-300 fill-gray-100"
+              : "text-muted-foreground/30 fill-muted"
           }`}
         />
       ))}
@@ -416,20 +414,21 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card border-b-2 border-border sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="outline" size="lg" onClick={onBack} className="h-12 w-12 p-0" aria-label="Volver">
-            <ArrowLeft className="w-6 h-6" />
-          </Button>
+      <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
+        <div className="mx-auto flex h-16 max-w-5xl items-center gap-3 px-6">
+          <button type="button" onClick={onBack}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
+            aria-label="Volver">
+            <ArrowLeft className="w-4 h-4" />
+          </button>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-foreground">Estudiantes</h1>
-            <p className="text-sm text-muted-foreground">{courseName ?? "Curso"}</p>
+            <h1 className="text-base font-bold text-foreground leading-none">Estudiantes</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">{courseName ?? "Curso"}</p>
           </div>
-          <Button size="lg" className="h-12 gap-2" onClick={onInvite}>
-            <UserPlus className="w-5 h-5" aria-hidden="true" />
-            Invitar
-          </Button>
+          <button type="button" onClick={onInvite}
+            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 hover:shadow-md active:scale-[0.98]">
+            <UserPlus className="w-4 h-4" aria-hidden="true" />Invitar
+          </button>
         </div>
       </header>
 
@@ -439,13 +438,11 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
         ) : students.length === 0 ? (
-          <Card className="border-2 border-dashed">
-            <CardContent className="p-12 text-center">
-              <Users className="w-16 h-16 mx-auto text-muted-foreground mb-4" aria-hidden="true" />
-              <h3 className="text-2xl font-bold text-foreground mb-2">Sin estudiantes</h3>
-              <p className="text-muted-foreground">Aún no hay alumnos inscritos en este curso.</p>
-            </CardContent>
-          </Card>
+          <div className="rounded-2xl border border-dashed border-border bg-card py-16 text-center shadow-sm">
+            <Users className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" aria-hidden="true" />
+            <h3 className="text-base font-bold text-foreground mb-1">Sin estudiantes</h3>
+            <p className="text-sm text-muted-foreground">Aún no hay alumnos inscritos en este curso.</p>
+          </div>
         ) : (
           <section aria-label="Lista de estudiantes del curso">
             <p className="text-sm text-muted-foreground mb-4">
@@ -454,49 +451,49 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
             <ul className="grid gap-4 list-none p-0">
               {students.map(student => (
                 <li key={student.id}>
-                  <article aria-label={`Estudiante: ${student.nombre}`}>
-                    <Card className="border-2 hover:border-primary/40 transition-all">
-                      <CardContent className="px-5 py-4">
-                        {/* Una sola fila: avatar + nombre + estrellas + barra + % + menú */}
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0" aria-hidden="true">
-                            {getInitials(student.nombre)}
-                          </div>
-                          <span className="font-bold text-foreground text-base shrink-0">{student.nombre}</span>
-                          <span className="flex items-center gap-1 text-sm font-semibold text-amber-500 shrink-0">
-                            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
-                            {student.estrellasCurso.toFixed(1)}
-                          </span>
-                          {/* Barra de progreso — ocupa el espacio restante */}
-                          <div className="flex-1 h-2.5 bg-primary/10 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary rounded-full transition-all duration-700 ease-out"
-                              style={{ width: animado ? `${student.progreso}%` : "0%" }}
-                            />
-                          </div>
-                          <span className={`text-sm font-bold shrink-0 ${getProgressColor(student.progreso)}`}>
-                            {student.progreso}%
-                          </span>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="icon" className="h-9 w-9 border-2 shrink-0" aria-label={`Opciones de ${student.nombre}`} disabled={removingId === student.id}>
-                                {removingId === student.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <MoreVertical className="w-4 h-4" />}
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-52">
-                              <DropdownMenuItem className="text-base py-3 cursor-pointer" onClick={() => openReporte(student)}>
-                                <FileText className="w-4 h-4 mr-3" aria-hidden="true" />
-                                Ver reporte
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-base py-3 cursor-pointer text-destructive focus:text-destructive" onClick={() => setStudentToRemove(student)}>
-                                <UserX className="w-4 h-4 mr-3" aria-hidden="true" />
-                                Quitar del curso
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </CardContent>
-                    </Card>
+                  <article aria-label={`Estudiante: ${student.nombre}`}
+                    className="rounded-2xl border border-border bg-card px-5 py-4 shadow-sm transition-all hover:shadow-md hover:border-primary/20">
+                    {/* Una sola fila: avatar + nombre + estrellas + barra + % + menú */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0" aria-hidden="true">
+                        {getInitials(student.nombre)}
+                      </div>
+                      <span className="font-bold text-foreground text-sm shrink-0">{student.nombre}</span>
+                      <span className="flex items-center gap-1 text-sm font-semibold text-amber-500 shrink-0">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
+                        {student.estrellasCurso.toFixed(1)}
+                      </span>
+                      {/* Barra de progreso — ocupa el espacio restante */}
+                      <div className="flex-1 h-2 bg-primary/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all duration-700 ease-out"
+                          style={{ width: animado ? `${student.progreso}%` : "0%" }}
+                        />
+                      </div>
+                      <span className={`text-sm font-bold shrink-0 ${getProgressColor(student.progreso)}`}>
+                        {student.progreso}%
+                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button type="button"
+                            className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98] disabled:opacity-50 shrink-0"
+                            aria-label={`Opciones de ${student.nombre}`}
+                            disabled={removingId === student.id}>
+                            {removingId === student.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <MoreVertical className="w-4 h-4" />}
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-52">
+                          <DropdownMenuItem className="text-sm py-2.5 cursor-pointer" onClick={() => openReporte(student)}>
+                            <FileText className="w-4 h-4 mr-3" aria-hidden="true" />
+                            Ver reporte
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-sm py-2.5 cursor-pointer text-destructive focus:text-destructive" onClick={() => setStudentToRemove(student)}>
+                            <UserX className="w-4 h-4 mr-3" aria-hidden="true" />
+                            Quitar del curso
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </article>
                 </li>
               ))}
@@ -692,7 +689,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
 
               {/* Detalle por Lección */}
               <h3 className="font-bold text-foreground text-base mb-4">Detalle por Lección</h3>
-              <div className="rounded-xl border-2 border-border overflow-hidden">
+              <div className="rounded-xl border border-border overflow-hidden">
                 <ul className="divide-y divide-border list-none p-0">
                   {reporte.lecciones.map((leccion, index) => {
                     const prog = reporte.progresion.find(p => p.id_leccion === leccion.id_leccion)
@@ -725,7 +722,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                             <div className="flex items-center gap-3 shrink-0">
                               {completada && (
                                 <div className="text-right">
-                                  <p className="text-lg font-bold" style={{ color: "#2f2c79" }}>
+                                  <p className="text-lg font-bold text-primary">
                                     {score}%
                                   </p>
                                   <StarRow stars={estrellas} size="w-3.5 h-3.5" />
@@ -772,7 +769,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                                     </div>
                                     <div className="flex items-center gap-3">
                                       <div className="text-right">
-                                        <p className="text-sm font-bold" style={{ color: "#2f2c79" }}>
+                                        <p className="text-sm font-bold text-primary">
                                           {sesion.puntaje_promedio}%
                                         </p>
                                         <StarRow stars={sesion.estrellas} size="w-3 h-3" />

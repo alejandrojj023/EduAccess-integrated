@@ -1,8 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { useState, useMemo, useCallback } from "react"
 import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/lib/auth-context"
 import { useAccessibility } from "@/lib/accessibility-context"
@@ -16,7 +14,6 @@ import { StreakCard } from "@/components/student/streak-card"
 import {
   BookOpen,
   Play,
-  Star,
   Volume2,
   Settings,
   LogOut,
@@ -32,17 +29,6 @@ interface StudentDashboardProps {
   onLogout: () => void
 }
 
-const COURSE_COLORS = [
-  { bg: "bg-primary/10",    icon: "text-primary"    },
-  { bg: "bg-accent/10",  icon: "text-accent"  },
-  { bg: "bg-secondary/10",   icon: "text-secondary-foreground"   },
-  { bg: "bg-success/10",    icon: "text-success"    },
-  { bg: "bg-muted/10", icon: "text-muted-foreground" },
-  { bg: "bg-primary/5", icon: "text-primary" },
-  { bg: "bg-accent/5",  icon: "text-accent"  },
-  { bg: "bg-secondary/5",    icon: "text-secondary-foreground"    },
-]
-
 export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps) {
   const { user } = useAuth()
   const { speak, settings } = useAccessibility()
@@ -52,11 +38,10 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
     typeof window !== "undefined" ? localStorage.getItem("ea_avatar_color") : null
   )
 
-  // Hover-to-speak para botones con texto visible
-  const hoverContinuar   = useSpeakOnHover("Continuar Aprendiendo")
-  const hoverProgreso    = useSpeakOnHover("Mi Progreso: ver tu avance en los cursos")
-  const hoverCalendario  = useSpeakOnHover("Mi Calendario: actividades completadas por día")
-  const hoverUnirse      = useSpeakOnHover("Unirse a un Curso: ingresar código de curso o aceptar invitación")
+  const hoverContinuar  = useSpeakOnHover("Continuar Aprendiendo")
+  const hoverProgreso   = useSpeakOnHover("Mi Progreso: ver tu avance en los cursos")
+  const hoverCalendario = useSpeakOnHover("Mi Calendario: actividades completadas por día")
+  const hoverUnirse     = useSpeakOnHover("Unirse a un Curso: ingresar código de curso")
 
   const {
     estrellasTotales,
@@ -94,97 +79,106 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
 
   const handleReadInstructions = useCallback(() => {
     speak(
-      `Hola ${user?.name}! Bienvenido a tu panel de aprendizaje. Tienes ${courses.length} cursos asignados. Tu nivel actual es ${nivelNombre} y has ganado ${estrellasTotales} estrellas. Presiona el boton Continuar Aprendiendo para seguir con tu leccion actual.`
+      `Hola ${user?.name}! Tienes ${courses.length} cursos asignados. Tu nivel es ${nivelNombre} y llevas ${estrellasTotales} estrellas.`
     )
   }, [speak, user?.name, courses.length, nivelNombre, estrellasTotales])
 
+  const initials = (user?.name ?? "E").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-primary text-primary-foreground sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center bg-[#008e92]">
-              <img src="/2.svg" alt="EduAccess logo" className="w-full h-full object-cover" aria-hidden="true" />
+    <div className="min-h-screen bg-background text-foreground">
+
+      {/* ── HEADER ── */}
+      <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
+        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-[#008e92]">
+              <img src="/2.svg" alt="EduAccess" className="h-full w-full object-cover" aria-hidden="true" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">EduAccess</h1>
-              <p className="text-sm opacity-90">Aprende jugando</p>
+              <p className="text-sm font-bold leading-none text-foreground">EduAccess</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Aprende jugando</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {settings.voiceEnabled && (
-              <Button
-                variant="secondary"
-                size="lg"
+              <button
+                type="button"
                 onClick={handleReadInstructions}
-                className="h-12"
+                className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
               >
-                <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />
+                <Volume2 className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Escuchar</span>
-              </Button>
+              </button>
             )}
-            <AccessibleTooltip label="Ajustes de accesibilidad y perfil">
-              <Button
-                variant="secondary"
-                size="lg"
+            <AccessibleTooltip label="Ajustes de accesibilidad">
+              <button
+                type="button"
                 onClick={() => onNavigate("accessibility")}
-                className="h-12 w-12 p-0"
-                aria-label="Configuracion"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
+                aria-label="Configuración"
               >
-                <Settings className="w-5 h-5" />
-              </Button>
+                <Settings className="h-4 w-4" aria-hidden="true" />
+              </button>
             </AccessibleTooltip>
             <AccessibleTooltip label="Cerrar sesión">
-              <Button
-                variant="secondary"
-                size="lg"
+              <button
+                type="button"
                 onClick={onLogout}
-                className="h-12 w-12 p-0"
-                aria-label="Cerrar sesion"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
+                aria-label="Cerrar sesión"
               >
-                <LogOut className="w-5 h-5" />
-              </Button>
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+              </button>
             </AccessibleTooltip>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        {/* Welcome Section */}
+      <main className="mx-auto max-w-4xl space-y-6 px-6 py-8">
+
+        {/* ── WELCOME ── */}
         <section aria-label="Bienvenida">
-          <Card className="border-0 shadow-[0_24px_80px_rgba(0,0,0,0.08)] mb-8 overflow-hidden">
-            <CardContent className="p-0">
-              <div className="rounded-[2rem] bg-gradient-to-r from-primary/10 to-accent/10 p-8">
-                <div className="flex flex-col sm:flex-row items-center gap-6">
-                  <div
-                    className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-lg"
-                    style={{ backgroundColor: avatarColor ?? "hsl(var(--primary))" }}
-                    aria-hidden="true"
-                  >
-                    {(user?.name ?? "E").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="text-center sm:text-left">
-                    <SpeakableText
-                      as="h2"
-                      className="text-3xl font-bold text-foreground mb-2"
-                      speakText={`Hola, ${user?.name?.split(" ")[0]}! Bienvenido a EduAccess.`}
-                    >
-                      Hola, {user?.name?.split(" ")[0]}!
-                    </SpeakableText>
-                    <SpeakableText as="p" className="text-xl text-muted-foreground">
-                      Que bueno verte de nuevo. Sigamos aprendiendo!
-                    </SpeakableText>
-                  </div>
-                </div>
+          <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white shadow-sm"
+                style={{ backgroundColor: avatarColor ?? "#008e92" }}
+                aria-hidden="true"
+              >
+                {initials}
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <SpeakableText
+                  as="h2"
+                  className="text-xl font-bold text-foreground"
+                  speakText={`Hola, ${user?.name?.split(" ")[0]}! Bienvenido a EduAccess.`}
+                >
+                  Hola, {user?.name?.split(" ")[0]}!
+                </SpeakableText>
+                <SpeakableText as="p" className="text-sm text-muted-foreground">
+                  ¡Qué bueno verte de nuevo! Sigamos aprendiendo.
+                </SpeakableText>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleContinuar}
+              disabled={loading || courses.length === 0}
+              {...hoverContinuar}
+              className="flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Play className="h-4 w-4" aria-hidden="true" />
+              Continuar aprendiendo
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
         </section>
 
-        {/* Stats Cards */}
-        <section aria-label="Tu progreso y logros" className="mb-8">
-          <ul className="grid grid-cols-1 sm:grid-cols-3 gap-6 list-none p-0">
+        {/* ── STATS ── */}
+        <section aria-label="Tu progreso y logros">
+          <ul className="grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-3">
             <li><StarsCard estrellasTotales={estrellasTotales} /></li>
             <li>
               <LevelCard
@@ -200,138 +194,112 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
           </ul>
         </section>
 
-        {/* Main Action Button */}
-        <Button
-          size="lg"
-          className="w-full h-20 rounded-full text-2xl mb-8 shadow-[0_24px_40px_rgba(0,0,0,0.12)]"
-          onClick={handleContinuar}
-          disabled={loading || courses.length === 0}
-          {...hoverContinuar}
-        >
-          <Play className="w-8 h-8 mr-4" aria-hidden="true" />
-          Continuar Aprendiendo
-          <Sparkles className="w-6 h-6 ml-4" aria-hidden="true" />
-        </Button>
-
-        {/* Courses */}
+        {/* ── COURSES ── */}
         <section aria-label="Mis cursos">
-          <h3 className="text-2xl font-bold text-foreground mb-6">Mis Cursos</h3>
+          <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Mis cursos</h3>
 
           {!loading && courses.length === 0 && (
-            <Card className="border-2 border-dashed mb-8">
-              <CardContent className="py-10 flex flex-col items-center gap-3 text-center">
-                <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center" aria-hidden="true">
-                  <Users className="w-8 h-8 text-primary" />
-                </div>
-                <p className="text-xl font-semibold text-foreground">Aún no tienes cursos</p>
-                <p className="text-base text-muted-foreground max-w-xs">
-                  Pídele a tu docente el código de curso e ingrésalo para ver tus cursos aquí.
-                </p>
-                <Button
-                  variant="outline"
-                  className="mt-2 border-2"
-                  onClick={() => onNavigate("join-group")}
-                >
-                  <BookOpen className="w-4 h-4 mr-2" aria-hidden="true" />
-                  Unirme a un Curso
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="mb-4 flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-card py-10 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10" aria-hidden="true">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
+              <p className="text-sm font-semibold text-foreground">Aún no tienes cursos</p>
+              <p className="max-w-xs text-xs text-muted-foreground">
+                Pídele a tu docente el código de curso e ingrésalo para ver tus cursos aquí.
+              </p>
+              <button
+                type="button"
+                onClick={() => onNavigate("join-group")}
+                className="mt-1 flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-all hover:bg-muted active:scale-[0.98]"
+              >
+                <BookOpen className="h-4 w-4" aria-hidden="true" />
+                Unirme a un curso
+              </button>
+            </div>
           )}
 
-          <ul className="grid gap-6 mb-8 list-none p-0">
-          {courses.map((course, idx) => {
-            const color = COURSE_COLORS[idx % COURSE_COLORS.length]
-            return (
-            <li key={course.id}>
-            <article aria-label={`Curso: ${course.name}`}>
-            <Card
-              className="border-2 shadow-lg hover:border-primary/50 transition-all duration-200 hover:scale-105 cursor-pointer"
-              onClick={() => onNavigate(`course-${course.id}|${course.name}`)}
-            >
-              <CardContent className="p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-5">
-                    <div className={`w-16 h-16 ${color.bg} rounded-2xl flex items-center justify-center`}>
-                      <BookOpen className={`w-8 h-8 ${color.icon}`} aria-hidden="true" />
-                    </div>
-                    <div>
-                      <SpeakableText as="h4" className="text-xl font-bold text-foreground">
-                        {course.name}
-                      </SpeakableText>
-                      <SpeakableText
-                        as="p"
-                        className="text-base text-muted-foreground mt-1"
-                        speakText={`Siguiente lección: ${course.currentLesson}`}
-                      >
-                        Siguiente: {course.currentLesson}
-                      </SpeakableText>
-                      <SpeakableText
-                        as="p"
-                        className="text-sm text-muted-foreground"
-                        speakText={`${course.completedLessons} de ${course.totalLessons} lecciones completadas`}
-                      >
-                        {course.completedLessons} de {course.totalLessons} lecciones
-                      </SpeakableText>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-6">
-                    <div className="w-32">
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm text-muted-foreground">Progreso</span>
-                        <span className="text-lg font-bold text-primary">{course.progress}%</span>
+          <ul className="space-y-3 list-none p-0">
+            {courses.map((course) => (
+              <li key={course.id}>
+                <article aria-label={`Curso: ${course.name}`}>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate(`course-${course.id}|${course.name}`)}
+                    className="group w-full rounded-2xl border border-border bg-card p-5 text-left shadow-sm transition-all hover:border-primary/30 hover:shadow-md active:scale-[0.99]"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex min-w-0 items-center gap-4">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                          <BookOpen className="h-5 w-5 text-primary" aria-hidden="true" />
+                        </div>
+                        <div className="min-w-0">
+                          <SpeakableText as="p" className="truncate text-sm font-bold text-foreground">
+                            {course.name}
+                          </SpeakableText>
+                          <SpeakableText
+                            as="p"
+                            className="mt-0.5 truncate text-xs text-muted-foreground"
+                            speakText={`Siguiente: ${course.currentLesson}`}
+                          >
+                            Siguiente: {course.currentLesson}
+                          </SpeakableText>
+                          <p className="text-xs text-muted-foreground">
+                            {course.completedLessons} de {course.totalLessons} lecciones
+                          </p>
+                        </div>
                       </div>
-                      <Progress value={course.progress} className="h-3" />
+                      <div className="flex shrink-0 items-center gap-4">
+                        <div className="hidden w-28 sm:block">
+                          <div className="mb-1 flex justify-between">
+                            <span className="text-xs text-muted-foreground">Progreso</span>
+                            <span className="text-xs font-bold text-primary">{course.progress}%</span>
+                          </div>
+                          <Progress value={course.progress} className="h-1.5" />
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden="true" />
+                      </div>
                     </div>
-                    <ChevronRight className="w-8 h-8 text-muted-foreground" aria-hidden="true" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            </article>
-            </li>
-            )
-          })}
+                  </button>
+                </article>
+              </li>
+            ))}
           </ul>
         </section>
 
-        {/* Quick Actions */}
-        <nav aria-label="Acciones rápidas del estudiante">
-        <div className="grid grid-cols-2 gap-4">
-          <Button
-            variant="outline"
-            size="lg"
-            className="h-16 text-lg border-2"
-            onClick={() => onNavigate("student-progress")}
-            {...hoverProgreso}
-          >
-            <BarChart3 className="w-6 h-6 mr-3" aria-hidden="true" />
-            Mi Progreso
-          </Button>
-          <Button
-            variant="outline"
-            size="lg"
-            className="h-16 text-lg border-2"
-            onClick={() => onNavigate("student-calendar")}
-            {...hoverCalendario}
-          >
-            <Calendar className="w-6 h-6 mr-3" aria-hidden="true" />
-            Mi Calendario
-          </Button>
-
-          <Button
-            variant="outline"
-            size="lg"
-            className="h-16 text-lg border-2 col-span-2"
-            onClick={() => onNavigate("join-group")}
-            {...hoverUnirse}
-          >
-            <BookOpen className="w-6 h-6 mr-3" aria-hidden="true" />
-            Unirme a un Curso
-          </Button>
-        </div>
+        {/* ── QUICK ACTIONS ── */}
+        <nav aria-label="Acciones rápidas">
+          <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Acciones</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => onNavigate("student-progress")}
+              {...hoverProgreso}
+              className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-4 py-3.5 text-sm font-semibold text-foreground transition-all hover:bg-muted active:scale-[0.98]"
+            >
+              <BarChart3 className="h-4 w-4 text-primary" aria-hidden="true" />
+              Mi progreso
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate("student-calendar")}
+              {...hoverCalendario}
+              className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-4 py-3.5 text-sm font-semibold text-foreground transition-all hover:bg-muted active:scale-[0.98]"
+            >
+              <Calendar className="h-4 w-4 text-primary" aria-hidden="true" />
+              Mi calendario
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate("join-group")}
+              {...hoverUnirse}
+              className="col-span-2 flex items-center gap-2.5 rounded-xl border border-border bg-card px-4 py-3.5 text-sm font-semibold text-foreground transition-all hover:bg-muted active:scale-[0.98]"
+            >
+              <BookOpen className="h-4 w-4 text-primary" aria-hidden="true" />
+              Unirme a un curso
+            </button>
+          </div>
         </nav>
+
       </main>
     </div>
   )

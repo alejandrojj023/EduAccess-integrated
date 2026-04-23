@@ -1,8 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import {
@@ -47,19 +45,14 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
   const { speak, settings } = useAccessibility()
   const { user } = useAuth()
 
-  // Selector de curso al ver reporte
-  const [selectorAbierto, setSelectorAbierto] = useState(false)
-  const [cursosDisponibles, setCursosDisponibles] = useState<CursoDelAlumno[]>([])
+  const [selectorAbierto,    setSelectorAbierto]    = useState(false)
+  const [cursosDisponibles,  setCursosDisponibles]  = useState<CursoDelAlumno[]>([])
   const [alumnoSeleccionado, setAlumnoSeleccionado] = useState<{ id: string; nombre: string } | null>(null)
-  const [buscandoCursos, setBuscandoCursos] = useState<string | null>(null)
-  const [errorReporte, setErrorReporte] = useState<string | null>(null)
+  const [buscandoCursos,     setBuscandoCursos]     = useState<string | null>(null)
+  const [errorReporte,       setErrorReporte]       = useState<string | null>(null)
 
   const abrirReporte = (alumnoId: string, cursoId: string, cursoTitulo: string) => {
-    const qs = new URLSearchParams({
-      name: cursoTitulo,
-      openStudent: alumnoId,
-      back: "students",
-    }).toString()
+    const qs = new URLSearchParams({ name: cursoTitulo, openStudent: alumnoId, back: "students" }).toString()
     onNavigate(`course-students-${cursoId}?${qs}`)
   }
 
@@ -68,21 +61,14 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
     setErrorReporte(null)
     setBuscandoCursos(alumnoId)
 
-    // 1. Grupos del docente
-    const { data: grupos } = await supabase
-      .from("grupo")
-      .select("id_grupo")
-      .eq("id_docente", user.id)
-
+    const { data: grupos } = await supabase.from("grupo").select("id_grupo").eq("id_docente", user.id)
     const grupoIds = new Set((grupos ?? []).map((g: any) => g.id_grupo))
 
-    // 2. Cursos donde el alumno está inscrito (con id_grupo para filtrar)
     const { data: cursosDelAlumno } = await supabase
       .from("alumno_curso")
       .select("id_curso, curso:id_curso(id_curso, titulo, id_grupo)")
       .eq("id_alumno", alumnoId)
 
-    // 3. Filtrar a solo los cursos que pertenecen a grupos del docente
     const cursosFiltrados: CursoDelAlumno[] = (cursosDelAlumno ?? [])
       .map((ac: any) => ac.curso)
       .filter((c: any) => c && grupoIds.has(c.id_grupo))
@@ -101,7 +87,6 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
       return
     }
 
-    // 2+ cursos → mostrar selector
     setCursosDisponibles(cursosFiltrados)
     setAlumnoSeleccionado({ id: alumnoId, nombre: alumnoNombre })
     setSelectorAbierto(true)
@@ -121,240 +106,193 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
   const hoverApoyo    = useSpeakOnHover(`Estudiantes que necesitan apoyo adicional: ${studentsNeedingSupport}`)
 
   const handleReadInstructions = () => {
-    speak(
-      `Lista de estudiantes. Tienes ${students.length} estudiantes. El progreso promedio es ${averageProgress} por ciento. ${studentsNeedingSupport} estudiantes necesitan apoyo adicional.`
-    )
+    speak(`Lista de estudiantes. Tienes ${students.length} estudiantes. El progreso promedio es ${averageProgress} por ciento. ${studentsNeedingSupport} estudiantes necesitan apoyo adicional.`)
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card border-b-2 border-border sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={onBack}
-              className="h-12 w-12 p-0"
-              aria-label="Regresar al panel principal"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </Button>
+      <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={onBack}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
+              aria-label="Regresar al panel principal">
+              <ArrowLeft className="w-4 h-4" />
+            </button>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Mis Estudiantes</h1>
-              <p className="text-sm text-muted-foreground">{students.length} estudiantes</p>
+              <h1 className="text-base font-bold text-foreground leading-none">Mis Estudiantes</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">{students.length} estudiantes</p>
             </div>
           </div>
           {settings.voiceEnabled && (
-            <Button variant="outline" size="lg" onClick={handleReadInstructions} className="h-12">
-              <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />
-              Escuchar
-            </Button>
+            <button type="button" onClick={handleReadInstructions}
+              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
+              <Volume2 className="w-4 h-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Escuchar</span>
+            </button>
           )}
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-8">
+      <main className="mx-auto max-w-5xl px-6 py-8">
         {/* Summary Cards */}
-        <section aria-label="Resumen de estudiantes" className="mb-8">
-          <ul className="grid grid-cols-1 sm:grid-cols-3 gap-6 list-none p-0">
+        <section aria-label="Resumen de estudiantes" className="mb-6">
+          <ul className="grid grid-cols-1 sm:grid-cols-3 gap-4 list-none p-0">
             <li>
-              <Card className="border-2 shadow-lg h-full" {...hoverTotal}>
-                <CardContent className="p-5 flex items-center gap-4">
-                  <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center" aria-hidden="true">
-                    <User className="w-7 h-7 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-3xl font-bold text-foreground">{students.length}</p>
-                    <p className="text-muted-foreground">Total Estudiantes</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="rounded-2xl border border-border bg-card shadow-sm p-4 flex items-center gap-4" {...hoverTotal}>
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10" aria-hidden="true">
+                  <User className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{students.length}</p>
+                  <p className="text-xs text-muted-foreground">Total Estudiantes</p>
+                </div>
+              </div>
             </li>
             <li>
-              <Card className="border-2 shadow-lg h-full" {...hoverPromedio}>
-                <CardContent className="p-5 flex items-center gap-4">
-                  <div className="w-14 h-14 bg-success/10 rounded-2xl flex items-center justify-center" aria-hidden="true">
-                    <TrendingUp className="w-7 h-7 text-success" />
-                  </div>
-                  <div>
-                    <p className="text-3xl font-bold text-foreground">{averageProgress}%</p>
-                    <p className="text-muted-foreground">Progreso Promedio</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="rounded-2xl border border-border bg-card shadow-sm p-4 flex items-center gap-4" {...hoverPromedio}>
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-100" aria-hidden="true">
+                  <TrendingUp className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{averageProgress}%</p>
+                  <p className="text-xs text-muted-foreground">Progreso Promedio</p>
+                </div>
+              </div>
             </li>
             <li>
-              <Card className="border-2 shadow-lg border-accent h-full" {...hoverApoyo}>
-                <CardContent className="p-5 flex items-center gap-4">
-                  <div className="w-14 h-14 bg-accent/20 rounded-2xl flex items-center justify-center" aria-hidden="true">
-                    <AlertCircle className="w-7 h-7 text-accent-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-3xl font-bold text-foreground">{studentsNeedingSupport}</p>
-                    <p className="text-muted-foreground">Necesitan Apoyo</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="rounded-2xl border border-border bg-card shadow-sm p-4 flex items-center gap-4" {...hoverApoyo}>
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100" aria-hidden="true">
+                  <AlertCircle className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{studentsNeedingSupport}</p>
+                  <p className="text-xs text-muted-foreground">Necesitan Apoyo</p>
+                </div>
+              </div>
             </li>
           </ul>
         </section>
 
         {/* Search */}
-        <div className="relative mb-6">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-muted-foreground" aria-hidden="true" />
-          <Input
-            type="search"
-            placeholder="Buscar estudiante por nombre..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-14 text-lg pl-14 border-2"
-            aria-label="Buscar estudiante"
-          />
+        <div className="relative mb-5">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+          <Input type="search" placeholder="Buscar estudiante por nombre..."
+            value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 border-border" aria-label="Buscar estudiante" />
         </div>
 
         {/* Students List */}
         <section aria-label="Lista de estudiantes">
-          <ul className="grid gap-4 list-none p-0">
-            {filteredStudents.map((student) => (
-              <li key={student.id}>
-              <article aria-label={`${student.name}${student.needsSupport ? ", necesita apoyo" : ""}, progreso ${student.progress}%`}>
-              <Card
-                className={`border-2 shadow-lg transition-all hover:border-primary/50 ${
-                  student.needsSupport ? "border-accent/50 bg-accent/5" : ""
-                }`}
-              >
-                <CardContent className="p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                    <div className="flex items-center gap-5">
-                      <div
-                        className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-primary-foreground ${
-                          student.needsSupport ? "bg-accent" : "bg-primary"
-                        }`}
-                        aria-hidden="true"
-                      >
-                        {student.name.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <h3 className="text-xl font-bold text-foreground">{student.name}</h3>
-                          {student.needsSupport && (
-                            <span className="inline-flex items-center gap-1 text-sm bg-accent/20 text-accent-foreground px-3 py-1 rounded-full font-medium">
-                              <AlertCircle className="w-4 h-4" aria-hidden="true" />
-                              Necesita apoyo
+          {filteredStudents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card py-16 text-center">
+              <User className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" aria-hidden="true" />
+              <h3 className="text-base font-bold text-foreground mb-1">No se encontraron estudiantes</h3>
+              <p className="text-sm text-muted-foreground">Intenta con otro término de búsqueda</p>
+            </div>
+          ) : (
+            <ul className="space-y-3 list-none p-0">
+              {filteredStudents.map((student) => (
+                <li key={student.id}>
+                  <article
+                    aria-label={`${student.name}${student.needsSupport ? ", necesita apoyo" : ""}, progreso ${student.progress}%`}
+                    className={`rounded-2xl border bg-card p-5 shadow-sm transition-all hover:shadow-md ${
+                      student.needsSupport ? "border-amber-200 bg-amber-50/30" : "border-border hover:border-primary/20"
+                    }`}>
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-base font-bold text-primary-foreground ${
+                          student.needsSupport ? "bg-amber-500" : "bg-primary"
+                        }`} aria-hidden="true">
+                          {student.name.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-sm font-bold text-foreground">{student.name}</h3>
+                            {student.needsSupport && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-700 px-2.5 py-0.5 text-xs font-medium">
+                                <AlertCircle className="w-3 h-3" aria-hidden="true" />Necesita apoyo
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">{student.email}</p>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" aria-hidden="true" /><time>{student.lastActive}</time>
                             </span>
-                          )}
-                        </div>
-                        <p className="text-muted-foreground">{student.email}</p>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" aria-hidden="true" />
-                            <time>{student.lastActive}</time>
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <CheckCircle className="w-4 h-4" aria-hidden="true" />
-                            {student.completedActivities}/{student.totalActivities} actividades
-                          </span>
+                            <span className="flex items-center gap-1">
+                              <CheckCircle className="w-3 h-3" aria-hidden="true" />
+                              {student.completedActivities}/{student.totalActivities} actividades
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-6">
-                      <div className="w-40" aria-label={`Progreso: ${student.progress}%`}>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-muted-foreground">Progreso</span>
-                          <span
-                            className={`text-lg font-bold ${
-                              student.progress >= 70
-                                ? "text-success"
-                                : student.progress >= 40
-                                ? "text-accent-foreground"
-                                : "text-destructive"
-                            }`}
-                            aria-hidden="true"
-                          >
-                            {student.progress}%
-                          </span>
+                      <div className="flex items-center gap-4 shrink-0">
+                        <div className="w-32" aria-label={`Progreso: ${student.progress}%`}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-medium text-muted-foreground">Progreso</span>
+                            <span className={`text-sm font-bold ${
+                              student.progress >= 70 ? "text-green-600"
+                              : student.progress >= 40 ? "text-amber-600"
+                              : "text-destructive"
+                            }`} aria-hidden="true">{student.progress}%</span>
+                          </div>
+                          <Progress value={student.progress} className="h-2" />
                         </div>
-                        <Progress value={student.progress} className="h-3" />
-                      </div>
 
-                      <Button
-                        variant="outline"
-                        size="lg"
-                        className="h-12 px-6 border-2"
-                        onClick={() => handleVerReporte(student.id, student.name)}
-                        disabled={buscandoCursos === student.id}
-                        aria-label={`Ver reporte de ${student.name}`}
-                      >
-                        {buscandoCursos === student.id ? (
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                        ) : (
-                          <Eye className="w-5 h-5 mr-2" aria-hidden="true" />
-                        )}
-                        Ver Reporte
-                      </Button>
+                        <button type="button"
+                          onClick={() => handleVerReporte(student.id, student.name)}
+                          disabled={buscandoCursos === student.id}
+                          aria-label={`Ver reporte de ${student.name}`}
+                          className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground transition-all hover:bg-muted active:scale-[0.98] disabled:opacity-50">
+                          {buscandoCursos === student.id
+                            ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                            : <Eye className="w-4 h-4" aria-hidden="true" />}
+                          Ver Reporte
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-              </article>
-              </li>
-            ))}
-          </ul>
+                  </article>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
-        {filteredStudents.length === 0 && (
-          <Card className="border-2 border-dashed">
-            <CardContent className="p-12 text-center">
-              <User className="w-16 h-16 mx-auto text-muted-foreground mb-4" aria-hidden="true" />
-              <h3 className="text-2xl font-bold text-foreground mb-2">No se encontraron estudiantes</h3>
-              <p className="text-lg text-muted-foreground">
-                Intenta con otro termino de busqueda
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Banner de error (alumno sin cursos) */}
+        {/* Error banner */}
         {errorReporte && (
-          <div
-            role="alert"
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-destructive text-destructive-foreground px-6 py-4 rounded-2xl shadow-xl border-2 border-destructive flex items-center gap-3"
-          >
+          <div role="alert"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-destructive text-destructive-foreground px-6 py-4 rounded-2xl shadow-xl border border-destructive flex items-center gap-3">
             <AlertCircle className="w-5 h-5 shrink-0" aria-hidden="true" />
-            <p className="font-medium">{errorReporte}</p>
+            <p className="text-sm font-medium">{errorReporte}</p>
           </div>
         )}
       </main>
 
-      {/* Selector de curso al ver reporte */}
+      {/* Course selector dialog */}
       <Dialog open={selectorAbierto} onOpenChange={setSelectorAbierto}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-2xl">
+            <DialogTitle>
               Ver reporte de{alumnoSeleccionado ? ` ${alumnoSeleccionado.nombre}` : ""}:
             </DialogTitle>
-            <DialogDescription className="text-base">
+            <DialogDescription>
               Este alumno está inscrito en varios de tus cursos. Selecciona uno para ver su reporte.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2 pt-2">
             {cursosDisponibles.map((c) => (
-              <Button
-                key={c.id_curso}
-                variant="outline"
-                className="justify-start h-auto py-4 px-4 text-base border-2"
+              <button key={c.id_curso} type="button"
                 onClick={() => {
                   if (!alumnoSeleccionado) return
                   setSelectorAbierto(false)
                   abrirReporte(alumnoSeleccionado.id, c.id_curso, c.titulo)
                 }}
-              >
-                <BookOpen className="w-5 h-5 mr-3 text-primary shrink-0" aria-hidden="true" />
-                <span className="font-medium text-left">{c.titulo}</span>
-              </Button>
+                className="flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-left text-sm font-semibold text-foreground hover:bg-muted hover:border-primary/40 active:scale-[0.98] transition-all">
+                <BookOpen className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+                <span>{c.titulo}</span>
+              </button>
             ))}
           </div>
         </DialogContent>

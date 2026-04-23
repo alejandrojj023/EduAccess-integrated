@@ -1,8 +1,6 @@
 "use client"
 
 import { useState, useMemo, useCallback } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/lib/auth-context"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useTeacherDashboard } from "@/hooks/teacher/use-teacher-dashboard"
@@ -38,298 +36,251 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
     typeof window !== "undefined" ? localStorage.getItem("ea_avatar_color") : null
   )
 
-  // Hover-to-speak para botones con texto visible
   const hoverCursos      = useSpeakOnHover("Cursos: gestionar tus cursos y lecciones")
   const hoverLecciones   = useSpeakOnHover("Lecciones: ver y editar lecciones de tus cursos")
   const hoverActividades = useSpeakOnHover("Constructor de Actividades: crear y editar actividades")
   const hoverAnaliticas  = useSpeakOnHover("Analíticas: ver el progreso de tus estudiantes")
   const hoverCrearCurso  = useSpeakOnHover("Crear Nuevo Curso")
   const hoverEstudiantes = useSpeakOnHover("Ver la lista de tus estudiantes")
-
-  const hoverActividadReciente = useSpeakOnHover("Actividad Reciente: registro de los últimos movimientos de tus alumnos. Aquí puedes ver qué actividades han completado y cuándo.")
-  const hoverEstudiantesCard  = useSpeakOnHover(`Estudiantes: total de alumnos inscritos en tus grupos. Actualmente ${dashboardStats.estudiantes}`)
-  const hoverCursosCard       = useSpeakOnHover(`Cursos: número de cursos que tienes activos. Actualmente ${dashboardStats.cursos}`)
-  const hoverProgresoCard     = useSpeakOnHover(`Progreso General: porcentaje promedio de avance de todos tus alumnos en los cursos activos. Actualmente ${dashboardStats.progresoGeneral}`)
+  const hoverActividadReciente = useSpeakOnHover("Actividad Reciente: registro de los últimos movimientos de tus alumnos.")
+  const hoverEstudiantesCard   = useSpeakOnHover(`Estudiantes: total de alumnos inscritos. Actualmente ${dashboardStats.estudiantes}`)
+  const hoverCursosCard        = useSpeakOnHover(`Cursos: cursos activos. Actualmente ${dashboardStats.cursos}`)
+  const hoverProgresoCard      = useSpeakOnHover(`Progreso General: ${dashboardStats.progresoGeneral}`)
 
   const stats = useMemo(() => [
-    { label: "Estudiantes",     sub: "Total inscritos",     value: dashboardStats.estudiantes,    icon: Users,      color: "bg-primary", hover: hoverEstudiantesCard },
-    { label: "Cursos",          sub: "Material disponible", value: dashboardStats.cursos,         icon: BookOpen,   color: "bg-accent",  hover: hoverCursosCard      },
-    { label: "Progreso General",sub: "Media de completado", value: dashboardStats.progresoGeneral,icon: TrendingUp, color: "bg-success", hover: hoverProgresoCard     },
+    { label: "Estudiantes",      sub: "Total inscritos",     value: dashboardStats.estudiantes,     icon: Users,      hover: hoverEstudiantesCard },
+    { label: "Cursos",           sub: "Material disponible", value: dashboardStats.cursos,          icon: BookOpen,   hover: hoverCursosCard      },
+    { label: "Progreso general", sub: "Media de completado", value: dashboardStats.progresoGeneral, icon: TrendingUp, hover: hoverProgresoCard     },
   ], [dashboardStats, hoverEstudiantesCard, hoverCursosCard, hoverProgresoCard])
 
   const handleReadInstructions = useCallback(() => {
     speak(
-      `Panel del docente. Bienvenido ${user?.name}. Tienes ${dashboardStats.estudiantes} estudiantes, ${dashboardStats.cursos} cursos activos, y el progreso general es del ${dashboardStats.progresoGeneral}. Puedes gestionar cursos, lecciones, actividades y ver las analiticas.`
+      `Panel del docente. Bienvenido ${user?.name}. Tienes ${dashboardStats.estudiantes} estudiantes, ${dashboardStats.cursos} cursos activos, y el progreso general es del ${dashboardStats.progresoGeneral}.`
     )
   }, [speak, user?.name, dashboardStats])
 
+  const navItems = [
+    { label: "Cursos",      Icon: FolderOpen,  screen: "courses",    hover: hoverCursos      },
+    { label: "Lecciones",   Icon: BookOpen,    screen: "courses",    hover: hoverLecciones   },
+    { label: "Actividades", Icon: CheckCircle, screen: "activities", hover: hoverActividades },
+    { label: "Analíticas",  Icon: BarChart3,   screen: "analytics",  hover: hoverAnaliticas  },
+  ]
+
+  const initials = (user?.name ?? "D").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card border-b-2 border-border sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center bg-[#008e92]">
-              <img src="/2.svg" alt="EduAccess logo" className="w-full h-full object-cover" aria-hidden="true" />
+    <div className="min-h-screen bg-background text-foreground">
+
+      {/* ── HEADER ── */}
+      <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-[#008e92]">
+              <img src="/2.svg" alt="EduAccess" className="h-full w-full object-cover" aria-hidden="true" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">EduAccess</h1>
-              <p className="text-sm text-muted-foreground">Panel del Docente</p>
+              <p className="text-sm font-bold leading-none text-foreground">EduAccess</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Panel del Docente</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {settings.voiceEnabled && (
-              <Button
-                variant="outline"
-                size="lg"
+              <button
+                type="button"
                 onClick={handleReadInstructions}
-                className="h-12"
+                className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
               >
-                <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />
+                <Volume2 className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Escuchar</span>
-              </Button>
+              </button>
             )}
-            <AccessibleTooltip label="Ajustes de accesibilidad y perfil">
-              <Button
-                variant="outline"
-                size="lg"
+            <AccessibleTooltip label="Ajustes de accesibilidad">
+              <button
+                type="button"
                 onClick={() => onNavigate("accessibility")}
-                className="h-12 w-12 p-0"
-                aria-label="Configuracion de accesibilidad"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
+                aria-label="Configuración de accesibilidad"
               >
-                <Settings className="w-5 h-5" aria-hidden="true" />
-              </Button>
+                <Settings className="h-4 w-4" aria-hidden="true" />
+              </button>
             </AccessibleTooltip>
             <AccessibleTooltip label="Cerrar sesión">
-              <Button variant="outline" size="lg" onClick={onLogout} className="h-12">
-                <LogOut className="w-5 h-5 mr-2" aria-hidden="true" />
+              <button
+                type="button"
+                onClick={onLogout}
+                className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Salir</span>
-              </Button>
+              </button>
             </AccessibleTooltip>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Welcome Banner */}
-        <section aria-label="Bienvenida" className="mb-8">
-          <div className="bg-primary rounded-[2rem] p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6 shadow-[0_24px_80px_rgba(0,0,0,0.08)]">
-            {/* Izquierda: avatar + saludo */}
-            <div className="flex items-center gap-5">
+      <main className="mx-auto max-w-7xl space-y-8 px-6 py-8">
+
+        {/* ── WELCOME BANNER ── */}
+        <section aria-label="Bienvenida">
+          <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
               <div
-                className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-white shrink-0 shadow-md ring-2 ring-white/40"
-                style={{ backgroundColor: avatarColor ?? "rgba(255,255,255,0.25)" }}
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white shadow-sm"
+                style={{ backgroundColor: avatarColor ?? "#008e92" }}
                 aria-hidden="true"
               >
-                {(user?.name ?? "D").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}
+                {initials}
               </div>
               <div>
-                <h2 className="text-3xl font-bold text-white">
+                <h2 className="text-xl font-bold text-foreground">
                   Hola, {user?.name?.split(" ")[0]}
                 </h2>
-                <p className="text-white/80 text-base mt-1">
-                  Este es el resumen de tu clase
-                </p>
+                <p className="text-sm text-muted-foreground">Este es el resumen de tu clase</p>
               </div>
             </div>
-
-            {/* Derecha: botones */}
-            <div className="flex items-center gap-3 flex-wrap">
-              <Button
-                size="lg"
-                className="bg-primary-foreground text-primary border-primary-foreground hover:bg-primary-foreground/90 font-semibold h-12 px-6 text-base"
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
                 onClick={() => onNavigate("create-course")}
                 {...hoverCrearCurso}
+                className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 hover:shadow-md active:scale-[0.98]"
               >
-                <Plus className="w-5 h-5 mr-2" aria-hidden="true" />
-                Crear Nuevo Curso
-              </Button>
-              <Button
-                size="lg"
-                className="bg-primary-foreground/20 text-primary-foreground border border-primary-foreground/30 hover:bg-primary-foreground/30 font-semibold h-12 px-6 text-base"
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Crear curso
+              </button>
+              <button
+                type="button"
                 onClick={() => onNavigate("students")}
                 {...hoverEstudiantes}
+                className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition-all hover:bg-muted active:scale-[0.98]"
               >
-                <Users className="w-5 h-5 mr-2" aria-hidden="true" />
-                Ver Estudiantes
-              </Button>
+                <Users className="h-4 w-4" aria-hidden="true" />
+                Ver estudiantes
+              </button>
             </div>
           </div>
         </section>
 
-        {/* Stats Cards */}
-        <section aria-label="Estadísticas de la clase" className="mb-8">
-          <ul className="grid grid-cols-1 md:grid-cols-3 gap-6 list-none p-0">
+        {/* ── STATS ── */}
+        <section aria-label="Estadísticas de la clase">
+          <ul className="grid list-none grid-cols-1 gap-4 p-0 md:grid-cols-3">
             {stats.map((stat) => (
               <li key={stat.label}>
-                <Card className="border-2 shadow-lg h-full" {...stat.hover}>
-                  <CardContent className="p-6 flex items-center gap-5">
-                    <div className={`w-16 h-16 ${stat.color} rounded-2xl flex items-center justify-center`} aria-hidden="true">
-                      <stat.icon className="w-8 h-8 text-primary-foreground" />
-                    </div>
-                    <div>
-                      <p className="text-4xl font-bold text-foreground">{stat.value}</p>
-                      <p className="text-lg font-semibold text-foreground">{stat.label}</p>
-                      <p className="text-sm text-muted-foreground">{stat.sub}</p>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div
+                  className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
+                  {...stat.hover}
+                >
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                    <stat.icon className="h-6 w-6 text-primary" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+                    <p className="text-sm font-semibold text-foreground">{stat.label}</p>
+                    <p className="text-xs text-muted-foreground">{stat.sub}</p>
+                  </div>
+                </div>
               </li>
             ))}
           </ul>
         </section>
 
-        {/* Navigation Cards */}
+        {/* ── NAV CARDS ── */}
         <nav aria-label="Menú principal del docente">
-          <h3 className="text-2xl font-bold text-foreground mb-6">Gestionar</h3>
-          <ul className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8 list-none p-0">
-            <li>
-              <Button
-                variant="outline"
-                className="w-full h-auto p-8 flex flex-col items-center gap-4 rounded-[1.75rem] border-2 hover:border-primary hover:bg-primary/5 group"
-                onClick={() => onNavigate("courses")}
-                {...hoverCursos}
-              >
-                <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110" aria-hidden="true">
-                  <FolderOpen className="w-11 h-11 text-primary" />
-                </div>
-                <span className="text-xl font-semibold text-foreground">Cursos</span>
-              </Button>
-            </li>
-            <li>
-              <Button
-                variant="outline"
-                className="w-full h-auto p-8 flex flex-col items-center gap-4 rounded-[1.75rem] border-2 hover:border-primary hover:bg-primary/5 group"
-                onClick={() => onNavigate("courses")}
-                {...hoverLecciones}
-              >
-                <div className="w-16 h-16 bg-accent/30 rounded-2xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110" aria-hidden="true">
-                  <BookOpen className="w-11 h-11 text-accent-foreground" />
-                </div>
-                <span className="text-xl font-semibold text-foreground">Lecciones</span>
-              </Button>
-            </li>
-            <li>
-              <Button
-                variant="outline"
-                className="w-full h-auto p-8 flex flex-col items-center gap-4 rounded-[1.75rem] border-2 hover:border-primary hover:bg-primary/5 group"
-                onClick={() => onNavigate("activities")}
-                {...hoverActividades}
-              >
-                <div className="w-16 h-16 bg-success/10 rounded-2xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110" aria-hidden="true">
-                  <CheckCircle className="w-11 h-11 text-success" />
-                </div>
-                <span className="text-xl font-semibold text-foreground">Actividades</span>
-              </Button>
-            </li>
-            <li>
-              <Button
-                variant="outline"
-                className="w-full h-auto p-8 flex flex-col items-center gap-4 rounded-[1.75rem] border-2 hover:border-primary hover:bg-primary/5 group"
-                onClick={() => onNavigate("analytics")}
-                {...hoverAnaliticas}
-              >
-                <div className="w-16 h-16 bg-chart-4/20 rounded-2xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110" aria-hidden="true">
-                  <BarChart3 className="w-11 h-11 text-chart-4" />
-                </div>
-                <span className="text-xl font-semibold text-foreground">Analiticas</span>
-              </Button>
-            </li>
+          <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Gestionar</h3>
+          <ul className="grid list-none grid-cols-2 gap-4 p-0 lg:grid-cols-4">
+            {navItems.map(({ label, Icon, screen, hover }) => (
+              <li key={label}>
+                <button
+                  type="button"
+                  onClick={() => onNavigate(screen)}
+                  {...hover}
+                  className="group flex w-full flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 text-center transition-all hover:border-primary/30 hover:shadow-md active:scale-[0.98]"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/15">
+                    <Icon className="h-6 w-6 text-primary" aria-hidden="true" />
+                  </div>
+                  <span className="text-sm font-semibold text-foreground">{label}</span>
+                </button>
+              </li>
+            ))}
           </ul>
         </nav>
 
-        {/* Recent Activity */}
+        {/* ── RECENT ACTIVITY ── */}
         <section aria-label="Actividad reciente de estudiantes">
-          <Card className="border-2 shadow-lg">
-            <CardHeader className="border-b border-border" {...hoverActividadReciente}>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl flex items-center gap-3">
-                  <Clock className="w-6 h-6 text-primary" aria-hidden="true" />
-                  Actividad Reciente
-                </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={refetch}
-                  aria-label="Actualizar actividad reciente"
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <RefreshCw className="w-4 h-4 mr-1" aria-hidden="true" />
-                  Actualizar
-                </Button>
+          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+            <div
+              className="flex items-center justify-between border-b border-border px-6 py-4"
+              {...hoverActividadReciente}
+            >
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" aria-hidden="true" />
+                <h3 className="text-sm font-bold text-foreground">Actividad reciente</h3>
               </div>
-            </CardHeader>
-            <CardContent className="p-0">
+              <button
+                type="button"
+                onClick={refetch}
+                aria-label="Actualizar actividad reciente"
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                Actualizar
+              </button>
+            </div>
+
+            <div className="p-4">
               {recentActivity.length === 0 ? (
-                <div className="space-y-4 p-4">
-                  <div className="flex flex-col items-center justify-center py-10 text-center rounded-[1.5rem] border border-dashed border-border/50 bg-card/80">
-                    <History className="w-14 h-14 text-muted-foreground mb-4" aria-hidden="true" />
-                    <p className="text-lg font-bold text-foreground mb-1">Sin actividad reciente</p>
-                    <p className="text-base text-muted-foreground max-w-xl">
-                      Aquí aparecerán los avances de tus alumnos cuando completen actividades. Mientras tanto, este espacio te muestra el formato de la lista de actividad reciente.
+                <div className="space-y-3">
+                  <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 py-8 text-center">
+                    <History className="mb-3 h-10 w-10 text-muted-foreground/40" aria-hidden="true" />
+                    <p className="text-sm font-semibold text-foreground">Sin actividad reciente</p>
+                    <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                      Aquí aparecerán los avances de tus alumnos cuando completen actividades.
                     </p>
                   </div>
-                  <ul className="space-y-3" aria-label="Ejemplo de actividad reciente">
+                  <ul className="space-y-2 list-none p-0" aria-label="Ejemplo de actividad">
                     {[
                       { student: "Nicolás", activity: "Completó Comprensión de lectura", time: "Hace 12 min" },
-                      { student: "Sofía", activity: "Completó Sopa de letras", time: "Hace 45 min" },
-                    ].map((item, index) => (
-                      <li key={index} className="rounded-[1.5rem] border border-border/70 bg-card/90 p-4 shadow-sm transition hover:border-primary/40 hover:bg-primary/5">
-                        <article>
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 rounded-3xl bg-primary/10 flex items-center justify-center text-primary">
-                                <CheckCircle className="w-6 h-6" aria-hidden="true" />
-                              </div>
-                              <div>
-                                <p className="text-lg font-semibold text-foreground">{item.student}</p>
-                                <p className="text-sm text-muted-foreground">Actividad completada</p>
-                              </div>
-                            </div>
-                            <time className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground bg-muted px-3 py-1 rounded-full">
-                              {item.time}
-                            </time>
-                          </div>
-                          <div className="mt-4 rounded-3xl border border-border/70 bg-muted/50 p-4">
-                            <p className="text-base text-foreground">{item.activity}</p>
-                          </div>
-                        </article>
+                      { student: "Sofía",   activity: "Completó Sopa de letras",         time: "Hace 45 min" },
+                    ].map((item, i) => (
+                      <li key={i}>
+                        <ActivityRow student={item.student} activity={item.activity} time={item.time} />
                       </li>
                     ))}
                   </ul>
                 </div>
               ) : (
-                <ul className="space-y-3 p-4" aria-label="Lista de actividad reciente">
-                  {recentActivity.map((activity, index) => (
-                    <li key={index} className="rounded-[1.5rem] border border-border/70 bg-card/90 p-4 shadow-sm transition hover:border-primary/40 hover:bg-primary/5">
-                      <article aria-label={`${activity.student}: ${activity.activity}`}>
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-3xl bg-primary/10 flex items-center justify-center text-primary">
-                              <CheckCircle className="w-6 h-6" aria-hidden="true" />
-                            </div>
-                            <div>
-                              <p className="text-lg font-semibold text-foreground">{activity.student}</p>
-                              <p className="text-sm text-muted-foreground">Actividad completada</p>
-                            </div>
-                          </div>
-                          <time className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground bg-muted px-3 py-1 rounded-full">
-                            {activity.time}
-                          </time>
-                        </div>
-                        <div className="mt-4 rounded-3xl border border-border/70 bg-muted/50 p-4">
-                          <p className="text-base text-foreground">{activity.activity}</p>
-                        </div>
-                      </article>
+                <ul className="space-y-2 list-none p-0" aria-label="Lista de actividad reciente">
+                  {recentActivity.map((activity, i) => (
+                    <li key={i}>
+                      <ActivityRow student={activity.student} activity={activity.activity} time={activity.time} />
                     </li>
                   ))}
                 </ul>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </section>
 
       </main>
     </div>
+  )
+}
+
+function ActivityRow({ student, activity, time }: { student: string; activity: string; time: string }) {
+  return (
+    <article
+      aria-label={`${student}: ${activity}`}
+      className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 transition-colors hover:bg-muted/60"
+    >
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+        <CheckCircle className="h-4 w-4 text-primary" aria-hidden="true" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-foreground">{student}</p>
+        <p className="truncate text-xs text-muted-foreground">{activity}</p>
+      </div>
+      <time className="shrink-0 text-xs text-muted-foreground">{time}</time>
+    </article>
   )
 }
