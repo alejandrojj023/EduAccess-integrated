@@ -19,6 +19,8 @@ interface VoiceActivityProps {
   /** Contexto de lección — si se pasan, el header muestra "Actividad X de Y" en lugar del contador de estrellas */
   lessonIndex?: number
   lessonTotal?: number
+  /** Vista previa (docente): no guarda intentos */
+  previewMode?: boolean
 }
 
 interface ActivityData {
@@ -58,7 +60,7 @@ function checkAnswer(spoken: string, expected: string): boolean {
 const MAX_ATTEMPTS = 2
 type Phase = "loading" | "question" | "result"
 
-export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, lessonTotal }: VoiceActivityProps) {
+export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, lessonTotal, previewMode = false }: VoiceActivityProps) {
   const isLessonMode = lessonIndex !== undefined && lessonTotal !== undefined && lessonTotal > 0
   const lessonProgress = isLessonMode ? Math.round((lessonIndex / lessonTotal) * 100) : 0
   const { user }            = useAuth()
@@ -217,16 +219,18 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
   }
 
   async function handleFinish() {
-    if (user && activityId) {
-      const { data: { session } } = await supabase.auth.getSession()
-      await fetch("/api/attempts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({ activityId, puntaje: score, tiempoSegundos: Math.round((Date.now() - activityStartRef.current) / 1000) }),
-      })
+    if (!previewMode) {
+      if (user && activityId) {
+        const { data: { session } } = await supabase.auth.getSession()
+        await fetch("/api/attempts", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ activityId, puntaje: score, tiempoSegundos: Math.round((Date.now() - activityStartRef.current) / 1000) }),
+        })
+      }
     }
     onComplete()
   }
@@ -263,43 +267,43 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-primary text-primary-foreground sticky top-0 z-10">
+      <header className="sticky top-0 z-10 border-b border-border/60 bg-background/80 backdrop-blur">
         <div className="max-w-3xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between gap-3">
             <Button
-              variant="secondary"
+              variant="outline"
               size="lg"
               onClick={onBack}
-              className="h-12 w-12 p-0"
+              className="h-11 w-11 p-0 rounded-2xl bg-background shadow-sm border-border/60 hover:bg-muted"
               aria-label="Volver"
             >
-              <ArrowLeft className="w-6 h-6" />
+              <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex-1 text-center px-4">
-              <p className="font-bold text-lg line-clamp-1">
+              <p className="font-extrabold text-[17px] tracking-tight text-foreground line-clamp-1">
                 {activity?.titulo ?? "Respuesta por Voz"}
               </p>
               {isLessonMode && (
-                <p className="text-sm opacity-80">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Actividad {lessonIndex! + 1} de {lessonTotal}
                 </p>
               )}
             </div>
             {!isLessonMode ? (
-              <div className="flex items-center gap-2">
-                <Star className="w-6 h-6 text-accent" aria-hidden="true" />
-                <span className="text-xl font-bold">{score}</span>
+              <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-card px-3 py-2 shadow-sm">
+                <Star className="w-5 h-5 text-amber-500" aria-hidden="true" />
+                <span className="text-base font-extrabold text-foreground tabular-nums">{score}</span>
               </div>
             ) : (
-              <div className="text-right min-w-[60px]">
-                <p className="text-xs opacity-70">Progreso</p>
-                <p className="font-bold">{lessonProgress}%</p>
+              <div className="text-right min-w-[72px]">
+                <p className="text-[11px] text-muted-foreground">Progreso</p>
+                <p className="font-extrabold text-foreground tabular-nums">{lessonProgress}%</p>
               </div>
             )}
           </div>
           <Progress
             value={isLessonMode ? lessonProgress : (phase === "result" ? 100 : 33)}
-            className="h-3 bg-primary-foreground/20"
+            className="h-2.5 bg-muted"
           />
         </div>
       </header>
@@ -307,23 +311,23 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
       <main className="max-w-3xl mx-auto px-4 py-10 space-y-8">
 
         {/* Instructions */}
-        <p className="text-2xl font-bold text-foreground text-center leading-snug">
+        <p className="text-lg sm:text-xl font-extrabold tracking-tight text-foreground text-center leading-snug">
           {activity?.instrucciones ?? "Escucha la pregunta y responde en voz alta"}
         </p>
 
         {/* Question card */}
-        <Card className="border-2 shadow-lg rounded-3xl overflow-hidden">
+        <Card className="border border-border/70 shadow-sm rounded-3xl overflow-hidden">
           <CardContent className="p-6">
             <div className="flex justify-center">
               <div className="flex items-center gap-3 flex-wrap">
                 <button
                   onClick={() => speakQuestion(pregunta!.enunciado)}
-                  className="w-14 h-14 shrink-0 bg-primary/10 hover:bg-primary/20 rounded-2xl flex items-center justify-center transition-colors"
+                  className="w-12 h-12 shrink-0 rounded-2xl border border-border/70 bg-muted/40 hover:bg-muted flex items-center justify-center transition-colors shadow-sm"
                   aria-label="Escuchar pregunta"
                 >
-                  <Volume2 className="w-7 h-7 text-primary" aria-hidden="true" />
+                  <Volume2 className="w-5 h-5 text-primary" aria-hidden="true" />
                 </button>
-                <p className="text-3xl font-bold text-foreground text-center">
+                <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground text-center">
                   {pregunta?.enunciado}
                 </p>
               </div>
@@ -347,7 +351,7 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
             <button
               onClick={handleMic}
               disabled={isProcessing}
-              className={`w-28 h-28 rounded-full flex items-center justify-center shadow-xl transition-all ${
+              className={`w-28 h-28 rounded-full flex items-center justify-center shadow-lg ring-1 ring-border/60 transition-all ${
                 isRecording
                   ? "bg-destructive animate-pulse scale-110"
                   : isProcessing
@@ -362,7 +366,7 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
               }
             </button>
 
-            <p className="text-xl font-semibold text-foreground">
+            <p className="text-lg font-bold text-foreground">
               {isRecording ? "Escuchando… habla ahora" : isProcessing ? "Procesando…" : "Toca para hablar"}
             </p>
 
@@ -377,7 +381,7 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
 
         {/* Interim transcript (real-time while recording) */}
         {isRecording && interimTranscript && (
-          <Card className="border-2 rounded-2xl border-dashed">
+          <Card className="border border-border/70 rounded-3xl border-dashed bg-card/60">
             <CardContent className="p-5 text-center">
               <p className="text-sm text-muted-foreground mb-1">Escuchando:</p>
               <p className="text-xl font-semibold text-muted-foreground italic">"{interimTranscript}"</p>

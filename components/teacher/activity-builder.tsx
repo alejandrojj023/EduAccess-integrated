@@ -27,6 +27,7 @@ import {
   Search,
 } from "lucide-react"
 import { parseActivityConfig, serializeActivityConfig } from "@/lib/activity-config"
+import { StudentActivity } from "@/components/student/student-activity"
 
 interface ActivityBuilderProps {
   onBack: () => void
@@ -34,7 +35,7 @@ interface ActivityBuilderProps {
 }
 
 type ActivityType = "image" | "sound" | "sequence" | "multiple" | "short" | "voice" | "fill" | "wordsearch" | null
-type BuilderView = "grid" | "existing" | "config"
+type BuilderView = "grid" | "existing" | "config" | "preview"
 
 interface Option {
   id: string
@@ -123,6 +124,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
   const [selectedType, setSelectedType] = useState<ActivityType>(null)
   const [editingActivity, setEditingActivity] = useState<ExistingActivity | null>(null)
   const [selectedLessonId, setSelectedLessonId] = useState("")
+  const [previewActivityId, setPreviewActivityId] = useState<string | null>(null)
 
   // Config form state
   const [instrucciones, setInstrucciones] = useState("")
@@ -666,12 +668,23 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                                   </span>
                                 )}
                               </div>
-                              <button type="button"
-                                className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted active:scale-[0.98] transition-all shrink-0"
-                                onClick={() => openConfigForEdit(activity)}>
-                                <Edit className="w-4 h-4" aria-hidden="true" />
-                                Editar
-                              </button>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <button type="button"
+                                  className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted active:scale-[0.98] transition-all"
+                                  onClick={() => {
+                                    setPreviewActivityId(activity.id)
+                                    setView("preview")
+                                  }}>
+                                  <BookOpen className="w-4 h-4" aria-hidden="true" />
+                                  Vista previa
+                                </button>
+                                <button type="button"
+                                  className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted active:scale-[0.98] transition-all"
+                                  onClick={() => openConfigForEdit(activity)}>
+                                  <Edit className="w-4 h-4" aria-hidden="true" />
+                                  Editar
+                                </button>
+                              </div>
                             </li>
                           ))}
                         </ul>
@@ -684,6 +697,21 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
           )}
         </main>
       </div>
+    )
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // VIEW: PREVIEW (student view, no attempts saved)
+  // ═══════════════════════════════════════════════════════════════
+  if (view === "preview") {
+    return (
+      <StudentActivity
+        activityId={previewActivityId}
+        onBack={() => setView("existing")}
+        onComplete={() => setView("existing")}
+        onVoiceActivity={() => setView("existing")}
+        previewMode
+      />
     )
   }
 

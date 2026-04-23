@@ -38,6 +38,8 @@ interface StudentActivityProps {
   onBack: () => void
   onComplete: () => void
   onVoiceActivity: () => void
+  /** Vista previa (docente): no guarda intentos ni completa lección */
+  previewMode?: boolean
 }
 
 interface DBActivity {
@@ -102,7 +104,7 @@ function generateWordSearchGrid(words: string[]): string[][] {
 
 type Phase = "loading" | "question" | "result" | "done" | "lesson-done"
 
-export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVoiceActivity }: StudentActivityProps) {
+export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVoiceActivity, previewMode = false }: StudentActivityProps) {
   const { user } = useAuth()
   const { speak, settings } = useAccessibility()
 
@@ -217,6 +219,10 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     activityStartRef.current = Date.now()
 
     if (isLessonMode && lessonId) {
+      if (previewMode) {
+        setError("La vista previa del docente no soporta modo lección todavía.")
+        return
+      }
       // Lesson mode: load all non-voice activities for the lesson
       const [{ data: acts }, { data: glosarioData }] = await Promise.all([
         supabase
@@ -297,8 +303,15 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
       if (actErr || !act) { setError("No se pudo cargar la actividad."); return }
 
       if (act.tipo === "respuesta_oral") {
-        onVoiceActivity()
-        return
+        if (previewMode) {
+          // En vista previa del docente, renderizamos la actividad de voz inline (sin guardar intentos)
+          setActivity(act)
+          setPhase("question")
+          return
+        } else {
+          onVoiceActivity()
+          return
+        }
       }
 
       if (act.id_leccion) {
@@ -794,18 +807,20 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
   }
 
   async function handleFinish() {
-    // Guarda el intento individual de la actividad
-    const tiempoSeg = Math.round((Date.now() - activityStartRef.current) / 1000)
-    if (user && activityId) {
-      const { data: { session } } = await supabase.auth.getSession()
-      await fetch("/api/attempts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({ activityId, puntaje: score, tiempoSegundos: tiempoSeg }),
-      })
+    if (!previewMode) {
+      // Guarda el intento individual de la actividad
+      const tiempoSeg = Math.round((Date.now() - activityStartRef.current) / 1000)
+      if (user && activityId) {
+        const { data: { session } } = await supabase.auth.getSession()
+        await fetch("/api/attempts", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ activityId, puntaje: score, tiempoSegundos: tiempoSeg }),
+        })
+      }
     }
     speak(`¡Actividad completada!`)
     onComplete()
@@ -832,6 +847,10 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
 
   async function handleNextActivity() {
     if (!activity) return
+    if (previewMode) {
+      onComplete()
+      return
+    }
     const tiempoSeg = Math.round((Date.now() - activityStartRef.current) / 1000)
     const { data: { session } } = await supabase.auth.getSession()
     await fetch("/api/attempts", {
@@ -862,6 +881,10 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
   }
 
   async function handleLessonComplete(results: ActivityResult[]) {
+    if (previewMode) {
+      onComplete()
+      return
+    }
     clearLessonProgress()
     setPhase("loading")
     const totalSecs = Math.round((Date.now() - lessonStartRef.current) / 1000)
@@ -930,6 +953,18 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     )
   }
 
+  // Vista previa docente, actividad oral individual → mostrar VoiceActivity sin guardar intentos
+  if (previewMode && !isLessonMode && activity?.tipo === "respuesta_oral" && phase === "question") {
+    return (
+      <VoiceActivity
+        activityId={activity.id_actividad}
+        onBack={onBack}
+        onComplete={onComplete}
+        previewMode
+      />
+    )
+  }
+
   if (phase === "loading") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -957,36 +992,38 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-primary text-primary-foreground sticky top-0 z-10">
+      <header className="sticky top-0 z-10 border-b border-border/60 bg-background/80 backdrop-blur">
         <div className="max-w-3xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between gap-3">
             <Button
-              variant="secondary"
+              variant="outline"
               size="lg"
               onClick={onBack}
-              className="h-12 w-12 p-0"
+              className="h-11 w-11 p-0 rounded-2xl bg-background shadow-sm border-border/60 hover:bg-muted"
               aria-label="Volver"
             >
-              <ArrowLeft className="w-6 h-6" />
+              <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex-1 text-center px-4">
-              <p className="font-bold text-lg line-clamp-1">{activity?.titulo}</p>
+              <p className="font-extrabold text-[17px] tracking-tight text-foreground line-clamp-1">
+                {activity?.titulo}
+              </p>
               {isLessonMode && lessonActivities.length > 0 && (
-                <p className="text-sm opacity-80">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Actividad {lessonActIndex + 1} de {lessonActivities.length}
                 </p>
               )}
             </div>
             {!isLessonMode && (
-              <div className="flex items-center gap-2">
-                <Star className="w-6 h-6 text-accent" aria-hidden="true" />
-                <span className="text-xl font-bold">{score}</span>
+              <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-card px-3 py-2 shadow-sm">
+                <Star className="w-5 h-5 text-amber-500" aria-hidden="true" />
+                <span className="text-base font-extrabold text-foreground tabular-nums">{score}</span>
               </div>
             )}
             {isLessonMode && lessonActivities.length > 0 && (
-              <div className="text-right min-w-[60px]">
-                <p className="text-xs opacity-70">Progreso</p>
-                <p className="font-bold">
+              <div className="text-right min-w-[72px]">
+                <p className="text-[11px] text-muted-foreground">Progreso</p>
+                <p className="font-extrabold text-foreground tabular-nums">
                   {Math.round((lessonActIndex / lessonActivities.length) * 100)}%
                 </p>
               </div>
@@ -996,7 +1033,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
             value={isLessonMode && lessonActivities.length > 0
               ? Math.round((lessonActIndex / lessonActivities.length) * 100)
               : phase === "done" ? 100 : phase === "result" ? 66 : 33}
-            className="h-3 bg-primary-foreground/20"
+            className="h-2.5 bg-muted"
           />
         </div>
       </header>
@@ -1005,18 +1042,18 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
 
         {/* Instructions card */}
         <section aria-label="Instrucciones de la actividad">
-          <Card className="border-2 shadow-lg">
-            <CardContent className="p-6">
+          <Card className="border border-border/70 shadow-sm rounded-3xl">
+            <CardContent className="p-6 sm:p-7">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
-                  <HelpCircle className="w-6 h-6 text-primary" aria-hidden="true" />
+                <div className="w-12 h-12 rounded-2xl border border-border/70 bg-muted/40 flex items-center justify-center shrink-0">
+                  <HelpCircle className="w-5 h-5 text-primary" aria-hidden="true" />
                 </div>
                 <div className="flex-1 flex items-start gap-4">
                   <div className="flex-1">
-                    <SpeakableText as="h2" className="text-xl font-bold text-foreground mb-1">
+                    <SpeakableText as="h2" className="text-lg font-extrabold tracking-tight text-foreground mb-1">
                       Instrucciones
                     </SpeakableText>
-                    <p className="text-lg text-muted-foreground leading-relaxed">
+                    <p className="text-[15px] sm:text-base text-muted-foreground leading-relaxed">
                       <TextoConGlosario
                         texto={config?.instrucciones || "Lee y responde la siguiente pregunta."}
                         glosario={glosario}
@@ -1026,11 +1063,11 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                   {settings.voiceEnabled && (
                     <Button
                       variant="outline"
-                      className="h-12 px-5 text-base shrink-0 self-center"
+                      className="h-11 px-4 text-sm shrink-0 self-center rounded-2xl border-border/60 bg-background shadow-sm hover:bg-muted"
                       onClick={() => speak(config?.instrucciones ?? "")}
                       aria-label="Escuchar instrucciones"
                     >
-                      <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />
+                      <Volume2 className="w-4 h-4 mr-2" aria-hidden="true" />
                       Escuchar
                     </Button>
                   )}
@@ -1045,11 +1082,11 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
           <section aria-label="Pregunta y opciones de respuesta">
             {/* Retry banner — shown after first wrong attempt */}
             {retryBanner && (
-              <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border-2 border-amber-300 mb-4">
-                <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center shrink-0">
+              <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50/60 border border-amber-200 mb-4 shadow-sm">
+                <div className="w-9 h-9 bg-amber-500/90 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
                   <RotateCcw className="w-4 h-4 text-white" aria-hidden="true" />
                 </div>
-                <p className="text-amber-800 font-semibold flex-1">{retryBanner}</p>
+                <p className="text-amber-900 font-semibold flex-1">{retryBanner}</p>
               </div>
             )}
             {/* Image — only for tipo identificacion */}
@@ -1087,11 +1124,18 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                           speak(`Opción: ${op.texto}`)
                         }
                       }}
-                      className="p-6 rounded-2xl border-4 border-border text-xl font-semibold text-foreground bg-card hover:border-primary/50 hover:bg-muted transition-all text-left"
+                      className="group relative p-6 rounded-3xl border border-border/70 bg-card shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       aria-label={`Opción ${i + 1}: ${op.texto}`}
                     >
-                      <span className="text-primary font-bold mr-3">{String.fromCharCode(65 + i)}.</span>
-                      {op.texto}
+                      <span className="absolute inset-x-0 top-0 h-1 rounded-t-3xl bg-gradient-to-r from-primary/25 via-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="flex items-start gap-3">
+                        <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-border/70 bg-muted/40 text-[13px] font-black text-foreground shadow-sm">
+                          {String.fromCharCode(65 + i)}
+                        </span>
+                        <span className="text-[17px] sm:text-lg font-extrabold tracking-tight text-foreground leading-snug">
+                          {op.texto}
+                        </span>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -1100,9 +1144,9 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
 
             {/* Short answer */}
             {isShortAnswer && (
-              <Card className="border-2">
+              <Card className="border border-border/70 shadow-sm rounded-3xl">
                 <CardContent className="p-6 space-y-4">
-                  <label className="text-lg font-medium text-foreground" htmlFor="short-answer">
+                  <label className="text-base font-semibold text-foreground" htmlFor="short-answer">
                     Escribe tu respuesta:
                   </label>
                   <Input
@@ -1110,13 +1154,13 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                     value={textAnswer}
                     onChange={e => setTextAnswer(e.target.value)}
                     placeholder="Tu respuesta…"
-                    className="h-14 text-lg"
+                    className="h-12 text-base rounded-2xl border-border/70 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-ring"
                     onKeyDown={e => e.key === "Enter" && handleSubmitText()}
                     autoFocus
                   />
                   <Button
                     size="lg"
-                    className="w-full h-14 text-lg"
+                    className="w-full h-12 text-base rounded-2xl font-bold"
                     onClick={handleSubmitText}
                     disabled={!textAnswer.trim()}
                   >
