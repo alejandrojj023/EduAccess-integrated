@@ -1,9 +1,6 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
 import { Label } from "@/components/ui/label"
 import { DatePicker } from "@/components/ui/date-picker"
 import {
@@ -310,10 +307,10 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
   function ConfigBtn({ children }: { children: React.ReactNode }) {
     return (
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1.5 h-8 text-xs font-medium shrink-0">
+        <button type="button" className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98] shrink-0">
           <SlidersHorizontal className="w-3.5 h-3.5" />
           Configurar
-        </Button>
+        </button>
       </PopoverTrigger>
     )
   }
@@ -322,39 +319,37 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-card border-b-2 border-border sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline" size="lg" onClick={onBack}
-              className="h-12 w-12 p-0" aria-label="Regresar al panel principal"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </Button>
+      <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={onBack}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
+              aria-label="Regresar al panel principal">
+              <ArrowLeft className="w-4 h-4" />
+            </button>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Analíticas</h1>
-              <p className="text-sm text-muted-foreground">Rendimiento de estudiantes</p>
+              <h1 className="text-sm font-black text-foreground leading-none">Analíticas</h1>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Rendimiento de estudiantes</p>
             </div>
           </div>
           {settings.voiceEnabled && (
-            <Button variant="outline" size="lg"
+            <button type="button"
               onClick={() => speak(`Analíticas. Promedio correcto: ${overallStats.averageCorrect}%. Intentos totales: ${overallStats.totalAttempts}. Tiempo promedio: ${overallStats.averageTime}. Estudiantes activos: ${overallStats.activeStudents}.`)}
-              className="h-12"
-            >
-              <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />
-              Escuchar
-            </Button>
+              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
+              <Volume2 className="w-4 h-4" aria-hidden />
+              <span className="hidden sm:inline">Escuchar</span>
+            </button>
           )}
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+      <main className="mx-auto max-w-6xl px-5 py-7 space-y-6">
 
         {/* ── Barra de filtros globales ── */}
         {(() => {
           const activeCount = [grupoId, cursoId, alumnoId].filter(Boolean).length
           return (
-            <section aria-label="Filtros globales" className="bg-card border-2 border-border rounded-2xl overflow-hidden">
+            <section aria-label="Filtros globales" className="bg-card border-2 border-border rounded-3xl overflow-hidden shadow-sm">
               {/* Cabecera siempre visible */}
               <div className="flex items-center justify-between px-4 py-3">
                 <button
@@ -479,72 +474,62 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
 
         {/* ── KPIs ── */}
         <section aria-label="Estadísticas generales">
-          <ul className="grid grid-cols-2 lg:grid-cols-4 gap-6 list-none p-0">
+          <ul className="grid grid-cols-2 lg:grid-cols-4 gap-3 list-none p-0">
             <li>
-              <Card className="border-2 shadow-lg h-full" {...hoverCorrect}>
-                <CardContent className="p-5 flex items-center gap-4">
-                  <div className="w-14 h-14 bg-success/10 rounded-2xl flex items-center justify-center">
-                    <CheckCircle className="w-7 h-7 text-success" />
-                  </div>
-                  <div>
-                    <p className="text-3xl font-bold">{loading ? "…" : `${overallStats.averageCorrect}%`}</p>
-                    <p className="text-sm text-muted-foreground">Respuestas Correctas</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="relative overflow-hidden rounded-3xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-400 to-teal-600 p-5 shadow-lg shadow-emerald-200/60 transition-all hover:-translate-y-1 hover:shadow-xl" {...hoverCorrect}>
+                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden />
+                <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
+                  <CheckCircle className="w-5 h-5 text-white" aria-hidden />
+                </div>
+                <p className="text-2xl font-black text-white">{loading ? "…" : `${overallStats.averageCorrect}%`}</p>
+                <p className="text-xs font-medium text-white/80 mt-0.5">Respuestas Correctas</p>
+              </div>
             </li>
             <li>
-              <Card className="border-2 shadow-lg h-full" {...hoverIntentos}>
-                <CardContent className="p-5 flex items-center gap-4">
-                  <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center">
-                    <Target className="w-7 h-7 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-3xl font-bold">{loading ? "…" : overallStats.totalAttempts}</p>
-                    <p className="text-sm text-muted-foreground">Total Intentos</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="relative overflow-hidden rounded-3xl border-2 border-blue-200 bg-gradient-to-br from-blue-400 to-blue-600 p-5 shadow-lg shadow-blue-200/60 transition-all hover:-translate-y-1 hover:shadow-xl" {...hoverIntentos}>
+                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden />
+                <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
+                  <Target className="w-5 h-5 text-white" aria-hidden />
+                </div>
+                <p className="text-2xl font-black text-white">{loading ? "…" : overallStats.totalAttempts}</p>
+                <p className="text-xs font-medium text-white/80 mt-0.5">Total Intentos</p>
+              </div>
             </li>
             <li>
-              <Card className="border-2 shadow-lg h-full" {...hoverTiempo}>
-                <CardContent className="p-5 flex items-center gap-4">
-                  <div className="w-14 h-14 bg-accent/20 rounded-2xl flex items-center justify-center">
-                    <Clock className="w-7 h-7 text-accent-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-3xl font-bold">{loading ? "…" : overallStats.averageTime}</p>
-                    <p className="text-sm text-muted-foreground">Tiempo Promedio</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="relative overflow-hidden rounded-3xl border-2 border-amber-200 bg-gradient-to-br from-amber-400 to-orange-500 p-5 shadow-lg shadow-amber-200/60 transition-all hover:-translate-y-1 hover:shadow-xl" {...hoverTiempo}>
+                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden />
+                <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
+                  <Clock className="w-5 h-5 text-white" aria-hidden />
+                </div>
+                <p className="text-2xl font-black text-white">{loading ? "…" : overallStats.averageTime}</p>
+                <p className="text-xs font-medium text-white/80 mt-0.5">Tiempo Promedio</p>
+              </div>
             </li>
             <li>
-              <Card className="border-2 shadow-lg h-full" {...hoverActivos}>
-                <CardContent className="p-5 flex items-center gap-4">
-                  <div className="w-14 h-14 bg-chart-4/20 rounded-2xl flex items-center justify-center">
-                    <Users className="w-7 h-7 text-chart-4" />
-                  </div>
-                  <div>
-                    <p className="text-3xl font-bold">{loading ? "…" : overallStats.activeStudents}</p>
-                    <p className="text-sm text-muted-foreground">Estudiantes Activos</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="relative overflow-hidden rounded-3xl border-2 border-violet-200 bg-gradient-to-br from-violet-400 to-violet-600 p-5 shadow-lg shadow-violet-200/60 transition-all hover:-translate-y-1 hover:shadow-xl" {...hoverActivos}>
+                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden />
+                <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
+                  <Users className="w-5 h-5 text-white" aria-hidden />
+                </div>
+                <p className="text-2xl font-black text-white">{loading ? "…" : overallStats.activeStudents}</p>
+                <p className="text-xs font-medium text-white/80 mt-0.5">Estudiantes Activos</p>
+              </div>
             </li>
           </ul>
         </section>
 
         {/* ── Fila: Rendimiento + Progreso ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
           {/* Rendimiento por Lección */}
-          <Card className="border-2 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xl flex items-center gap-3">
-                <BarChart3 className="w-6 h-6 text-primary" aria-hidden="true" />
-                Rendimiento por Lección
-              </CardTitle>
+          <div className="rounded-3xl border-2 border-border bg-card shadow-sm overflow-hidden">
+            <div className="flex flex-row items-center justify-between px-5 py-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <BarChart3 className="w-4 h-4 text-primary" aria-hidden />
+                </div>
+                <h3 className="text-sm font-black text-foreground">Rendimiento por Lección</h3>
+              </div>
               <Popover>
                 <ConfigBtn><span /></ConfigBtn>
                 <PopoverContent className="w-72" align="end">
@@ -576,8 +561,8 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                   </div>
                 </PopoverContent>
               </Popover>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="p-5">
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={processedPerf} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
@@ -614,16 +599,20 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Progreso Semanal */}
-          <Card className="border-2 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xl flex items-center gap-3">
-                <TrendingUp className="w-6 h-6 text-primary" aria-hidden="true" />
-                Progreso{progCfg.agrupar === "mes" ? " Mensual" : progCfg.agrupar === "dia" ? " Diario" : " Semanal"}
-              </CardTitle>
+          <div className="rounded-3xl border-2 border-border bg-card shadow-sm overflow-hidden">
+            <div className="flex flex-row items-center justify-between px-5 py-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 text-primary" aria-hidden />
+                </div>
+                <h3 className="text-sm font-black text-foreground">
+                  Progreso{progCfg.agrupar === "mes" ? " Mensual" : progCfg.agrupar === "dia" ? " Diario" : " Semanal"}
+                </h3>
+              </div>
               <Popover>
                 <ConfigBtn><span /></ConfigBtn>
                 <PopoverContent className="w-72" align="end">
@@ -657,8 +646,8 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                   </div>
                 </PopoverContent>
               </Popover>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="p-5">
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={processedProg}>
@@ -677,17 +666,17 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         {/* ── Fila: Tipos + Desempeño ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
           {/* Tipos de Actividad */}
-          <Card className="border-2 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xl">Tipos de Actividad</CardTitle>
+          <div className="rounded-3xl border-2 border-border bg-card shadow-sm overflow-hidden">
+            <div className="flex flex-row items-center justify-between px-5 py-4 border-b border-border">
+              <h3 className="text-sm font-black text-foreground">Tipos de Actividad</h3>
               <Popover>
                 <ConfigBtn><span /></ConfigBtn>
                 <PopoverContent className="w-72" align="end">
@@ -725,8 +714,8 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                   </div>
                 </PopoverContent>
               </Popover>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="p-5">
               {tipoCfg.vista === "dona" ? (
                 <>
                   <div className="h-48">
@@ -767,13 +756,13 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                   </ResponsiveContainer>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Desempeño Individual */}
-          <Card className="border-2 shadow-lg lg:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xl">Desempeño Individual</CardTitle>
+          <div className="rounded-3xl border-2 border-border bg-card shadow-sm overflow-hidden lg:col-span-2">
+            <div className="flex flex-row items-center justify-between px-5 py-4 border-b border-border">
+              <h3 className="text-sm font-black text-foreground">Desempeño Individual</h3>
               <Popover>
                 <ConfigBtn><span /></ConfigBtn>
                 <PopoverContent className="w-72" align="end">
@@ -808,17 +797,17 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                   </div>
                 </PopoverContent>
               </Popover>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="p-5">
               <div className="overflow-x-auto">
                 <table className="w-full" role="table">
                   <thead>
-                    <tr className="border-b-2 border-border">
-                      <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Estudiante</th>
-                      <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Correctas</th>
-                      <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Intentos</th>
-                      <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Tiempo Prom.</th>
-                      <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Progreso</th>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Estudiante</th>
+                      <th className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Correctas</th>
+                      <th className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Intentos</th>
+                      <th className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Tiempo Prom.</th>
+                      <th className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Progreso</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -830,21 +819,26 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                       </tr>
                     ) : (
                       processedDesp.map((student) => (
-                        <tr key={student.id} className="border-b border-border hover:bg-muted/50">
-                          <td className="py-4 px-4 font-medium">{student.name}</td>
-                          <td className="py-4 px-4">
-                            <span className={`font-semibold ${
-                              student.correctas >= 80 ? "text-success"
-                              : student.correctas >= 50 ? "text-accent-foreground"
-                              : "text-destructive"
+                        <tr key={student.id} className="border-b border-border hover:bg-muted/30 transition-colors">
+                          <td className="py-3 px-3 text-sm font-bold">{student.name}</td>
+                          <td className="py-3 px-3">
+                            <span className={`text-sm font-black ${
+                              student.correctas >= 80 ? "text-emerald-600"
+                              : student.correctas >= 50 ? "text-amber-600"
+                              : "text-red-500"
                             }`}>
                               {student.correctas}%
                             </span>
                           </td>
-                          <td className="py-4 px-4 text-muted-foreground">{student.intentos}</td>
-                          <td className="py-4 px-4 text-muted-foreground">{student.tiempo}</td>
-                          <td className="py-4 px-4 w-32">
-                            <Progress value={student.correctas} className="h-2" />
+                          <td className="py-3 px-3 text-sm text-muted-foreground">{student.intentos}</td>
+                          <td className="py-3 px-3 text-sm text-muted-foreground">{student.tiempo}</td>
+                          <td className="py-3 px-3 w-28">
+                            <div className="h-2 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-primary transition-all"
+                                style={{ width: `${student.correctas}%` }}
+                              />
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -852,8 +846,8 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                   </tbody>
                 </table>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </main>
     </div>

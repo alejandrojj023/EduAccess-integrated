@@ -34,6 +34,7 @@ import { StudentLesson } from "@/components/student/student-lesson"
 import { BookOpen } from "lucide-react"
 import { LandingPage } from "@/components/landing-page"
 import { GlobalAccessibilityButton } from "@/components/ui/global-accessibility-button"
+import { ScreeningTest } from "@/components/screening-test"
 
 type Screen =
   | "login"
@@ -227,11 +228,16 @@ function AppContent() {
       )
     }
 
+    if (pathname === "/tamizaje") {
+      return <ScreeningTest onBack={() => router.push("/")} />
+    }
+
     if (pathname === "/") {
       return (
         <LandingPage
           onStudentLogin={() => router.push("/iniciar-sesion")}
           onTeacherLogin={() => router.push("/iniciar-sesion")}
+          onScreeningTest={() => router.push("/tamizaje")}
         />
       )
     }

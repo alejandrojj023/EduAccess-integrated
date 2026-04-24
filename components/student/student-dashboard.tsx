@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useMemo, useCallback } from "react"
-import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/lib/auth-context"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useStudentDashboard } from "@/hooks/student/use-student-dashboard"
@@ -84,20 +83,21 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
   }, [speak, user?.name, courses.length, nivelNombre, estrellasTotales])
 
   const initials = (user?.name ?? "E").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
+  const firstName = user?.name?.split(" ")[0] ?? "Estudiante"
 
   return (
     <div className="min-h-screen bg-background text-foreground">
 
       {/* ── HEADER ── */}
-      <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
-        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-6">
+      <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-[#008e92]">
+            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-[#008e92] shadow-sm">
               <img src="/2.svg" alt="EduAccess" className="h-full w-full object-cover" aria-hidden="true" />
             </div>
             <div>
-              <p className="text-sm font-bold leading-none text-foreground">EduAccess</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">Aprende jugando</p>
+              <p className="text-sm font-black leading-none text-foreground">EduAccess</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Aprende jugando</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -106,9 +106,10 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
                 type="button"
                 onClick={handleReadInstructions}
                 className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
+                aria-label="Escuchar resumen"
               >
                 <Volume2 className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Escuchar</span>
+                <span className="hidden sm:inline text-xs">Escuchar</span>
               </button>
             )}
             <AccessibleTooltip label="Ajustes de accesibilidad">
@@ -135,44 +136,54 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl space-y-6 px-6 py-8">
+      <main className="mx-auto max-w-4xl space-y-6 px-5 py-7">
 
-        {/* ── WELCOME ── */}
+        {/* ── WELCOME HERO ── */}
         <section aria-label="Bienvenida">
-          <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-              <div
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white shadow-sm"
-                style={{ backgroundColor: avatarColor ?? "#008e92" }}
-                aria-hidden="true"
-              >
-                {initials}
-              </div>
-              <div>
-                <SpeakableText
-                  as="h2"
-                  className="text-xl font-bold text-foreground"
-                  speakText={`Hola, ${user?.name?.split(" ")[0]}! Bienvenido a EduAccess.`}
-                >
-                  Hola, {user?.name?.split(" ")[0]}!
-                </SpeakableText>
-                <SpeakableText as="p" className="text-sm text-muted-foreground">
-                  ¡Qué bueno verte de nuevo! Sigamos aprendiendo.
-                </SpeakableText>
-              </div>
-            </div>
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary/80 p-6 shadow-xl shadow-primary/20">
+            {/* Decorative blobs */}
+            <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" aria-hidden />
+            <div className="absolute -bottom-8 left-1/3 w-32 h-32 rounded-full bg-white/10 blur-2xl" aria-hidden />
+            <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "24px 24px" }} aria-hidden />
 
-            <button
-              type="button"
-              onClick={handleContinuar}
-              disabled={loading || courses.length === 0}
-              {...hoverContinuar}
-              className="flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Play className="h-4 w-4" aria-hidden="true" />
-              Continuar aprendiendo
-              <Sparkles className="h-4 w-4" aria-hidden="true" />
-            </button>
+            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <div
+                  className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-base font-black text-white shadow-lg border-2 border-white/30"
+                  style={{ backgroundColor: avatarColor ?? "rgba(255,255,255,0.25)" }}
+                  aria-hidden="true"
+                >
+                  {initials}
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-400 border-2 border-white flex items-center justify-center">
+                    <span className="text-[8px]">✓</span>
+                  </div>
+                </div>
+                <div>
+                  <SpeakableText
+                    as="h2"
+                    className="text-xl font-black text-white leading-tight"
+                    speakText={`Hola, ${firstName}! Bienvenido a EduAccess.`}
+                  >
+                    ¡Hola, {firstName}!
+                  </SpeakableText>
+                  <SpeakableText as="p" className="text-sm text-primary-foreground/80 mt-0.5">
+                    ¡Qué bueno verte de nuevo! Sigamos aprendiendo.
+                  </SpeakableText>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleContinuar}
+                disabled={loading || courses.length === 0}
+                {...hoverContinuar}
+                className="flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-primary shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 shrink-0"
+              >
+                <Play className="h-4 w-4" aria-hidden="true" />
+                Continuar
+                <Sparkles className="h-4 w-4 text-amber-500" aria-hidden="true" />
+              </button>
+            </div>
           </div>
         </section>
 
@@ -196,44 +207,65 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
 
         {/* ── COURSES ── */}
         <section aria-label="Mis cursos">
-          <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Mis cursos</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Mis cursos</h3>
+            {courses.length > 0 && (
+              <span className="text-xs font-bold text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
+                {courses.length} {courses.length === 1 ? "curso" : "cursos"}
+              </span>
+            )}
+          </div>
 
           {!loading && courses.length === 0 && (
-            <div className="mb-4 flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-card py-10 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10" aria-hidden="true">
-                <Users className="h-6 w-6 text-primary" />
+            <div className="flex flex-col items-center gap-4 rounded-3xl border-2 border-dashed border-border bg-card py-12 text-center px-6">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center" aria-hidden>
+                <Users className="h-7 w-7 text-primary" />
               </div>
-              <p className="text-sm font-semibold text-foreground">Aún no tienes cursos</p>
-              <p className="max-w-xs text-xs text-muted-foreground">
-                Pídele a tu docente el código de curso e ingrésalo para ver tus cursos aquí.
-              </p>
+              <div>
+                <p className="text-sm font-bold text-foreground">Aún no tienes cursos</p>
+                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                  Pídele a tu docente el código de curso e ingrésalo para comenzar.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => onNavigate("join-group")}
-                className="mt-1 flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-all hover:bg-muted active:scale-[0.98]"
+                className="flex items-center gap-2 rounded-2xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 active:scale-[0.98]"
               >
-                <BookOpen className="h-4 w-4" aria-hidden="true" />
+                <BookOpen className="h-4 w-4" aria-hidden />
                 Unirme a un curso
               </button>
             </div>
           )}
 
           <ul className="space-y-3 list-none p-0">
-            {courses.map((course) => (
-              <li key={course.id}>
-                <article aria-label={`Curso: ${course.name}`}>
-                  <button
-                    type="button"
-                    onClick={() => onNavigate(`course-${course.id}|${course.name}`)}
-                    className="group w-full rounded-2xl border border-border bg-card p-5 text-left shadow-sm transition-all hover:border-primary/30 hover:shadow-md active:scale-[0.99]"
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex min-w-0 items-center gap-4">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                          <BookOpen className="h-5 w-5 text-primary" aria-hidden="true" />
+            {courses.map((course, idx) => {
+              const done = course.progress >= 100
+              const started = course.progress > 0
+              return (
+                <li key={course.id}>
+                  <article aria-label={`Curso: ${course.name}`}>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate(`course-${course.id}|${course.name}`)}
+                      className="group w-full rounded-3xl border-2 border-border bg-card p-5 text-left shadow-sm transition-all hover:border-primary/40 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99]"
+                    >
+                      <div className="flex items-center gap-4">
+                        {/* Icon */}
+                        <div className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-sm ${
+                          done ? "bg-emerald-100" : started ? "bg-primary/15" : "bg-muted"
+                        }`}>
+                          <BookOpen className={`h-6 w-6 ${done ? "text-emerald-600" : started ? "text-primary" : "text-muted-foreground"}`} aria-hidden />
+                          {done && (
+                            <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-card flex items-center justify-center">
+                              <span className="text-white text-[9px] font-black">✓</span>
+                            </div>
+                          )}
                         </div>
-                        <div className="min-w-0">
-                          <SpeakableText as="p" className="truncate text-sm font-bold text-foreground">
+
+                        {/* Info */}
+                        <div className="min-w-0 flex-1">
+                          <SpeakableText as="p" className="truncate text-sm font-bold text-foreground leading-tight">
                             {course.name}
                           </SpeakableText>
                           <SpeakableText
@@ -241,61 +273,81 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
                             className="mt-0.5 truncate text-xs text-muted-foreground"
                             speakText={`Siguiente: ${course.currentLesson}`}
                           >
-                            Siguiente: {course.currentLesson}
+                            {done ? "✅ Completado" : `Siguiente: ${course.currentLesson}`}
                           </SpeakableText>
-                          <p className="text-xs text-muted-foreground">
-                            {course.completedLessons} de {course.totalLessons} lecciones
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-4">
-                        <div className="hidden w-28 sm:block">
-                          <div className="mb-1 flex justify-between">
-                            <span className="text-xs text-muted-foreground">Progreso</span>
-                            <span className="text-xs font-bold text-primary">{course.progress}%</span>
+
+                          {/* Progress bar */}
+                          <div className="mt-2 flex items-center gap-2">
+                            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-700 ${done ? "bg-emerald-500" : "bg-primary"}`}
+                                style={{ width: `${course.progress}%` }}
+                              />
+                            </div>
+                            <span className={`text-[11px] font-bold w-9 text-right ${done ? "text-emerald-600" : "text-primary"}`}>
+                              {course.progress}%
+                            </span>
                           </div>
-                          <Progress value={course.progress} className="h-1.5" />
                         </div>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden="true" />
+
+                        {/* Lessons count + arrow */}
+                        <div className="shrink-0 flex flex-col items-end gap-1.5">
+                          <span className="text-[11px] text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full">
+                            {course.completedLessons}/{course.totalLessons}
+                          </span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden />
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                </article>
-              </li>
-            ))}
+                    </button>
+                  </article>
+                </li>
+              )
+            })}
           </ul>
         </section>
 
         {/* ── QUICK ACTIONS ── */}
         <nav aria-label="Acciones rápidas">
-          <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Acciones</h3>
+          <h3 className="mb-4 text-xs font-black uppercase tracking-widest text-muted-foreground">Acciones</h3>
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => onNavigate("student-progress")}
               {...hoverProgreso}
-              className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-4 py-3.5 text-sm font-semibold text-foreground transition-all hover:bg-muted active:scale-[0.98]"
+              className="group flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 py-4 text-left transition-all hover:border-violet-300 hover:bg-violet-50 active:scale-[0.98]"
             >
-              <BarChart3 className="h-4 w-4 text-primary" aria-hidden="true" />
-              Mi progreso
+              <div className="w-9 h-9 rounded-xl bg-violet-100 group-hover:bg-violet-200 flex items-center justify-center transition-colors shrink-0">
+                <BarChart3 className="h-4 w-4 text-violet-600" aria-hidden />
+              </div>
+              <span className="text-sm font-bold text-foreground">Mi progreso</span>
             </button>
+
             <button
               type="button"
               onClick={() => onNavigate("student-calendar")}
               {...hoverCalendario}
-              className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-4 py-3.5 text-sm font-semibold text-foreground transition-all hover:bg-muted active:scale-[0.98]"
+              className="group flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 py-4 text-left transition-all hover:border-blue-300 hover:bg-blue-50 active:scale-[0.98]"
             >
-              <Calendar className="h-4 w-4 text-primary" aria-hidden="true" />
-              Mi calendario
+              <div className="w-9 h-9 rounded-xl bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center transition-colors shrink-0">
+                <Calendar className="h-4 w-4 text-blue-600" aria-hidden />
+              </div>
+              <span className="text-sm font-bold text-foreground">Mi calendario</span>
             </button>
+
             <button
               type="button"
               onClick={() => onNavigate("join-group")}
               {...hoverUnirse}
-              className="col-span-2 flex items-center gap-2.5 rounded-xl border border-border bg-card px-4 py-3.5 text-sm font-semibold text-foreground transition-all hover:bg-muted active:scale-[0.98]"
+              className="group col-span-2 flex items-center gap-3 rounded-2xl border-2 border-dashed border-border bg-card px-4 py-4 text-left transition-all hover:border-primary/50 hover:bg-primary/5 active:scale-[0.98]"
             >
-              <BookOpen className="h-4 w-4 text-primary" aria-hidden="true" />
-              Unirme a un curso
+              <div className="w-9 h-9 rounded-xl bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors shrink-0">
+                <BookOpen className="h-4 w-4 text-primary" aria-hidden />
+              </div>
+              <div>
+                <span className="text-sm font-bold text-foreground">Unirme a un curso</span>
+                <p className="text-xs text-muted-foreground">Ingresar código del docente</p>
+              </div>
+              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 group-hover:text-primary transition-transform" aria-hidden />
             </button>
           </div>
         </nav>

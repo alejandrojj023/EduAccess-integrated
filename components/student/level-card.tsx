@@ -1,9 +1,7 @@
 "use client"
 
-import { Card, CardContent } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
 import { useAccessibility } from "@/lib/accessibility-context"
-import { Star } from "lucide-react"
+import { Star, Trophy } from "lucide-react"
 
 interface LevelCardProps {
   nivelActual: number
@@ -25,43 +23,62 @@ export function LevelCard({
   const { speak, settings } = useAccessibility()
 
   function handleHover() {
-    if (settings.voiceEnabled) speak(`Nivel ${nivelActual}: ${nivelNombre}. Llevas ${estrellasTotales} estrellas. Tu nivel sube conforme acumulas estrellas. ¡Sigue completando lecciones para avanzar!`)
+    if (settings.voiceEnabled)
+      speak(`Nivel ${nivelActual}: ${nivelNombre}. Llevas ${estrellasTotales} estrellas. ¡Sigue completando lecciones para avanzar!`)
   }
 
+  const isMax = nivelMax === Infinity
+
   return (
-    <Card className="border-2 shadow-lg h-full transition-transform duration-200 hover:scale-105" onMouseEnter={handleHover}>
-      <CardContent className="p-6 flex flex-col gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-success rounded-2xl flex items-center justify-center text-3xl shrink-0 shadow-md" aria-hidden="true">
+    <div
+      onMouseEnter={handleHover}
+      className="relative overflow-hidden rounded-3xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-400 to-teal-600 p-5 shadow-lg shadow-emerald-200/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-200/60 h-full"
+    >
+      <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/20 blur-xl" aria-hidden />
+      <div className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full bg-white/15 blur-lg" aria-hidden />
+
+      <div className="relative space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="w-14 h-14 rounded-2xl bg-white/25 flex items-center justify-center text-3xl shadow-inner shrink-0" aria-hidden>
             {nivelEmoji}
           </div>
           <div>
-            <p className="text-2xl font-bold text-foreground leading-tight">
-              Nivel <span className="text-primary">{nivelActual}</span>
+            <p className="text-2xl font-black text-white leading-none">
+              Nivel {nivelActual}
             </p>
-            <p className="text-base font-semibold text-muted-foreground">{nivelNombre}</p>
+            <p className="text-sm font-bold text-emerald-100 mt-0.5">{nivelNombre}</p>
           </div>
         </div>
-        {nivelMax !== Infinity && (
+
+        {!isMax ? (
           <div className="space-y-1.5">
-            <div className="flex justify-between items-center text-sm font-medium">
-              <span className="flex items-center gap-1 text-amber-500">
-                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
+            <div className="flex justify-between items-center text-xs font-bold text-emerald-100">
+              <span className="flex items-center gap-1">
+                <Star className="w-3 h-3 fill-amber-300 text-amber-300" aria-hidden />
                 {estrellasTotales}
               </span>
-              <span className="text-muted-foreground text-xs">
-                Meta: <span className="text-amber-500 font-semibold">{nivelMax + 1}</span>
-                <Star className="w-3 h-3 fill-amber-400 text-amber-400 inline ml-0.5 -mt-0.5" aria-hidden="true" />
-              </span>
+              <span>Meta: {nivelMax + 1} ⭐</span>
             </div>
-            <Progress value={progressToNext} className="h-3" aria-label={`${progressToNext}% hacia el siguiente nivel`} />
-            <p className="text-xs text-right text-muted-foreground">{progressToNext}% hacia el siguiente nivel</p>
+            <div className="h-2.5 rounded-full bg-white/30 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-white transition-all duration-700 shadow-sm"
+                style={{ width: `${progressToNext}%` }}
+                role="progressbar"
+                aria-valuenow={progressToNext}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`${progressToNext}% hacia el siguiente nivel`}
+              />
+            </div>
+            <p className="text-[11px] text-emerald-100 text-right">{progressToNext}% al siguiente nivel</p>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 bg-white/20 rounded-2xl px-3 py-2">
+            <Trophy className="w-4 h-4 text-amber-200" aria-hidden />
+            <p className="text-sm font-bold text-white">¡Nivel máximo!</p>
           </div>
         )}
-        {nivelMax === Infinity && (
-          <p className="text-sm font-semibold text-muted-foreground">✨ Nivel máximo alcanzado</p>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

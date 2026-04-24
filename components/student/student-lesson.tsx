@@ -1,14 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import {
   ArrowLeft, ChevronRight, CheckCircle2,
   Mic, Image as ImageIcon, List, HelpCircle, PencilLine, Volume2,
   BookOpen, Youtube, Search, Paperclip, ExternalLink, FileText, RotateCcw, PlayCircle, AlignLeft,
+  ChevronDown, ChevronUp,
 } from "lucide-react"
 import { TextoConGlosario, type GlosarioEntry } from "@/components/ui/texto-con-glosario"
 
@@ -36,23 +35,23 @@ interface StudentLessonProps {
   onBack: () => void
 }
 
-const TIPO_META: Record<string, { label: string; Icon: React.ElementType; color: string }> = {
-  identificacion:        { label: "Identificación",   Icon: ImageIcon,   color: "bg-primary/10 text-primary"   },
-  reconocimiento_sonidos:{ label: "Sonidos",          Icon: Volume2,     color: "bg-accent/10 text-accent" },
-  secuenciacion:         { label: "Secuenciación",    Icon: List,        color: "bg-secondary/10 text-secondary-foreground" },
-  seleccion_guiada:      { label: "Opción múltiple",  Icon: HelpCircle,  color: "bg-primary/10 text-primary"   },
-  respuesta_corta:       { label: "Respuesta corta",  Icon: PencilLine,  color: "bg-success/10 text-success" },
-  respuesta_oral:        { label: "Oral / Voz",       Icon: Mic,         color: "bg-success/10 text-success"  },
-  completar_oracion:     { label: "Completar oración",Icon: AlignLeft,   color: "bg-secondary/10 text-secondary-foreground"   },
-  sopa_letras:           { label: "Sopa de letras",   Icon: Search,      color: "bg-accent/10 text-accent"   },
+const TIPO_META: Record<string, { label: string; Icon: React.ElementType; gradient: string; iconColor: string }> = {
+  identificacion:         { label: "Identificación",    Icon: ImageIcon,   gradient: "from-blue-400 to-blue-600",    iconColor: "text-white" },
+  reconocimiento_sonidos: { label: "Sonidos",           Icon: Volume2,     gradient: "from-violet-400 to-violet-600", iconColor: "text-white" },
+  secuenciacion:          { label: "Secuenciación",     Icon: List,        gradient: "from-amber-400 to-orange-500",  iconColor: "text-white" },
+  seleccion_guiada:       { label: "Opción múltiple",   Icon: HelpCircle,  gradient: "from-primary to-primary/80",   iconColor: "text-primary-foreground" },
+  respuesta_corta:        { label: "Respuesta corta",   Icon: PencilLine,  gradient: "from-emerald-400 to-teal-500", iconColor: "text-white" },
+  respuesta_oral:         { label: "Oral / Voz",        Icon: Mic,         gradient: "from-rose-400 to-rose-600",    iconColor: "text-white" },
+  completar_oracion:      { label: "Completar oración", Icon: AlignLeft,   gradient: "from-cyan-400 to-cyan-600",    iconColor: "text-white" },
+  sopa_letras:            { label: "Sopa de letras",    Icon: Search,      gradient: "from-indigo-400 to-indigo-600", iconColor: "text-white" },
 }
 
 const diffMeta = (n: number) =>
   n === 1
-    ? { label: "Fácil", cls: "text-green-700  bg-green-50  border border-green-200" }
+    ? { label: "Fácil",   cls: "bg-green-100 text-green-700 border-green-200" }
     : n === 2
-      ? { label: "Medio", cls: "text-yellow-700 bg-yellow-50 border border-yellow-200" }
-      : { label: "Difícil", cls: "text-red-700    bg-red-50    border border-red-200" }
+      ? { label: "Medio",   cls: "bg-amber-100 text-amber-700 border-amber-200" }
+      : { label: "Difícil", cls: "bg-red-100 text-red-700 border-red-200" }
 
 function getYouTubeEmbedUrl(url: string): string | null {
   try {
@@ -65,25 +64,20 @@ function getYouTubeEmbedUrl(url: string): string | null {
       const watchId = parsed.searchParams.get("v")
       if (watchId && watchId.length === 11) return `https://www.youtube.com/embed/${watchId}`
       const pathParts = parsed.pathname.split("/")
-      const embedIndex = pathParts.findIndex((part) => part === "embed" || part === "shorts")
-      if (embedIndex > -1 && pathParts[embedIndex + 1]?.length === 11) {
+      const embedIndex = pathParts.findIndex((p) => p === "embed" || p === "shorts")
+      if (embedIndex > -1 && pathParts[embedIndex + 1]?.length === 11)
         return `https://www.youtube.com/embed/${pathParts[embedIndex + 1]}`
-      }
     }
     return null
-  } catch {
-    return null
-  }
+  } catch { return null }
 }
 
 export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartLesson, onBack }: StudentLessonProps) {
   const { user } = useAuth()
   const [activities, setActivities] = useState<Activity[]>([])
   const [material, setMaterial] = useState<LessonMaterial>({
-    material_lectura: null,
-    material_audiovisual: null,
-    material_pdf_url: null,
-    material_pdf_titulo: null,
+    material_lectura: null, material_audiovisual: null,
+    material_pdf_url: null, material_pdf_titulo: null,
   })
   const [loading, setLoading] = useState(true)
   const [readingExpanded, setReadingExpanded] = useState(true)
@@ -96,268 +90,231 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
 
   async function load() {
     setLoading(true)
-
     const [leccionRes, { data: acts }, { data: glosarioData }] = await Promise.all([
-      supabase
-        .from("leccion")
-        .select("material_lectura, material_audiovisual, material_pdf_url, material_pdf_titulo")
-        .eq("id_leccion", lessonId!)
-        .single(),
-      supabase
-        .from("actividad")
-        .select("id_actividad, titulo, tipo, nivel_dificultad, orden")
-        .eq("id_leccion", lessonId!)
-        .eq("publicado", true)
-        .order("orden", { ascending: true }),
-      supabase
-        .from("glosario")
-        .select("palabra, definicion")
-        .eq("id_leccion", lessonId!),
+      supabase.from("leccion").select("material_lectura, material_audiovisual, material_pdf_url, material_pdf_titulo").eq("id_leccion", lessonId!).single(),
+      supabase.from("actividad").select("id_actividad, titulo, tipo, nivel_dificultad, orden").eq("id_leccion", lessonId!).eq("publicado", true).order("orden", { ascending: true }),
+      supabase.from("glosario").select("palabra, definicion").eq("id_leccion", lessonId!),
     ])
-
-    // Only set material if fetch succeeded (columns may not exist yet before SQL migration)
     if (!leccionRes.error && leccionRes.data) {
       const d = leccionRes.data as any
-      setMaterial({
-        material_lectura: d.material_lectura ?? null,
-        material_audiovisual: d.material_audiovisual ?? null,
-        material_pdf_url: d.material_pdf_url ?? null,
-        material_pdf_titulo: d.material_pdf_titulo ?? null,
-      })
+      setMaterial({ material_lectura: d.material_lectura ?? null, material_audiovisual: d.material_audiovisual ?? null, material_pdf_url: d.material_pdf_url ?? null, material_pdf_titulo: d.material_pdf_titulo ?? null })
     }
-
     setGlosario(glosarioData ?? [])
     if (!acts) { setLoading(false); return }
-
-    // Check which activities have been completed
     const actIds = acts.map(a => a.id_actividad)
-    const { data: intentos } = await supabase
-      .from("intento_actividad")
-      .select("id_actividad")
-      .eq("id_alumno", user!.id)
-      .in("id_actividad", actIds)
-      .not("puntaje_total", "is", null)
-
+    const { data: intentos } = await supabase.from("intento_actividad").select("id_actividad").eq("id_alumno", user!.id).in("id_actividad", actIds).not("puntaje_total", "is", null)
     const completedSet = new Set(intentos?.map(i => i.id_actividad) ?? [])
-
     setActivities(acts.map(a => ({ ...a, completada: completedSet.has(a.id_actividad) })))
     setLoading(false)
   }
 
   const completadas = activities.filter(a => a.completada).length
   const embedUrl = material.material_audiovisual ? getYouTubeEmbedUrl(material.material_audiovisual) : null
+  const pct = activities.length > 0 ? Math.round((completadas / activities.length) * 100) : 0
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-primary text-primary-foreground sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Button
-            variant="secondary"
-            size="icon"
+      {/* Header */}
+      <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur-md">
+        <div className="max-w-3xl mx-auto px-5 h-16 flex items-center gap-4">
+          <button
             onClick={onBack}
             aria-label="Volver a las lecciones"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.97] shrink-0"
           >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-bold line-clamp-1">{lessonName}</h1>
-            <p className="text-sm opacity-90">
-              {completadas} de {activities.length} actividades completadas
-            </p>
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-black text-foreground truncate leading-tight">{lessonName}</p>
+            <p className="text-[11px] text-muted-foreground">{completadas} de {activities.length} actividades</p>
           </div>
+          {activities.length > 0 && (
+            <div className="shrink-0 flex items-center gap-2">
+              <div className="hidden sm:block w-20 h-1.5 rounded-full bg-muted overflow-hidden">
+                <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
+              </div>
+              <span className="text-xs font-black text-primary">{pct}%</span>
+            </div>
+          )}
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-        {/* Material Audiovisual */}
+      <main className="max-w-3xl mx-auto px-5 py-7 space-y-5">
+
+        {/* Video */}
         {!loading && material.material_audiovisual && (
           <section aria-label="Video de la lección">
-            <Card className="border-2 shadow-lg overflow-hidden">
-              <CardContent className="p-5">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
-                    <Youtube className="w-5 h-5 text-red-600" aria-hidden="true" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-foreground text-lg">Material Audiovisual</p>
-                    <p className="text-sm text-muted-foreground">Video de apoyo para esta lección</p>
-                  </div>
+            <div className="overflow-hidden rounded-3xl border-2 border-red-100 bg-card shadow-sm">
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-red-100 bg-red-50">
+                <div className="w-9 h-9 rounded-xl bg-red-500 flex items-center justify-center shrink-0">
+                  <Youtube className="w-4 h-4 text-white" aria-hidden />
                 </div>
+                <div>
+                  <p className="font-black text-foreground text-sm">Material Audiovisual</p>
+                  <p className="text-xs text-muted-foreground">Video de apoyo</p>
+                </div>
+              </div>
+              <div className="p-5">
                 {embedUrl ? (
-                  <div className="relative w-full overflow-hidden rounded-xl border" style={{ paddingBottom: "56.25%" }}>
-                    <iframe
-                      src={embedUrl}
-                      title="Video de la lección"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      className="absolute inset-0 w-full h-full"
-                    />
+                  <div className="relative w-full overflow-hidden rounded-2xl border border-border" style={{ paddingBottom: "56.25%" }}>
+                    <iframe src={embedUrl} title="Video de la lección" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="absolute inset-0 w-full h-full" />
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-border bg-muted/40 p-4">
-                    <p className="text-sm text-muted-foreground mb-3">
-                      No se pudo incrustar el video automáticamente. Puedes abrirlo en una pestaña nueva.
-                    </p>
-                    <a
-                      href={material.material_audiovisual}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 text-primary font-semibold hover:underline"
-                    >
-                      <ExternalLink className="w-4 h-4" aria-hidden="true" />
-                      Abrir video
-                    </a>
+                  <div className="rounded-2xl border-2 border-dashed border-border bg-muted/30 p-5 flex items-center gap-3">
+                    <ExternalLink className="w-5 h-5 text-muted-foreground shrink-0" aria-hidden />
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">No se pudo incrustar el video automáticamente.</p>
+                      <a href={material.material_audiovisual} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-primary font-bold text-sm hover:underline">
+                        <ExternalLink className="w-3.5 h-3.5" /> Abrir video
+                      </a>
+                    </div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </section>
         )}
-        {/* Material PDF */}
+
+        {/* PDF */}
         {!loading && material.material_pdf_url && (
           <section aria-label="Material adjunto en PDF">
-            <Card className="border-2 shadow-lg overflow-hidden">
-              <CardContent className="p-5">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
-                    <Paperclip className="w-5 h-5 text-primary" aria-hidden="true" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-foreground text-lg">
-                      {material.material_pdf_titulo || "Material Adjunto"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Documento de apoyo para esta lección</p>
-                  </div>
+            <div className="overflow-hidden rounded-3xl border-2 border-blue-100 bg-card shadow-sm">
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-blue-100 bg-blue-50">
+                <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center shrink-0">
+                  <Paperclip className="w-4 h-4 text-white" aria-hidden />
                 </div>
-                <div className="rounded-xl border overflow-hidden bg-muted/30">
-                  <iframe
-                    src={material.material_pdf_url}
-                    title={material.material_pdf_titulo || "Material PDF"}
-                    className="w-full h-[520px]"
-                  />
+                <div>
+                  <p className="font-black text-foreground text-sm">{material.material_pdf_titulo || "Material Adjunto"}</p>
+                  <p className="text-xs text-muted-foreground">Documento de apoyo</p>
                 </div>
-                <a
-                  href={material.material_pdf_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 inline-flex items-center gap-2 text-primary font-semibold hover:underline"
-                >
-                  <FileText className="w-4 h-4" aria-hidden="true" />
-                  Abrir o descargar PDF
+              </div>
+              <div className="p-5">
+                <div className="rounded-2xl border overflow-hidden bg-muted/20">
+                  <iframe src={material.material_pdf_url} title={material.material_pdf_titulo || "PDF"} className="w-full h-[480px]" />
+                </div>
+                <a href={material.material_pdf_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-primary font-bold text-sm hover:underline">
+                  <FileText className="w-3.5 h-3.5" /> Abrir / descargar PDF
                 </a>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </section>
         )}
-        {/* Material de Lectura */}
+
+        {/* Lectura */}
         {!loading && material.material_lectura && (
           <section aria-label="Material de lectura">
-            <Card className="border-2 border-primary/20 shadow-lg bg-primary/5">
-              <CardContent className="p-5">
-                <button
-                  className="w-full flex items-center justify-between gap-3 text-left"
-                  onClick={() => setReadingExpanded((v) => !v)}
-                  aria-expanded={readingExpanded}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shrink-0">
-                      <BookOpen className="w-5 h-5 text-primary-foreground" aria-hidden="true" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-foreground text-lg">Material de Lectura</p>
-                      <p className="text-sm text-muted-foreground">Lee antes de comenzar las actividades</p>
-                    </div>
+            <div className="overflow-hidden rounded-3xl border-2 border-primary/20 bg-primary/5 shadow-sm">
+              <button
+                className="w-full flex items-center justify-between gap-3 px-5 py-4 border-b border-primary/15 text-left hover:bg-primary/10 transition-colors"
+                onClick={() => setReadingExpanded(v => !v)}
+                aria-expanded={readingExpanded}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shrink-0">
+                    <BookOpen className="w-4 h-4 text-primary-foreground" aria-hidden />
                   </div>
-                  <span className="text-muted-foreground text-xl">{readingExpanded ? "▲" : "▼"}</span>
-                </button>
-                {readingExpanded && (
-                  <div className="mt-4 pt-4 border-t border-primary/20">
-                    <p className="text-lg text-foreground leading-relaxed">
-                      <TextoConGlosario texto={material.material_lectura} glosario={glosario} />
-                    </p>
+                  <div>
+                    <p className="font-black text-foreground text-sm">Material de Lectura</p>
+                    <p className="text-xs text-muted-foreground">Lee antes de comenzar las actividades</p>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </div>
+                {readingExpanded
+                  ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
+                  : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
+              </button>
+              {readingExpanded && (
+                <div className="px-5 py-5">
+                  <div className="prose prose-sm max-w-none text-foreground leading-relaxed">
+                    <TextoConGlosario texto={material.material_lectura} glosario={glosario} />
+                  </div>
+                </div>
+              )}
+            </div>
           </section>
         )}
-        {/* Botón Comenzar / Repetir lección */}
+
+        {/* CTA comenzar */}
         {!loading && activities.length > 0 && onStartLesson && (
           <div className="flex justify-center">
-            {completadas === activities.length ? (
-              <Button size="lg" className="gap-2 h-14 px-8 text-base" onClick={onStartLesson}>
-                <RotateCcw className="w-5 h-5" aria-hidden="true" />
-                Repetir lección
-              </Button>
-            ) : (
-              <Button size="lg" className="gap-2 h-14 px-8 text-base" onClick={onStartLesson}>
-                <PlayCircle className="w-5 h-5" aria-hidden="true" />
-                {completadas === 0 ? "Comenzar lección" : "Continuar lección"}
-              </Button>
-            )}
+            <button
+              onClick={onStartLesson}
+              className="flex items-center gap-2.5 rounded-2xl bg-primary px-8 py-4 text-base font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:opacity-90 hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.97]"
+            >
+              {completadas === activities.length
+                ? <><RotateCcw className="w-5 h-5" /> Repetir lección</>
+                : completadas === 0
+                  ? <><PlayCircle className="w-5 h-5" /> Comenzar lección</>
+                  : <><PlayCircle className="w-5 h-5" /> Continuar lección</>}
+            </button>
           </div>
         )}
 
+        {/* Activities */}
         {loading ? (
-          <p className="text-muted-foreground py-8">Cargando actividades…</p>
+          <div className="space-y-3">
+            {[1, 2, 3].map(i => <div key={i} className="h-20 rounded-3xl bg-muted animate-pulse" />)}
+          </div>
         ) : activities.length === 0 ? (
-          <Card>
-            <CardContent className="py-10 text-center text-muted-foreground">
-              Esta lección aún no tiene actividades disponibles.
-            </CardContent>
-          </Card>
+          <div className="flex flex-col items-center gap-3 py-12 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
+              <BookOpen className="w-6 h-6 text-muted-foreground" aria-hidden />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground">Esta lección aún no tiene actividades disponibles.</p>
+          </div>
         ) : (
-          <ul className="space-y-4 list-none p-0">
-            {activities.map(act => {
-              const meta = TIPO_META[act.tipo] ?? TIPO_META.seleccion_guiada
-              const diff = diffMeta(act.nivel_dificultad)
-              const { Icon } = meta
-
-              return (
-                <li key={act.id_actividad}>
-                  <article>
-                    <Card
-                      className={`border-2 cursor-pointer transition-all hover:border-primary/50 ${act.completada ? "border-green-200 bg-green-50/30" : ""
+          <div className="space-y-3">
+            <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Actividades</h2>
+            <ul className="space-y-3 list-none p-0">
+              {activities.map((act, i) => {
+                const meta = TIPO_META[act.tipo] ?? TIPO_META.seleccion_guiada
+                const diff = diffMeta(act.nivel_dificultad)
+                const { Icon } = meta
+                return (
+                  <li key={act.id_actividad}>
+                    <article>
+                      <button
+                        type="button"
+                        onClick={() => onSelectActivity(act.id_actividad)}
+                        className={`group w-full rounded-3xl border-2 p-5 text-left shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99] ${
+                          act.completada
+                            ? "border-emerald-200 bg-emerald-50/40 hover:border-emerald-300"
+                            : "border-border bg-card hover:border-primary/40"
                         }`}
-                      onClick={() => onSelectActivity(act.id_actividad)}
-                    >
-                      <CardContent className="p-5 flex items-center gap-4">
-                        <div className="relative shrink-0">
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${meta.color}`}>
-                            <Icon className="w-6 h-6" aria-hidden="true" />
-                          </div>
-                          {act.completada && (
-                            <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center shadow">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                      >
+                        <div className="flex items-center gap-4">
+                          {/* Icon */}
+                          <div className="relative shrink-0">
+                            <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${meta.gradient} flex items-center justify-center shadow-sm`}>
+                              <Icon className={`w-6 h-6 ${meta.iconColor}`} aria-hidden />
                             </div>
-                          )}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold text-foreground">{act.titulo}</p>
                             {act.completada && (
-                              <span className="text-xs font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
-                                ✓ Completada
-                              </span>
+                              <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center shadow border-2 border-card">
+                                <CheckCircle2 className="w-3 h-3 text-white" />
+                              </div>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-muted-foreground">{meta.label}</span>
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${diff.cls}`}>
-                              {diff.label}
-                            </span>
-                          </div>
-                        </div>
 
-                        <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" aria-hidden="true" />
-                      </CardContent>
-                    </Card>
-                  </article>
-                </li>
-              )
-            })}
-          </ul>
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-foreground text-sm truncate">{act.titulo}</p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <span className="text-xs text-muted-foreground">{meta.label}</span>
+                              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${diff.cls}`}>{diff.label}</span>
+                              {act.completada && (
+                                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">✓ Completada</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden />
+                        </div>
+                      </button>
+                    </article>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
         )}
       </main>
     </div>

@@ -1,9 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/lib/auth-context"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useStudentProgress, type LessonAttempt } from "@/hooks/student/use-student-progress"
@@ -138,286 +135,264 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
     )
   }
 
+  const statCards = [
+    {
+      gradient: "from-blue-400 to-blue-600",
+      shadow: "shadow-blue-200/60",
+      border: "border-blue-200",
+      icon: <BookOpen className="w-6 h-6 text-white" aria-hidden />,
+      value: completedLessons,
+      label: "Lecciones",
+    },
+    {
+      gradient: "from-emerald-400 to-teal-600",
+      shadow: "shadow-emerald-200/60",
+      border: "border-emerald-200",
+      icon: <Target className="w-6 h-6 text-white" aria-hidden />,
+      value: `${averageScore}%`,
+      label: "Promedio",
+    },
+    {
+      gradient: "from-amber-400 to-orange-500",
+      shadow: "shadow-amber-200/60",
+      border: "border-amber-200",
+      icon: <Star className="w-6 h-6 text-white fill-white" aria-hidden />,
+      value: totalEstrellas,
+      label: "Estrellas",
+    },
+    {
+      gradient: "from-violet-400 to-violet-600",
+      shadow: "shadow-violet-200/60",
+      border: "border-violet-200",
+      icon: <Clock className="w-6 h-6 text-white" aria-hidden />,
+      value: totalAttempts,
+      label: "Intentos",
+    },
+  ]
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-primary text-primary-foreground sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="secondary"
-              size="lg"
-              onClick={onBack}
-              className="h-12 w-12 p-0"
-              aria-label="Volver"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </Button>
+      <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-5">
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={onBack}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
+              aria-label="Volver">
+              <ArrowLeft className="w-4 h-4" />
+            </button>
             <div>
-              <h1 className="text-xl font-bold">Mi Progreso</h1>
-              <p className="text-sm opacity-90">Reporte de actividades</p>
+              <h1 className="text-sm font-black text-foreground leading-none">Mi Progreso</h1>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Reporte de actividades</p>
             </div>
           </div>
           {settings.voiceEnabled && (
-            <Button variant="secondary" size="lg" onClick={handleReadInstructions} className="h-12">
-              <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />
-              Escuchar
-            </Button>
+            <button type="button" onClick={handleReadInstructions}
+              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
+              <Volume2 className="w-4 h-4" aria-hidden />
+              <span className="hidden sm:inline">Escuchar</span>
+            </button>
           )}
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        {/* Profile Summary */}
-        <section aria-label="Perfil del estudiante" className="mb-8">
-        <Card className="border-2 shadow-xl overflow-hidden">
-          <CardContent className="p-0">
-            <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-6">
-              <div className="flex items-center gap-6">
-                <div className="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center text-3xl font-bold text-primary-foreground">
-                  {user?.name?.charAt(0) || "E"}
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-foreground">{user?.name}</h2>
-                  <div className="flex items-center gap-4 mt-2">
-                    <span className="flex items-center gap-2 text-muted-foreground">
-                      {totalEstrellas} ⭐ Estrellas
-                    </span>
-                    <span className="flex items-center gap-2 text-muted-foreground">
-                      <Flame className="w-5 h-5 text-destructive" aria-hidden="true" />
-                      {currentStreak} dias de racha
-                    </span>
-                  </div>
+      <main className="mx-auto max-w-4xl px-5 py-7 space-y-6">
+
+        {/* Hero profile card */}
+        <section aria-label="Perfil del estudiante">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary/80 p-6 shadow-xl shadow-primary/20">
+            <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" aria-hidden />
+            <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5 blur-xl" aria-hidden />
+            <div className="relative flex items-center gap-5">
+              <div className="w-16 h-16 shrink-0 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center text-2xl font-black text-white shadow-lg">
+                {user?.name?.charAt(0)?.toUpperCase() || "E"}
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-white leading-tight">{user?.name}</h2>
+                <div className="flex items-center gap-3 mt-1.5">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold text-white">
+                    <Star className="w-3 h-3 fill-white" /> {totalEstrellas} estrellas
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold text-white">
+                    <Flame className="w-3 h-3" /> {currentStreak} días
+                  </span>
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
         </section>
 
         {/* Stats Grid */}
-        <section aria-label="Estadísticas del estudiante" className="mb-8">
-          <ul className="grid grid-cols-2 lg:grid-cols-4 gap-4 list-none p-0">
-            <li>
-              <Card className="border-2 shadow-lg h-full transition-transform duration-200 hover:scale-105">
-                <CardContent className="p-5 flex flex-col items-center text-center">
-                  <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mb-3" aria-hidden="true">
-                    <BookOpen className="w-7 h-7 text-primary" />
+        <section aria-label="Estadísticas del estudiante">
+          <ul className="grid grid-cols-2 lg:grid-cols-4 gap-3 list-none p-0">
+            {statCards.map((card, i) => (
+              <li key={i}>
+                <div className={`relative overflow-hidden rounded-3xl border-2 ${card.border} bg-gradient-to-br ${card.gradient} p-5 shadow-lg ${card.shadow} transition-all hover:-translate-y-1 hover:shadow-xl`}>
+                  <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden />
+                  <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
+                    {card.icon}
                   </div>
-                  <p className="text-3xl font-bold text-foreground">{completedLessons}</p>
-                  <p className="text-sm text-muted-foreground">Lecciones Completadas</p>
-                </CardContent>
-              </Card>
-            </li>
-            <li>
-              <Card className="border-2 shadow-lg h-full transition-transform duration-200 hover:scale-105">
-                <CardContent className="p-5 flex flex-col items-center text-center">
-                  <div className="w-14 h-14 bg-success/10 rounded-2xl flex items-center justify-center mb-3" aria-hidden="true">
-                    <Target className="w-7 h-7 text-success" />
-                  </div>
-                  <p className="text-3xl font-bold text-foreground">{averageScore}%</p>
-                  <p className="text-sm text-muted-foreground">Puntaje Promedio</p>
-                </CardContent>
-              </Card>
-            </li>
-            <li>
-              <Card className="border-2 shadow-lg h-full transition-transform duration-200 hover:scale-105">
-                <CardContent className="p-5 flex flex-col items-center text-center">
-                  <div className="w-14 h-14 bg-accent/20 rounded-2xl flex items-center justify-center mb-3" aria-hidden="true">
-                    <Star className="w-7 h-7 text-accent-foreground" />
-                  </div>
-                  <p className="text-3xl font-bold text-foreground">{totalEstrellas}</p>
-                  <p className="text-sm text-muted-foreground">Estrellas Ganadas</p>
-                </CardContent>
-              </Card>
-            </li>
-            <li>
-              <Card className="border-2 shadow-lg h-full transition-transform duration-200 hover:scale-105">
-                <CardContent className="p-5 flex flex-col items-center text-center">
-                  <div className="w-14 h-14 bg-chart-4/20 rounded-2xl flex items-center justify-center mb-3" aria-hidden="true">
-                    <Clock className="w-7 h-7 text-chart-4" />
-                  </div>
-                  <p className="text-3xl font-bold text-foreground">{totalAttempts}</p>
-                  <p className="text-sm text-muted-foreground">Total Intentos</p>
-                </CardContent>
-              </Card>
-            </li>
+                  <p className="text-2xl font-black text-white">{card.value}</p>
+                  <p className="text-xs font-medium text-white/80 mt-0.5">{card.label}</p>
+                </div>
+              </li>
+            ))}
           </ul>
         </section>
 
         {/* Overall Progress */}
         <section aria-label="Progreso general">
-          <Card className="border-2 shadow-lg mb-8">
-            <CardHeader>
-              <CardTitle className="text-xl flex items-center gap-3">
-                <TrendingUp className="w-6 h-6 text-primary" aria-hidden="true" />
-                Progreso General
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-6">
-                <div className="flex-1">
-                  <div className="bg-primary/20 relative h-6 w-full overflow-hidden rounded-full" role="progressbar" aria-valuenow={overallProgress} aria-valuemin={0} aria-valuemax={100} aria-label={`${overallProgress}% completado`}>
-                    <div
-                      className="bg-primary h-full rounded-full"
-                      style={{
-                        width: `${animatedProgress}%`,
-                        transition: "width 3000ms linear",
-                      }}
-                    />
-                  </div>
-                </div>
-                <span className="text-3xl font-bold text-primary" aria-hidden="true">{overallProgress}%</span>
+          <div className="rounded-3xl border-2 border-border bg-card p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-primary" aria-hidden />
               </div>
-              <p className="text-muted-foreground mt-4">
-                Has completado {completedLessons} de {totalLessons} lecciones. Sigue asi!
-              </p>
-            </CardContent>
-          </Card>
+              <h3 className="text-sm font-black text-foreground">Progreso General</h3>
+              <span className="ml-auto text-xl font-black text-primary" aria-hidden>{overallProgress}%</span>
+            </div>
+            <div
+              className="h-3 w-full overflow-hidden rounded-full bg-muted"
+              role="progressbar"
+              aria-valuenow={overallProgress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`${overallProgress}% completado`}
+            >
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-primary to-primary/80"
+                style={{ width: `${animatedProgress}%`, transition: "width 3000ms linear" }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              {completedLessons} de {totalLessons} lecciones completadas — ¡sigue así!
+            </p>
+          </div>
         </section>
 
         {/* Lessons List */}
         <section aria-label="Detalle por lección">
-          <Card className="border-2 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl">Detalle por Leccion</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ul className="divide-y divide-border" aria-label="Lista de lecciones con progreso">
-                {lessonProgressData.map((lesson, index) => (
-                  <li key={lesson.id}>
-                    <article aria-label={`${lesson.name}${lesson.completed ? `, puntaje ${lesson.score}%` : ", pendiente"}`}>
-                      {/* Fila principal de la lección */}
-                      <div className="p-5 hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-4 min-w-0">
-                            <div
-                              className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                                lesson.completed ? "bg-success/10" : "bg-muted"
-                              }`}
-                              aria-hidden="true"
+          <div className="rounded-3xl border-2 border-border bg-card shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-border">
+              <h3 className="text-sm font-black text-foreground">Detalle por Lección</h3>
+            </div>
+            <ul className="divide-y divide-border list-none p-0" aria-label="Lista de lecciones con progreso">
+              {lessonProgressData.map((lesson, index) => (
+                <li key={lesson.id}>
+                  <article aria-label={`${lesson.name}${lesson.completed ? `, puntaje ${lesson.score}%` : ", pendiente"}`}>
+                    <div className="p-5 hover:bg-muted/30 transition-colors">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 min-w-0">
+                          <div
+                            className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
+                              lesson.completed
+                                ? "bg-gradient-to-br from-emerald-400 to-teal-500"
+                                : "bg-muted"
+                            }`}
+                            aria-hidden
+                          >
+                            {lesson.completed
+                              ? <CheckCircle className="w-5 h-5 text-white" />
+                              : <span className="text-base font-black text-muted-foreground">{index + 1}</span>
+                            }
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-sm font-black text-foreground truncate">{lesson.name}</h4>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              {lesson.completed
+                                ? `Completada · ${lesson.attempts} intento${lesson.attempts > 1 ? "s" : ""}`
+                                : "Pendiente"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          {lesson.completed && (
+                            <StarRow stars={lesson.estrellas} size="w-4 h-4" />
+                          )}
+                          {lesson.historial.length > 0 && (
+                            <button
+                              onClick={() => toggleLesson(lesson.id)}
+                              className="flex flex-col items-center gap-0.5 text-primary hover:text-primary/70 transition-colors px-2"
+                              aria-expanded={expandedLessonId === lesson.id}
+                              aria-label={`Ver historial de ${lesson.name}`}
                             >
-                              {lesson.completed ? (
-                                <CheckCircle className="w-6 h-6 text-success" />
-                              ) : (
-                                <span className="text-lg font-bold text-muted-foreground">
-                                  {index + 1}
-                                </span>
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <h4 className="text-lg font-semibold text-foreground truncate">{lesson.name}</h4>
-                              {lesson.completed ? (
-                                <p className="text-sm text-muted-foreground">
-                                  Completada en {lesson.attempts} intento
-                                  {lesson.attempts > 1 ? "s" : ""}
-                                </p>
-                              ) : (
-                                <p className="text-sm text-muted-foreground">Pendiente</p>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3 shrink-0">
-                            {lesson.completed && (
-                              <div className="flex justify-end">
-                                <StarRow stars={lesson.estrellas} size="w-10 h-10" />
-                              </div>
-                            )}
-
-                            {lesson.historial.length > 0 && (
-                              <button
-                                onClick={() => toggleLesson(lesson.id)}
-                                className="flex flex-col items-center gap-0.5 text-primary hover:text-primary/80 transition-colors px-2"
-                                aria-expanded={expandedLessonId === lesson.id}
-                                aria-label={`Ver historial de ${lesson.name}`}
-                              >
-                                <span className="text-xs font-medium">{lesson.historial.length} intentos</span>
-                                {expandedLessonId === lesson.id
-                                  ? <ChevronUp className="w-4 h-4" />
-                                  : <ChevronDown className="w-4 h-4" />}
-                              </button>
-                            )}
-                          </div>
+                              <span className="text-[11px] font-bold">{lesson.historial.length}</span>
+                              {expandedLessonId === lesson.id
+                                ? <ChevronUp className="w-3.5 h-3.5" />
+                                : <ChevronDown className="w-3.5 h-3.5" />}
+                            </button>
+                          )}
                         </div>
                       </div>
+                    </div>
 
-                      {/* Historial expandido */}
-                      {expandedLessonId === lesson.id && lesson.historial.length > 0 && (
-                        <div className="border-t border-border bg-muted/30 px-5 py-3 space-y-1">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                            Historial de intentos
-                          </p>
-                          {lesson.historial.map((attempt) => (
-                            <div key={attempt.id} className="rounded-lg border border-border bg-background overflow-hidden">
-                              <button
-                                className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors text-left"
-                                onClick={() => toggleAttempt(attempt)}
-                                aria-expanded={expandedAttemptId === attempt.id}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                                    {attempt.numero}
-                                  </span>
-                                  <div>
-                                    <p className="text-sm font-medium text-foreground">
-                                      Intento {attempt.numero}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {formatDate(attempt.fecha)}
-                                    </p>
-                                  </div>
+                    {/* Historial expandido */}
+                    {expandedLessonId === lesson.id && lesson.historial.length > 0 && (
+                      <div className="border-t border-border bg-muted/20 px-5 py-3 space-y-1.5">
+                        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2">
+                          Historial de intentos
+                        </p>
+                        {lesson.historial.map((attempt) => (
+                          <div key={attempt.id} className="rounded-2xl border border-border bg-card overflow-hidden">
+                            <button
+                              className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors text-left"
+                              onClick={() => toggleAttempt(attempt)}
+                              aria-expanded={expandedAttemptId === attempt.id}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-black text-primary shrink-0">
+                                  {attempt.numero}
+                                </span>
+                                <div>
+                                  <p className="text-xs font-bold text-foreground">Intento {attempt.numero}</p>
+                                  <p className="text-[11px] text-muted-foreground">{formatDate(attempt.fecha)}</p>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                  <div className="flex justify-end">
-                                    <StarRow stars={attempt.estrellas} size="w-9 h-9" />
-                                  </div>
-                                  {expandedAttemptId === attempt.id
-                                    ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
-                                    : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
-                                </div>
-                              </button>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <StarRow stars={attempt.estrellas} size="w-3.5 h-3.5" />
+                                {expandedAttemptId === attempt.id
+                                  ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                  : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+                              </div>
+                            </button>
 
-                              {expandedAttemptId === attempt.id && (
-                                <div className="border-t border-border px-4 py-3 bg-muted/20">
-                                  {loadingAttempt === attempt.id ? (
-                                    <p className="text-xs text-muted-foreground py-2">Cargando actividades…</p>
-                                  ) : attemptDetails[attempt.id]?.length > 0 ? (
-                                    <ul className="space-y-2 list-none p-0">
-                                      {attemptDetails[attempt.id].map((act) => (
-                                        <li key={act.actividadId} className="flex items-center justify-between gap-2">
-                                          <div className="flex items-center gap-2 min-w-0">
-                                            {act.puntaje >= 70
-                                              ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
-                                              : <XCircle className="w-4 h-4 text-destructive shrink-0" />}
-                                            <span className="text-sm text-foreground truncate">{act.titulo}</span>
-                                          </div>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  ) : (
-                                    <p className="text-xs text-muted-foreground py-1">
-                                      Sin detalle de actividades disponible.
-                                    </p>
+                            {expandedAttemptId === attempt.id && (
+                              <div className="border-t border-border px-4 py-3 bg-muted/10">
+                                {loadingAttempt === attempt.id ? (
+                                  <p className="text-xs text-muted-foreground py-2">Cargando actividades…</p>
+                                ) : attemptDetails[attempt.id]?.length > 0 ? (
+                                  <ul className="space-y-1.5 list-none p-0">
+                                    {attemptDetails[attempt.id].map((act) => (
+                                      <li key={act.actividadId} className="flex items-center gap-2">
+                                        {act.puntaje >= 70
+                                          ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                                          : <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
+                                        <span className="text-xs text-foreground truncate">{act.titulo}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground py-1">
+                                    Sin detalle de actividades disponible.
+                                  </p>
+                                )}
+                                <div className="mt-3 pt-2 border-t border-border/50 flex gap-4 text-[11px] text-muted-foreground">
+                                  <span>✓ Correctas al 1er intento: <strong>{attempt.correctasPrimerIntento}/{attempt.totalActividades}</strong></span>
+                                  {attempt.totalReintentos > 0 && (
+                                    <span>↺ Reintentos: <strong>{attempt.totalReintentos}</strong></span>
                                   )}
-                                  <div className="mt-3 pt-2 border-t border-border/50 flex gap-4 text-xs text-muted-foreground">
-                                    <span>✓ Correctas al 1er intento: <strong>{attempt.correctasPrimerIntento}/{attempt.totalActividades}</strong></span>
-                                    {attempt.totalReintentos > 0 && (
-                                      <span>↺ Reintentos: <strong>{attempt.totalReintentos}</strong></span>
-                                    )}
-                                  </div>
                                 </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </article>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </article>
+                </li>
+              ))}
+            </ul>
+          </div>
         </section>
       </main>
     </div>

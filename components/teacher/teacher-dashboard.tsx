@@ -20,6 +20,7 @@ import {
   CheckCircle,
   History,
   RefreshCw,
+  ChevronRight,
 } from "lucide-react"
 
 interface TeacherDashboardProps {
@@ -47,10 +48,37 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
   const hoverCursosCard        = useSpeakOnHover(`Cursos: cursos activos. Actualmente ${dashboardStats.cursos}`)
   const hoverProgresoCard      = useSpeakOnHover(`Progreso General: ${dashboardStats.progresoGeneral}`)
 
-  const stats = useMemo(() => [
-    { label: "Estudiantes",      sub: "Total inscritos",     value: dashboardStats.estudiantes,     icon: Users,      hover: hoverEstudiantesCard },
-    { label: "Cursos",           sub: "Material disponible", value: dashboardStats.cursos,          icon: BookOpen,   hover: hoverCursosCard      },
-    { label: "Progreso general", sub: "Media de completado", value: dashboardStats.progresoGeneral, icon: TrendingUp, hover: hoverProgresoCard     },
+  const statCards = useMemo(() => [
+    {
+      label: "Estudiantes",
+      sub: "Total inscritos",
+      value: dashboardStats.estudiantes,
+      icon: Users,
+      hover: hoverEstudiantesCard,
+      gradient: "from-blue-400 to-blue-600",
+      shadow: "shadow-blue-200/60",
+      border: "border-blue-200",
+    },
+    {
+      label: "Cursos",
+      sub: "Material disponible",
+      value: dashboardStats.cursos,
+      icon: BookOpen,
+      hover: hoverCursosCard,
+      gradient: "from-violet-400 to-violet-600",
+      shadow: "shadow-violet-200/60",
+      border: "border-violet-200",
+    },
+    {
+      label: "Progreso general",
+      sub: "Media de completado",
+      value: dashboardStats.progresoGeneral,
+      icon: TrendingUp,
+      hover: hoverProgresoCard,
+      gradient: "from-emerald-400 to-teal-600",
+      shadow: "shadow-emerald-200/60",
+      border: "border-emerald-200",
+    },
   ], [dashboardStats, hoverEstudiantesCard, hoverCursosCard, hoverProgresoCard])
 
   const handleReadInstructions = useCallback(() => {
@@ -60,27 +88,28 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
   }, [speak, user?.name, dashboardStats])
 
   const navItems = [
-    { label: "Cursos",      Icon: FolderOpen,  screen: "courses",    hover: hoverCursos      },
-    { label: "Lecciones",   Icon: BookOpen,    screen: "courses",    hover: hoverLecciones   },
-    { label: "Actividades", Icon: CheckCircle, screen: "activities", hover: hoverActividades },
-    { label: "Analíticas",  Icon: BarChart3,   screen: "analytics",  hover: hoverAnaliticas  },
+    { label: "Cursos",      Icon: FolderOpen,  screen: "courses",    hover: hoverCursos,      color: "bg-blue-100 group-hover:bg-blue-200",      icon: "text-blue-600"   },
+    { label: "Lecciones",   Icon: BookOpen,    screen: "courses",    hover: hoverLecciones,   color: "bg-amber-100 group-hover:bg-amber-200",    icon: "text-amber-600"  },
+    { label: "Actividades", Icon: CheckCircle, screen: "activities", hover: hoverActividades, color: "bg-violet-100 group-hover:bg-violet-200",  icon: "text-violet-600" },
+    { label: "Analíticas",  Icon: BarChart3,   screen: "analytics",  hover: hoverAnaliticas,  color: "bg-emerald-100 group-hover:bg-emerald-200", icon: "text-emerald-600" },
   ]
 
   const initials = (user?.name ?? "D").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
+  const firstName = user?.name?.split(" ")[0] ?? "Docente"
 
   return (
     <div className="min-h-screen bg-background text-foreground">
 
       {/* ── HEADER ── */}
-      <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+      <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-[#008e92]">
+            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-[#008e92] shadow-sm">
               <img src="/2.svg" alt="EduAccess" className="h-full w-full object-cover" aria-hidden="true" />
             </div>
             <div>
-              <p className="text-sm font-bold leading-none text-foreground">EduAccess</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">Panel del Docente</p>
+              <p className="text-sm font-black leading-none text-foreground">EduAccess</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Panel del Docente</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -89,9 +118,10 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
                 type="button"
                 onClick={handleReadInstructions}
                 className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
+                aria-label="Escuchar resumen"
               >
                 <Volume2 className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Escuchar</span>
+                <span className="hidden sm:inline text-xs">Escuchar</span>
               </button>
             )}
             <AccessibleTooltip label="Ajustes de accesibilidad">
@@ -99,7 +129,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
                 type="button"
                 onClick={() => onNavigate("accessibility")}
                 className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
-                aria-label="Configuración de accesibilidad"
+                aria-label="Configuración"
               >
                 <Settings className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -111,52 +141,62 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
                 className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
               >
                 <LogOut className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Salir</span>
+                <span className="hidden sm:inline text-xs">Salir</span>
               </button>
             </AccessibleTooltip>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-8 px-6 py-8">
+      <main className="mx-auto max-w-7xl space-y-7 px-5 py-7">
 
-        {/* ── WELCOME BANNER ── */}
+        {/* ── WELCOME HERO ── */}
         <section aria-label="Bienvenida">
-          <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-              <div
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white shadow-sm"
-                style={{ backgroundColor: avatarColor ?? "#008e92" }}
-                aria-hidden="true"
-              >
-                {initials}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 p-6 shadow-xl">
+            <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-primary/20 blur-3xl" aria-hidden />
+            <div className="absolute -bottom-8 left-1/4 w-32 h-32 rounded-full bg-blue-500/15 blur-2xl" aria-hidden />
+            <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "24px 24px" }} aria-hidden />
+
+            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <div
+                  className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-base font-black text-white shadow-lg border-2 border-white/20"
+                  style={{ backgroundColor: avatarColor ?? "rgba(255,255,255,0.15)" }}
+                  aria-hidden
+                >
+                  {initials}
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-primary border-2 border-slate-800 flex items-center justify-center">
+                    <span className="text-[7px] text-white font-black">✓</span>
+                  </div>
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-white leading-tight">
+                    Hola, {firstName}
+                  </h2>
+                  <p className="text-sm text-slate-400 mt-0.5">Este es el resumen de tu clase</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-xl font-bold text-foreground">
-                  Hola, {user?.name?.split(" ")[0]}
-                </h2>
-                <p className="text-sm text-muted-foreground">Este es el resumen de tu clase</p>
+
+              <div className="flex flex-wrap gap-2 sm:shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onNavigate("create-course")}
+                  {...hoverCrearCurso}
+                  className="flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 hover:shadow-lg active:scale-[0.97]"
+                >
+                  <Plus className="h-4 w-4" aria-hidden />
+                  Crear curso
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onNavigate("students")}
+                  {...hoverEstudiantes}
+                  className="flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition-all hover:bg-white/20 active:scale-[0.97]"
+                >
+                  <Users className="h-4 w-4" aria-hidden />
+                  Estudiantes
+                </button>
               </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => onNavigate("create-course")}
-                {...hoverCrearCurso}
-                className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 hover:shadow-md active:scale-[0.98]"
-              >
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                Crear curso
-              </button>
-              <button
-                type="button"
-                onClick={() => onNavigate("students")}
-                {...hoverEstudiantes}
-                className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition-all hover:bg-muted active:scale-[0.98]"
-              >
-                <Users className="h-4 w-4" aria-hidden="true" />
-                Ver estudiantes
-              </button>
             </div>
           </div>
         </section>
@@ -164,19 +204,22 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
         {/* ── STATS ── */}
         <section aria-label="Estadísticas de la clase">
           <ul className="grid list-none grid-cols-1 gap-4 p-0 md:grid-cols-3">
-            {stats.map((stat) => (
-              <li key={stat.label}>
+            {statCards.map((s) => (
+              <li key={s.label}>
                 <div
-                  className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
-                  {...stat.hover}
+                  className={`relative overflow-hidden rounded-3xl border-2 ${s.border} bg-gradient-to-br ${s.gradient} p-5 shadow-lg ${s.shadow} transition-all duration-300 hover:-translate-y-1 hover:shadow-xl`}
+                  {...s.hover}
                 >
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                    <stat.icon className="h-6 w-6 text-primary" aria-hidden="true" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                    <p className="text-sm font-semibold text-foreground">{stat.label}</p>
-                    <p className="text-xs text-muted-foreground">{stat.sub}</p>
+                  <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/15 blur-xl" aria-hidden />
+                  <div className="relative flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-white/25 flex items-center justify-center shrink-0 shadow-inner">
+                      <s.icon className="h-6 w-6 text-white" aria-hidden />
+                    </div>
+                    <div>
+                      <p className="text-3xl font-black text-white leading-none">{s.value}</p>
+                      <p className="text-sm font-bold text-white/90 mt-0.5">{s.label}</p>
+                      <p className="text-xs text-white/70">{s.sub}</p>
+                    </div>
                   </div>
                 </div>
               </li>
@@ -186,20 +229,20 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
 
         {/* ── NAV CARDS ── */}
         <nav aria-label="Menú principal del docente">
-          <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Gestionar</h3>
-          <ul className="grid list-none grid-cols-2 gap-4 p-0 lg:grid-cols-4">
-            {navItems.map(({ label, Icon, screen, hover }) => (
+          <h3 className="mb-4 text-xs font-black uppercase tracking-widest text-muted-foreground">Gestionar</h3>
+          <ul className="grid list-none grid-cols-2 gap-3 p-0 lg:grid-cols-4">
+            {navItems.map(({ label, Icon, screen, hover, color, icon }) => (
               <li key={label}>
                 <button
                   type="button"
                   onClick={() => onNavigate(screen)}
                   {...hover}
-                  className="group flex w-full flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 text-center transition-all hover:border-primary/30 hover:shadow-md active:scale-[0.98]"
+                  className="group flex w-full flex-col items-center gap-3 rounded-3xl border-2 border-border bg-card p-6 text-center transition-all hover:border-primary/30 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98]"
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/15">
-                    <Icon className="h-6 w-6 text-primary" aria-hidden="true" />
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-2xl transition-colors ${color}`}>
+                    <Icon className={`h-6 w-6 ${icon}`} aria-hidden />
                   </div>
-                  <span className="text-sm font-semibold text-foreground">{label}</span>
+                  <span className="text-sm font-bold text-foreground">{label}</span>
                 </button>
               </li>
             ))}
@@ -208,22 +251,24 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
 
         {/* ── RECENT ACTIVITY ── */}
         <section aria-label="Actividad reciente de estudiantes">
-          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          <div className="overflow-hidden rounded-3xl border-2 border-border bg-card shadow-sm">
             <div
-              className="flex items-center justify-between border-b border-border px-6 py-4"
+              className="flex items-center justify-between border-b border-border px-5 py-4"
               {...hoverActividadReciente}
             >
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary" aria-hidden="true" />
-                <h3 className="text-sm font-bold text-foreground">Actividad reciente</h3>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Clock className="h-4 w-4 text-primary" aria-hidden />
+                </div>
+                <h3 className="text-sm font-black text-foreground">Actividad reciente</h3>
               </div>
               <button
                 type="button"
                 onClick={refetch}
                 aria-label="Actualizar actividad reciente"
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
-                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden />
                 Actualizar
               </button>
             </div>
@@ -231,14 +276,14 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
             <div className="p-4">
               {recentActivity.length === 0 ? (
                 <div className="space-y-3">
-                  <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 py-8 text-center">
-                    <History className="mb-3 h-10 w-10 text-muted-foreground/40" aria-hidden="true" />
-                    <p className="text-sm font-semibold text-foreground">Sin actividad reciente</p>
+                  <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/20 py-10 text-center px-4">
+                    <History className="mb-3 h-10 w-10 text-muted-foreground/30" aria-hidden />
+                    <p className="text-sm font-bold text-foreground">Sin actividad reciente</p>
                     <p className="mt-1 max-w-xs text-xs text-muted-foreground">
                       Aquí aparecerán los avances de tus alumnos cuando completen actividades.
                     </p>
                   </div>
-                  <ul className="space-y-2 list-none p-0" aria-label="Ejemplo de actividad">
+                  <ul className="space-y-2 list-none p-0 opacity-40" aria-label="Ejemplo">
                     {[
                       { student: "Nicolás", activity: "Completó Comprensión de lectura", time: "Hace 12 min" },
                       { student: "Sofía",   activity: "Completó Sopa de letras",         time: "Hace 45 min" },
@@ -268,19 +313,24 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
 }
 
 function ActivityRow({ student, activity, time }: { student: string; activity: string; time: string }) {
+  const initials = student.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
+
   return (
     <article
       aria-label={`${student}: ${activity}`}
-      className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 transition-colors hover:bg-muted/60"
+      className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 transition-all hover:border-primary/30 hover:bg-muted/30 hover:shadow-sm"
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-        <CheckCircle className="h-4 w-4 text-primary" aria-hidden="true" />
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-black text-primary">
+        {initials}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-foreground">{student}</p>
-        <p className="truncate text-xs text-muted-foreground">{activity}</p>
+        <p className="text-sm font-bold text-foreground leading-tight">{student}</p>
+        <p className="truncate text-xs text-muted-foreground mt-0.5">{activity}</p>
       </div>
-      <time className="shrink-0 text-xs text-muted-foreground">{time}</time>
+      <div className="shrink-0 flex flex-col items-end gap-1">
+        <time className="text-[11px] text-muted-foreground font-medium">{time}</time>
+        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" aria-hidden />
+      </div>
     </article>
   )
 }

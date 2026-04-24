@@ -1,17 +1,10 @@
 "use client"
 
-import { useState } from "react"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useLessons } from "@/hooks/teacher/use-lessons"
 import {
-  ArrowLeft,
-  Plus,
-  Edit,
-  Trash2,
-  Volume2,
-  FileText,
-  Play,
-  CheckCircle,
+  ArrowLeft, Plus, Edit, Trash2, Volume2,
+  FileText, Play, CheckCircle, BookOpen,
 } from "lucide-react"
 
 interface LessonManagementProps {
@@ -26,18 +19,21 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
 
   const handleReadInstructions = () => {
     if (loading) { speak("Cargando lecciones, por favor espera."); return }
-    speak(`Gestion de lecciones. Tienes ${lessons.length} ${lessons.length === 1 ? "leccion" : "lecciones"} en este curso. Puedes agregar, editar o eliminar lecciones.`)
+    speak(`Gestión de lecciones. Tienes ${lessons.length} ${lessons.length === 1 ? "lección" : "lecciones"} en este curso.`)
   }
 
   const handleDeleteLesson = async (lessonId: string) => {
     const success = await deleteLesson(lessonId)
-    if (success) speak("Leccion eliminada")
+    if (success) speak("Lección eliminada")
   }
+
+  const publishedCount = lessons.filter(l => l.status === "published").length
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
+      {/* Header */}
+      <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-5">
           <div className="flex items-center gap-3">
             <button type="button" onClick={onBack}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
@@ -45,89 +41,108 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div>
-              <h1 className="text-base font-bold text-foreground leading-none">Lecciones</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {loading ? "Cargando…" : `${lessons.length} lecciones en el curso`}
+              <h1 className="text-sm font-black text-foreground leading-none">Lecciones</h1>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {loading ? "Cargando…" : `${lessons.length} lecciones · ${publishedCount} publicadas`}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {settings.voiceEnabled && (
               <button type="button" onClick={handleReadInstructions}
-                className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
-                <Volume2 className="w-4 h-4" aria-hidden="true" />
+                className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
+                <Volume2 className="w-4 h-4" aria-hidden />
                 <span className="hidden sm:inline">Escuchar</span>
               </button>
             )}
             <button type="button" onClick={() => onNavigate("create-lesson")}
-              className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 hover:shadow-md active:scale-[0.98]">
-              <Plus className="w-4 h-4" aria-hidden="true" />
+              className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 hover:shadow-md active:scale-[0.98]">
+              <Plus className="w-4 h-4" aria-hidden />
               Nueva lección
             </button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <main className="mx-auto max-w-5xl px-5 py-7">
         <section aria-label="Lista de lecciones">
-          {lessons.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card py-16 text-center">
-              <FileText className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" aria-hidden="true" />
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-3xl bg-muted animate-pulse" />)}
+            </div>
+          ) : lessons.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border bg-card py-16 text-center px-6">
+              <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                <FileText className="w-7 h-7 text-muted-foreground/50" aria-hidden />
+              </div>
               <h3 className="text-base font-bold text-foreground mb-1">No hay lecciones</h3>
               <p className="text-sm text-muted-foreground mb-5">Crea tu primera lección para este curso</p>
               <button type="button" onClick={() => onNavigate("create-lesson")}
-                className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 active:scale-[0.98]">
-                <Plus className="w-4 h-4" aria-hidden="true" />Nueva lección
+                className="flex items-center gap-2 rounded-2xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground hover:opacity-90 active:scale-[0.98]">
+                <Plus className="w-4 h-4" aria-hidden /> Nueva lección
               </button>
             </div>
           ) : (
             <ul className="space-y-3 list-none p-0">
-              {lessons.map((lesson, index) => (
-                <li key={lesson.id}>
-                  <article aria-label={`Lección ${index + 1}: ${lesson.title}`}
-                    className="rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:shadow-md hover:border-primary/20">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-4 min-w-0">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10" aria-hidden="true">
-                          <span className="text-base font-bold text-primary">{index + 1}</span>
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-sm font-bold text-foreground truncate">{lesson.title}</h3>
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              lesson.status === "published"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-muted text-muted-foreground"
-                            }`}
-                              aria-label={lesson.status === "published" ? "Estado: Publicada" : "Estado: Borrador"}>
-                              {lesson.status === "published"
-                                ? <><CheckCircle className="w-3 h-3" aria-hidden="true" />Publicada</>
-                                : <><FileText className="w-3 h-3" aria-hidden="true" />Borrador</>}
-                            </span>
+              {lessons.map((lesson, index) => {
+                const published = lesson.status === "published"
+                return (
+                  <li key={lesson.id}>
+                    <article aria-label={`Lección ${index + 1}: ${lesson.title}`}
+                      className="rounded-3xl border-2 border-border bg-card p-5 shadow-sm transition-all hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-4 min-w-0 flex-1">
+                          {/* Number badge */}
+                          <div className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center font-black text-lg shadow-sm ${
+                            published ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                          }`} aria-hidden>
+                            {index + 1}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{lesson.instructions}</p>
-                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground mt-1.5">
-                            <Play className="w-3 h-3" aria-hidden="true" />{lesson.activitiesCount} actividades
-                          </span>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-sm font-black text-foreground truncate">{lesson.title}</h3>
+                              <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                                published
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-muted text-muted-foreground"
+                              }`}>
+                                {published
+                                  ? <><CheckCircle className="w-3 h-3" /> Publicada</>
+                                  : <><FileText className="w-3 h-3" /> Borrador</>}
+                              </span>
+                            </div>
+                            {lesson.instructions && (
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{lesson.instructions}</p>
+                            )}
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                              <Play className="w-3 h-3 text-muted-foreground" aria-hidden />
+                              <span className="text-[11px] text-muted-foreground font-medium">
+                                {lesson.activitiesCount} {lesson.activitiesCount === 1 ? "actividad" : "actividades"}
+                              </span>
+                            </div>
+                          </div>
                         </div>
+
+                        {/* Actions */}
+                        <nav aria-label={`Acciones de la lección ${lesson.title}`} className="flex items-center gap-2 shrink-0">
+                          <button type="button"
+                            onClick={() => onNavigate(`edit-lesson-${lesson.id}`)}
+                            className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground transition-all hover:bg-muted active:scale-[0.98]">
+                            <Edit className="w-3.5 h-3.5" aria-hidden /> Editar
+                          </button>
+                          <button type="button"
+                            onClick={() => handleDeleteLesson(lesson.id)}
+                            aria-label={`Eliminar lección ${lesson.title}`}
+                            className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 transition-all hover:bg-red-100 active:scale-[0.98]">
+                            <Trash2 className="w-3.5 h-3.5" aria-hidden />
+                          </button>
+                        </nav>
                       </div>
-                      <nav aria-label={`Acciones de la lección ${lesson.title}`} className="flex items-center gap-2 shrink-0">
-                        <button type="button"
-                          onClick={() => onNavigate(`edit-lesson-${lesson.id}`)}
-                          className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground transition-all hover:bg-muted active:scale-[0.98]">
-                          <Edit className="w-3.5 h-3.5" aria-hidden="true" />Editar
-                        </button>
-                        <button type="button"
-                          onClick={() => handleDeleteLesson(lesson.id)}
-                          aria-label={`Eliminar lección ${lesson.title}`}
-                          className="flex items-center gap-1.5 rounded-xl border border-destructive/30 bg-card px-3 py-2 text-sm font-semibold text-destructive transition-all hover:bg-destructive/10 active:scale-[0.98]">
-                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />Eliminar
-                        </button>
-                      </nav>
-                    </div>
-                  </article>
-                </li>
-              ))}
+                    </article>
+                  </li>
+                )
+              })}
             </ul>
           )}
         </section>

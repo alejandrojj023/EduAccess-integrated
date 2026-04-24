@@ -76,9 +76,10 @@ const FAQS = [
 interface LandingPageProps {
   onStudentLogin: () => void
   onTeacherLogin: () => void
+  onScreeningTest?: () => void
 }
 
-export function LandingPage({ onStudentLogin, onTeacherLogin }: LandingPageProps) {
+export function LandingPage({ onStudentLogin, onTeacherLogin, onScreeningTest }: LandingPageProps) {
   const speakStudent = useSpeakOnHover(
     "Soy estudiante. Entra para ver tus lecciones, jugar actividades y ganar estrellas.",
   )
@@ -166,13 +167,25 @@ export function LandingPage({ onStudentLogin, onTeacherLogin }: LandingPageProps
                   </button>
                 </div>
 
-                <a
-                  href="/test"
-                  className="mt-5 inline-flex items-center gap-2 rounded-xl border border-[#008e92]/30 bg-[#008e92]/6 px-4 py-2.5 text-sm font-semibold text-[#007578] transition-all hover:border-[#008e92]/50 hover:bg-[#008e92]/10"
-                >
-                  <Accessibility className="h-4 w-4" />
-                  Tomar test de accesibilidad
-                </a>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <a
+                    href="/test"
+                    className="inline-flex items-center gap-2 rounded-xl border border-[#008e92]/30 bg-[#008e92]/6 px-4 py-2.5 text-sm font-semibold text-[#007578] transition-all hover:border-[#008e92]/50 hover:bg-[#008e92]/10"
+                  >
+                    <Accessibility className="h-4 w-4" />
+                    Test de accesibilidad
+                  </a>
+                  {onScreeningTest && (
+                    <button
+                      type="button"
+                      onClick={onScreeningTest}
+                      className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-700 transition-all hover:border-amber-400 hover:bg-amber-100 active:scale-[0.98]"
+                    >
+                      <Eye className="h-4 w-4" />
+                      Test de tamizaje
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Right — refined card */}
