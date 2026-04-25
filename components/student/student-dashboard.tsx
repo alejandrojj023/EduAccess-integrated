@@ -47,6 +47,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
     nivelActual,
     nivelNombre,
     nivelEmoji,
+    nivelIcon,
     nivelMin,
     nivelMax,
     streakDays,
@@ -196,6 +197,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
                 nivelActual={nivelActual}
                 nivelNombre={nivelNombre}
                 nivelEmoji={nivelEmoji}
+                nivelIcon={nivelIcon}
                 nivelMax={nivelMax}
                 estrellasTotales={estrellasTotales}
                 progressToNext={progressToNext}

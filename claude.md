@@ -134,3 +134,17 @@ Al dar refresh no se reinicia la leccion asta el inicio ,mantiene lo que ya se a
 
 ## Regra
 Cada vez que realices un ajuste,este juste no debe modificar la logica ya existente.por ejemplo si pido que cambies el color de una actividad ,no lo vas a cambiar a todos.
+
+## Existen 10 niveles actualmente
+Curva de Niveles (acumulación de estrellas):
+--  1 Semilla Dormida 0 -  9 ⭐   [+10]
+--  2 Semilla Saltarina      10 - 29 ⭐   [+20]
+--  3 Brote Brillante    30 - 59 ⭐   [+30]
+--  4 Trébol de la Suerte       60 - 99 ⭐   [+40]
+--  5 Girasol Sonriente      100 -144 ⭐   [+45]
+--  6 Cactus Valiente     145 -195 ⭐   [+50]
+--  7 Árbol Alegre 196 -251 ⭐   [+55]
+--  8 Flor Guardiana     252 -312 ⭐   [+60]
+--  9 Gran Roble 313 -378 ⭐   [+65]
+-- 10 Bosque Mágico      379+ ⭐
+-- fn_calcular_nivel(estrellas) → int (1-10)
