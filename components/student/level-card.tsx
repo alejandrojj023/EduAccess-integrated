@@ -7,6 +7,7 @@ interface LevelCardProps {
   nivelActual: number
   nivelNombre: string
   nivelEmoji: string
+  nivelIcon: string
   nivelMax: number
   estrellasTotales: number
   progressToNext: number
@@ -16,6 +17,7 @@ export function LevelCard({
   nivelActual,
   nivelNombre,
   nivelEmoji,
+  nivelIcon,
   nivelMax,
   estrellasTotales,
   progressToNext,
@@ -39,8 +41,8 @@ export function LevelCard({
 
       <div className="relative space-y-3">
         <div className="flex items-center gap-3">
-          <div className="w-14 h-14 rounded-2xl bg-white/25 flex items-center justify-center text-3xl shadow-inner shrink-0" aria-hidden>
-            {nivelEmoji}
+          <div className="w-14 h-14 rounded-2xl bg-white/25 shadow-inner shrink-0 overflow-hidden" aria-hidden>
+            <img src={nivelIcon} alt={nivelNombre} className="w-full h-full object-cover" />
           </div>
           <div>
             <p className="text-2xl font-black text-white leading-none">
