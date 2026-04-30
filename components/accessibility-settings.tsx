@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import {
   ArrowLeft, Volume2, Type, Eye, EyeOff, Mic, Sparkles, Check,
-  User, Settings, Gauge, MessageSquare, ZapOff,
+  User, Settings, Gauge, MessageSquare,
   Sun, Moon, Contrast, X, Pencil, Lock, AlertCircle,
 } from "lucide-react"
 import type { ContrastLevel, TooltipMode } from "@/lib/accessibility-context"
@@ -52,8 +52,8 @@ function useSpanishVoices() {
     if (!("speechSynthesis" in window)) return
     const load = () => {
       const all = window.speechSynthesis.getVoices()
-      const es  = all.filter((v) => v.lang.startsWith("es"))
-      setVoices(es.length > 0 ? es : all.slice(0, 10))
+      const es  = all.filter((v) => v.name.includes("Sabina"))
+      setVoices(es)
     }
     load()
     window.speechSynthesis.addEventListener("voiceschanged", load)
@@ -591,7 +591,7 @@ export function AccessibilitySettings({ onBack }: AccessibilitySettingsProps) {
                     </div>
 
                     {/* Selección de voz */}
-                    {voices.length > 0 && (
+                    {(voices.length > 0 || user) && (
                       <div className="space-y-2">
                         <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                           <Volume2 className="w-4 h-4" aria-hidden="true" />
@@ -609,6 +609,9 @@ export function AccessibilitySettings({ onBack }: AccessibilitySettingsProps) {
                               {v.name} — {v.lang}
                             </option>
                           ))}
+                          {user && (
+                            <option value="neural2-google">Neural2 — Google TTS</option>
+                          )}
                         </select>
                         <Button
                           variant="outline"

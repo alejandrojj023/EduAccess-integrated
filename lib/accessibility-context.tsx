@@ -127,6 +127,8 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AccessibilitySettings>(defaultSettings)
   const [loading, setLoading]   = useState(true)
   const { user } = useAuth()
+  const achernarCtxRef   = useRef<AudioContext | null>(null)
+  const achernarAbortRef = useRef<AbortController | null>(null)
 
   // ── Cargar configuración ──────────────────────────────────
   useEffect(() => {
@@ -190,12 +192,50 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
 
   // ── TTS ───────────────────────────────────────────────────
   const speak = useCallback(
-    (text: string) => {
-      if (!settings.voiceEnabled || !("speechSynthesis" in window)) return
-      window.speechSynthesis.cancel()
-      const utt       = new SpeechSynthesisUtterance(text)
-      utt.lang        = "es-ES"
-      utt.rate        = settings.voiceRate
+    async (text: string) => {
+      if (!settings.voiceEnabled) return
+
+      // Cancelar cualquier reproducción y fetch activos
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel()
+      if (achernarAbortRef.current) { achernarAbortRef.current.abort(); achernarAbortRef.current = null }
+      if (achernarCtxRef.current) { achernarCtxRef.current.close(); achernarCtxRef.current = null }
+
+      if (settings.voiceName === "neural2-google") {
+        try {
+          const controller = new AbortController()
+          achernarAbortRef.current = controller
+          const res = await fetch("/api/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text }),
+            signal: controller.signal,
+          })
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}))
+            console.warn("Cloud TTS — API error", res.status, body)
+            return
+          }
+          const { audio } = await res.json()
+          const bytes   = Uint8Array.from(atob(audio), (c) => c.charCodeAt(0)).buffer
+          const actx    = new AudioContext()
+          achernarCtxRef.current = actx
+          const decoded = await actx.decodeAudioData(bytes)
+          const source  = actx.createBufferSource()
+          source.buffer = decoded
+          source.playbackRate.value = settings.voiceRate
+          source.connect(actx.destination)
+          source.start(0)
+          source.onended = () => { actx.close(); achernarCtxRef.current = null }
+        } catch (e: any) {
+          if (e?.name !== "AbortError") console.warn("Cloud TTS error:", e)
+        }
+        return
+      }
+
+      if (!("speechSynthesis" in window)) return
+      const utt  = new SpeechSynthesisUtterance(text)
+      utt.lang   = "es-ES"
+      utt.rate   = settings.voiceRate
       if (settings.voiceName) {
         const voice = window.speechSynthesis.getVoices().find((v) => v.name === settings.voiceName)
         if (voice) utt.voice = voice

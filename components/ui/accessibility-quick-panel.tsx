@@ -5,6 +5,7 @@ import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useAccessibility } from "@/lib/accessibility-context"
+import { useAuth } from "@/lib/auth-context"
 import { Check, Contrast, Eye, Gauge, MessageSquare, Mic, Moon, Sun, Type, Volume2, ZapOff } from "lucide-react"
 import type { ContrastLevel, TooltipMode } from "@/lib/accessibility-context"
 
@@ -14,8 +15,8 @@ function useSpanishVoices() {
     if (!("speechSynthesis" in window)) return
     const load = () => {
       const all = window.speechSynthesis.getVoices()
-      const es = all.filter((v) => v.lang.startsWith("es"))
-      setVoices(es.length > 0 ? es : all.slice(0, 10))
+      const es = all.filter((v) => v.name.includes("Sabina"))
+      setVoices(es)
     }
     load()
     window.speechSynthesis.addEventListener("voiceschanged", load)
@@ -26,6 +27,7 @@ function useSpanishVoices() {
 
 export function AccessibilityQuickPanel() {
   const { settings, updateSettings, speak } = useAccessibility()
+  const { user } = useAuth()
   const voices = useSpanishVoices()
 
   const contrastOptions: { id: ContrastLevel; label: string; desc: string; icon: typeof Sun }[] = [
@@ -182,7 +184,7 @@ export function AccessibilityQuickPanel() {
                 </div>
               </div>
 
-              {voices.length > 0 && (
+              {(voices.length > 0 || user) && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                     <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
@@ -198,6 +200,9 @@ export function AccessibilityQuickPanel() {
                     {voices.map((v) => (
                       <option key={v.name} value={v.name}>{v.name} — {v.lang}</option>
                     ))}
+                    {user && (
+                      <option value="neural2-google">Neural2 — Google TTS</option>
+                    )}
                   </select>
                   <Button
                     variant="outline"
