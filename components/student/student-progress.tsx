@@ -143,6 +143,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
       icon: <BookOpen className="w-6 h-6 text-white" aria-hidden />,
       value: completedLessons,
       label: "Lecciones",
+      description: `Lecciones completadas: ${completedLessons}. Cada lección que terminas te acerca más a tu meta.`,
     },
     {
       gradient: "from-emerald-400 to-teal-600",
@@ -151,6 +152,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
       icon: <Target className="w-6 h-6 text-white" aria-hidden />,
       value: `${averageScore}%`,
       label: "Promedio",
+      description: `Tu promedio de calificaciones es ${averageScore} por ciento. ¡Sigue así para mejorarlo!`,
     },
     {
       gradient: "from-amber-400 to-orange-500",
@@ -159,6 +161,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
       icon: <Star className="w-6 h-6 text-white fill-white" aria-hidden />,
       value: totalEstrellas,
       label: "Estrellas",
+      description: `Tienes ${totalEstrellas} estrellas en total. Las ganas completando actividades y lecciones.`,
     },
     {
       gradient: "from-violet-400 to-violet-600",
@@ -167,6 +170,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
       icon: <Clock className="w-6 h-6 text-white" aria-hidden />,
       value: totalAttempts,
       label: "Intentos",
+      description: `Has realizado ${totalAttempts} intentos en total. Cada intento es una oportunidad de aprender.`,
     },
   ]
 
@@ -227,7 +231,10 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
           <ul className="grid grid-cols-2 lg:grid-cols-4 gap-3 list-none p-0">
             {statCards.map((card, i) => (
               <li key={i}>
-                <div className={`relative overflow-hidden rounded-3xl border-2 ${card.border} bg-gradient-to-br ${card.gradient} p-5 shadow-lg ${card.shadow} transition-all hover:-translate-y-1 hover:shadow-xl`}>
+                <div
+                  className={`relative overflow-hidden rounded-3xl border-2 ${card.border} bg-gradient-to-br ${card.gradient} p-5 shadow-lg ${card.shadow} transition-all hover:-translate-y-1 hover:shadow-xl`}
+                  onMouseEnter={() => settings.voiceEnabled && speak(card.description)}
+                >
                   <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden />
                   <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
                     {card.icon}

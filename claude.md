@@ -132,7 +132,7 @@ Lógica detallada en docs/architecture.md sección Racha.
 ## El ajuste
 Al dar refresh no se reinicia la leccion asta el inicio ,mantiene lo que ya se a respondido.
 
-## Regra
+## Regla
 Cada vez que realices un ajuste,este juste no debe modificar la logica ya existente.por ejemplo si pido que cambies el color de una actividad ,no lo vas a cambiar a todos.
 
 ## Existen 10 niveles actualmente
@@ -148,3 +148,9 @@ Curva de Niveles (acumulación de estrellas):
 --  9 Gran Roble 313 -378 ⭐   [+65]
 -- 10 Bosque Mágico      379+ ⭐
 -- fn_calcular_nivel(estrellas) → int (1-10)
+
+## Gemini 2.5 Flash TTS
+ con voz Achernar (es-US-Studio-O) como TTS principal
+- **Web Speech API** como fallback gratuito (voiceName === "web-speech")
+- API Route: app/api/tts/route.ts
+- Variable de entorno: GOOGLE_TTS_API_KEY (en .env.local y Vercel)
