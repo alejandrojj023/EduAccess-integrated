@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import { ArrowLeft, BookOpen, ChevronRight, CheckCircle2, Star, Lock } from "lucide-react"
+import { VoiceAssistantLessonsButton } from "@/components/student/voice-assistant-lessons-button"
 
 function StarRow({ stars, size = "w-4 h-4" }: { stars: number | null; size?: string }) {
   if (stars == null || stars === 0) return null
@@ -47,6 +48,7 @@ export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: 
   const { user } = useAuth()
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [loading, setLoading] = useState(true)
+  const [highlightedLessonIdx, setHighlightedLessonIdx] = useState<number | null>(null)
 
   useEffect(() => {
     if (!user || !courseId) return
@@ -166,7 +168,7 @@ export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: 
                             : locked
                               ? "border-border bg-muted/30 cursor-not-allowed opacity-60"
                               : "border-border bg-card hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5"
-                      }`}
+                      } ${highlightedLessonIdx === i ? "ring-4 ring-emerald-400/70 ring-offset-2 ring-offset-background scale-[1.02] shadow-2xl" : ""}`}
                     >
                       <div className="flex items-center gap-4">
                         {/* Number / check / lock */}
@@ -232,6 +234,15 @@ export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: 
           </ul>
         )}
       </main>
+
+      {!loading && lessons.length > 0 && (
+        <VoiceAssistantLessonsButton
+          courseName={courseName ?? ""}
+          lessons={lessons}
+          onSelectLesson={onSelectLesson}
+          onHighlight={setHighlightedLessonIdx}
+        />
+      )}
     </div>
   )
 }

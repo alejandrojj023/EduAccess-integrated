@@ -37,7 +37,7 @@ const defaultSettings: AccessibilitySettings = {
   simplifiedInterface: false,
   tooltipMode: "off",
   voiceRate: 0.9,
-  voiceName: "",
+  voiceName: "neural2-google",
 }
 
 const AccessibilityContext = createContext<AccessibilityContextType | undefined>(undefined)
@@ -195,54 +195,41 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     async (text: string) => {
       if (!settings.voiceEnabled) return
 
-      // Cancelar cualquier reproducción y fetch activos
-      if ("speechSynthesis" in window) window.speechSynthesis.cancel()
       if (achernarAbortRef.current) { achernarAbortRef.current.abort(); achernarAbortRef.current = null }
       if (achernarCtxRef.current) { achernarCtxRef.current.close(); achernarCtxRef.current = null }
 
-      if (settings.voiceName === "neural2-google") {
-        try {
-          const controller = new AbortController()
-          achernarAbortRef.current = controller
-          const res = await fetch("/api/tts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text }),
-            signal: controller.signal,
-          })
-          if (!res.ok) {
-            const body = await res.json().catch(() => ({}))
-            console.warn("Cloud TTS — API error", res.status, body)
-            return
-          }
-          const { audio } = await res.json()
-          const bytes   = Uint8Array.from(atob(audio), (c) => c.charCodeAt(0)).buffer
-          const actx    = new AudioContext()
-          achernarCtxRef.current = actx
-          const decoded = await actx.decodeAudioData(bytes)
-          const source  = actx.createBufferSource()
-          source.buffer = decoded
-          source.playbackRate.value = settings.voiceRate
-          source.connect(actx.destination)
-          source.start(0)
-          source.onended = () => { actx.close(); achernarCtxRef.current = null }
-        } catch (e: any) {
-          if (e?.name !== "AbortError") console.warn("Cloud TTS error:", e)
+      try {
+        const controller = new AbortController()
+        achernarAbortRef.current = controller
+        const res = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+          signal: controller.signal,
+        })
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}))
+          console.warn("Cloud TTS — API error", res.status, body)
+          return
         }
-        return
+        const { audio } = await res.json()
+        const bytes   = Uint8Array.from(atob(audio), (c) => c.charCodeAt(0)).buffer
+        const actx    = new AudioContext()
+        achernarCtxRef.current = actx
+        const decoded = await actx.decodeAudioData(bytes)
+        const source  = actx.createBufferSource()
+        source.buffer = decoded
+        source.playbackRate.value = settings.voiceRate
+        source.connect(actx.destination)
+        await new Promise<void>((resolve) => {
+          source.onended = () => { actx.close(); achernarCtxRef.current = null; resolve() }
+          source.start(0)
+        })
+      } catch (e: any) {
+        if (e?.name !== "AbortError") console.warn("Cloud TTS error:", e)
       }
-
-      if (!("speechSynthesis" in window)) return
-      const utt  = new SpeechSynthesisUtterance(text)
-      utt.lang   = "es-ES"
-      utt.rate   = settings.voiceRate
-      if (settings.voiceName) {
-        const voice = window.speechSynthesis.getVoices().find((v) => v.name === settings.voiceName)
-        if (voice) utt.voice = voice
-      }
-      window.speechSynthesis.speak(utt)
     },
-    [settings.voiceEnabled, settings.voiceRate, settings.voiceName]
+    [settings.voiceEnabled, settings.voiceRate]
   )
 
   // ── Listener global hover-to-speak ────────────────────────

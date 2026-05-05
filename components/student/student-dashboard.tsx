@@ -9,6 +9,7 @@ import { AccessibleTooltip, SpeakableText, useSpeakOnHover } from "@/components/
 import { StarsCard } from "@/components/student/stars-card"
 import { LevelCard } from "@/components/student/level-card"
 import { StreakCard } from "@/components/student/streak-card"
+import { VoiceAssistantButton } from "@/components/student/voice-assistant-button"
 
 import {
   BookOpen,
@@ -36,6 +37,17 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
   const [avatarColor] = useState<string | null>(() =>
     typeof window !== "undefined" ? localStorage.getItem("ea_avatar_color") : null
   )
+
+  const [highlightOption, setHighlightOption] = useState<1 | 2 | 3 | 4 | null>(null)
+  const [highlightCourseIdx, setHighlightCourseIdx] = useState<number | null>(null)
+  const ringClass = (opt: 1 | 2 | 3 | 4) =>
+    highlightOption === opt
+      ? "ring-4 ring-emerald-400/70 ring-offset-2 ring-offset-background scale-[1.03] shadow-2xl"
+      : ""
+  const courseRing = (idx: number) =>
+    highlightCourseIdx === idx
+      ? "ring-4 ring-emerald-400/70 ring-offset-2 ring-offset-background scale-[1.02] shadow-2xl"
+      : ""
 
   const hoverContinuar  = useSpeakOnHover("Continuar Aprendiendo")
   const hoverProgreso   = useSpeakOnHover("Mi Progreso: ver tu avance en los cursos")
@@ -178,7 +190,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
                 onClick={handleContinuar}
                 disabled={loading || courses.length === 0}
                 {...hoverContinuar}
-                className="flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-primary shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 shrink-0"
+                className={`flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-primary shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 shrink-0 ${ringClass(1)}`}
               >
                 <Play className="h-4 w-4" aria-hidden="true" />
                 Continuar
@@ -250,7 +262,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
                     <button
                       type="button"
                       onClick={() => onNavigate(`course-${course.id}|${course.name}`)}
-                      className="group w-full rounded-3xl border-2 border-border bg-card p-5 text-left shadow-sm transition-all hover:border-primary/40 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99]"
+                      className={`group w-full rounded-3xl border-2 border-border bg-card p-5 text-left shadow-sm transition-all hover:border-primary/40 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99] ${courseRing(idx)}`}
                     >
                       <div className="flex items-center gap-4">
                         {/* Icon */}
@@ -316,7 +328,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
               type="button"
               onClick={() => onNavigate("student-progress")}
               {...hoverProgreso}
-              className="group flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 py-4 text-left transition-all hover:border-violet-300 hover:bg-violet-50 active:scale-[0.98]"
+              className={`group flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 py-4 text-left transition-all hover:border-violet-300 hover:bg-violet-50 active:scale-[0.98] ${ringClass(3)}`}
             >
               <div className="w-9 h-9 rounded-xl bg-violet-100 group-hover:bg-violet-200 flex items-center justify-center transition-colors shrink-0">
                 <BarChart3 className="h-4 w-4 text-violet-600" aria-hidden />
@@ -328,7 +340,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
               type="button"
               onClick={() => onNavigate("student-calendar")}
               {...hoverCalendario}
-              className="group flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 py-4 text-left transition-all hover:border-blue-300 hover:bg-blue-50 active:scale-[0.98]"
+              className={`group flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 py-4 text-left transition-all hover:border-blue-300 hover:bg-blue-50 active:scale-[0.98] ${ringClass(2)}`}
             >
               <div className="w-9 h-9 rounded-xl bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center transition-colors shrink-0">
                 <Calendar className="h-4 w-4 text-blue-600" aria-hidden />
@@ -340,7 +352,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
               type="button"
               onClick={() => onNavigate("join-group")}
               {...hoverUnirse}
-              className="group col-span-2 flex items-center gap-3 rounded-2xl border-2 border-dashed border-border bg-card px-4 py-4 text-left transition-all hover:border-primary/50 hover:bg-primary/5 active:scale-[0.98]"
+              className={`group col-span-2 flex items-center gap-3 rounded-2xl border-2 border-dashed border-border bg-card px-4 py-4 text-left transition-all hover:border-primary/50 hover:bg-primary/5 active:scale-[0.98] ${ringClass(4)}`}
             >
               <div className="w-9 h-9 rounded-xl bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors shrink-0">
                 <BookOpen className="h-4 w-4 text-primary" aria-hidden />
@@ -355,6 +367,18 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
         </nav>
 
       </main>
+
+      <VoiceAssistantButton
+        firstName={firstName}
+        estrellasTotales={estrellasTotales}
+        nivelActual={nivelActual}
+        nivelNombre={nivelNombre}
+        streakDays={streakDays}
+        courses={courses}
+        onNavigate={onNavigate}
+        onHighlight={setHighlightOption}
+        onHighlightCourse={setHighlightCourseIdx}
+      />
     </div>
   )
 }

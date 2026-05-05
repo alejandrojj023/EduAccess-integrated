@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -44,24 +44,6 @@ function loadAvatarColor(): string | null {
   return localStorage.getItem(AVATAR_COLOR_KEY)
 }
 
-// ── Available Spanish voices ──────────────────────────────
-function useSpanishVoices() {
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
-
-  useEffect(() => {
-    if (!("speechSynthesis" in window)) return
-    const load = () => {
-      const all = window.speechSynthesis.getVoices()
-      const es  = all.filter((v) => v.name.includes("Sabina"))
-      setVoices(es)
-    }
-    load()
-    window.speechSynthesis.addEventListener("voiceschanged", load)
-    return () => window.speechSynthesis.removeEventListener("voiceschanged", load)
-  }, [])
-
-  return voices
-}
 
 // ═══════════════════════════════════════════════════════════
 // COMPONENT
@@ -70,8 +52,6 @@ function useSpanishVoices() {
 export function AccessibilitySettings({ onBack }: AccessibilitySettingsProps) {
   const { settings, updateSettings, speak } = useAccessibility()
   const { user } = useAuth()
-  const voices = useSpanishVoices()
-
   const [activeTab, setActiveTab] = useState<Tab>("accesibilidad")
 
   // ── Profile state ────────────────────────────────────────
@@ -590,39 +570,24 @@ export function AccessibilitySettings({ onBack }: AccessibilitySettingsProps) {
                       </div>
                     </div>
 
-                    {/* Selección de voz */}
-                    {(voices.length > 0 || user) && (
-                      <div className="space-y-2">
-                        <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                          <Volume2 className="w-4 h-4" aria-hidden="true" />
-                          Voz del sistema
-                        </label>
-                        <select
-                          value={settings.voiceName}
-                          onChange={(e) => updateSettings({ voiceName: e.target.value })}
-                          className="w-full h-12 px-4 text-base border-2 border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                          aria-label="Seleccionar voz"
-                        >
-                          <option value="">Voz automática (es-ES)</option>
-                          {voices.map((v) => (
-                            <option key={v.name} value={v.name}>
-                              {v.name} — {v.lang}
-                            </option>
-                          ))}
-                          {user && (
-                            <option value="neural2-google">Neural2 — Google TTS</option>
-                          )}
-                        </select>
-                        <Button
-                          variant="outline"
-                          className="w-full h-11 border-2"
-                          onClick={() => speak("Esta es una prueba de lectura en voz alta. La configuración funciona correctamente.")}
-                        >
-                          <Volume2 className="w-4 h-4 mr-2" aria-hidden="true" />
-                          Probar voz seleccionada
-                        </Button>
+                    {/* Voz fija: Neural2 Google TTS */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <Volume2 className="w-4 h-4" aria-hidden="true" />
+                        Voz del sistema
+                      </label>
+                      <div className="w-full h-12 px-4 flex items-center border-2 border-input rounded-lg bg-muted text-sm text-muted-foreground">
+                        Neural2 — Google TTS
                       </div>
-                    )}
+                      <Button
+                        variant="outline"
+                        className="w-full h-11 border-2"
+                        onClick={() => speak("Esta es una prueba de lectura en voz alta. La configuración funciona correctamente.")}
+                      >
+                        <Volume2 className="w-4 h-4 mr-2" aria-hidden="true" />
+                        Probar voz
+                      </Button>
+                    </div>
                   </>
                 )}
               </CardContent>
