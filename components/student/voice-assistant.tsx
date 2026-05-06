@@ -250,10 +250,13 @@ export function VoiceAssistant({
         const freqData = new Uint8Array(analyser.frequencyBinCount)
         let speechDetected = false
         let silenceStart: number | null = null
+        // Auto-activa detección de silencio tras 1.5s por si el umbral no se cruza
+        const autoTrigger = setTimeout(() => { speechDetected = true }, 1500)
 
         silenceInterval = setInterval(() => {
           // Abort externo
           if (abortRef.current.aborted) {
+            clearTimeout(autoTrigger)
             clearInterval(silenceInterval!); silenceInterval = null
             if (!resolved) { resolved = true; cleanup(); try { recorder.stop() } catch {}; resolve(null) }
             return
@@ -263,12 +266,13 @@ export function VoiceAssistant({
           for (const v of freqData) sum += (v - 128) ** 2
           const rms = Math.sqrt(sum / freqData.length)
 
-          if (rms > 10) {
+          if (rms > 5) {
             speechDetected = true
             silenceStart   = null
           } else if (speechDetected) {
             if (!silenceStart) silenceStart = Date.now()
             else if (Date.now() - silenceStart > 600) {
+              clearTimeout(autoTrigger)
               clearInterval(silenceInterval!); silenceInterval = null
               try { recorder.stop() } catch {}
             }
