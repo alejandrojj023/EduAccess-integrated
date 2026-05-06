@@ -38,9 +38,9 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
     typeof window !== "undefined" ? localStorage.getItem("ea_avatar_color") : null
   )
 
-  const [highlightOption, setHighlightOption] = useState<1 | 2 | 3 | 4 | 5 | null>(null)
+  const [highlightOption, setHighlightOption] = useState<1 | 2 | 3 | 4 | 5 | 6 | null>(null)
   const [highlightCourseIdx, setHighlightCourseIdx] = useState<number | null>(null)
-  const ringClass = (opt: 1 | 2 | 3 | 4 | 5) =>
+  const ringClass = (opt: 1 | 2 | 3 | 4 | 5 | 6) =>
     highlightOption === opt
       ? "ring-4 ring-emerald-400/70 ring-offset-2 ring-offset-background scale-[1.03] shadow-2xl"
       : ""
