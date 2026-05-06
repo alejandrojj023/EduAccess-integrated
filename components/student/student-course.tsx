@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import { ArrowLeft, BookOpen, ChevronRight, CheckCircle2, Star, Lock } from "lucide-react"
-import { VoiceAssistantLessonsButton } from "@/components/student/voice-assistant-lessons-button"
+import { VoiceAssistant } from "@/components/student/voice-assistant"
 
 function StarRow({ stars, size = "w-4 h-4" }: { stars: number | null; size?: string }) {
   if (stars == null || stars === 0) return null
@@ -235,12 +235,22 @@ export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: 
         )}
       </main>
 
-      {!loading && lessons.length > 0 && (
-        <VoiceAssistantLessonsButton
+      {!loading && (
+        <VoiceAssistant
+          // Required dashboard props (unused in lessons mode but required by type)
+          firstName=""
+          estrellasTotales={0}
+          nivelActual={0}
+          nivelNombre=""
+          streakDays={0}
+          courses={[]}
+          onNavigate={() => {}}
+          // Lessons mode
           courseName={courseName ?? ""}
           lessons={lessons}
           onSelectLesson={onSelectLesson}
-          onHighlight={setHighlightedLessonIdx}
+          onHighlightLesson={setHighlightedLessonIdx}
+          onBack={onBack}
         />
       )}
     </div>

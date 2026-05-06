@@ -15,6 +15,7 @@ import {
   Star,
   BookOpen,
 } from "lucide-react"
+import { VoiceAssistant } from "@/components/student/voice-assistant"
 
 interface StudentCalendarProps {
   onBack: () => void
@@ -313,6 +314,28 @@ export function StudentCalendar({ onBack }: StudentCalendarProps) {
           </section>
         )}
       </main>
+
+      <VoiceAssistant
+        subpageName="calendario"
+        subpageMessage={
+          loading ? undefined
+          : `¡Aquí está tu calendario de aventuras! En ${MONTHS_ES[month]}, ` +
+            (completions.length === 0
+              ? "aún no tienes lecciones completadas. ¡Anímate a hacer una hoy!"
+              : `completaste ${completions.length} ${completions.length === 1 ? "lección" : "lecciones"} ` +
+                `en ${diasActivos} ${diasActivos === 1 ? "día" : "días"} distintos. ` +
+                (avgEstrellas ? `Tu promedio de estrellas fue de ${avgEstrellas}. ` : "") +
+                "¡Sigue así, lo estás haciendo genial!")
+        }
+        firstName=""
+        estrellasTotales={0}
+        nivelActual={0}
+        nivelNombre=""
+        streakDays={0}
+        courses={[]}
+        onNavigate={() => {}}
+        onBack={onBack}
+      />
     </div>
   )
 }

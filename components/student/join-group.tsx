@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { ArrowLeft, BookOpen, CheckCircle2, XCircle, Hash } from "lucide-react"
+import { VoiceAssistant } from "@/components/student/voice-assistant"
 
 interface CourseInvitation {
   id_invitacion: string
@@ -205,6 +206,26 @@ export function JoinGroup({ onNavigate }: JoinGroupProps) {
           )}
         </section>
       </main>
+
+      <VoiceAssistant
+        subpageName="unirse"
+        subpageMessage={
+          loadingCourseInv ? undefined
+          : courseInvitations.length === 0
+            ? "¡Aquí puedes unirte a un curso nuevo! Pídele a tu docente el código de 6 caracteres e ingrésalo en el campo de arriba. Por ahora no tienes invitaciones pendientes."
+            : courseInvitations.length === 1
+              ? `¡Aquí puedes unirte a un curso nuevo! Tienes una invitación pendiente del curso ${courseInvitations[0].curso?.titulo ?? "desconocido"}, de ${courseInvitations[0].docente?.nombre ?? "tu docente"}. Puedes aceptarla o rechazarla desde aquí.`
+              : `¡Aquí puedes unirte a un curso nuevo! Tienes ${courseInvitations.length} invitaciones pendientes. Puedes aceptarlas o rechazarlas desde aquí.`
+        }
+        firstName=""
+        estrellasTotales={0}
+        nivelActual={0}
+        nivelNombre=""
+        streakDays={0}
+        courses={[]}
+        onNavigate={onNavigate}
+        onBack={() => onNavigate("student-dashboard")}
+      />
     </div>
   )
 }

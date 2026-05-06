@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   XCircle,
 } from "lucide-react"
+import { VoiceAssistant } from "@/components/student/voice-assistant"
 
 interface StudentProgressProps {
   onBack: () => void
@@ -402,6 +403,28 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
           </div>
         </section>
       </main>
+
+      <VoiceAssistant
+        subpageName="progreso"
+        subpageMessage={
+          loading ? undefined
+          : `¡Veamos cómo vas, campeón! ` +
+            `Lecciones completadas: ${completedLessons} de ${totalLessons}. ` +
+            `Promedio: ${averageScore} por ciento. ` +
+            `Estrellas totales: ${totalEstrellas}. ` +
+            (totalAttempts > 0 ? `Intentos: ${totalAttempts}. ` : "") +
+            `Progreso general: ${Math.round(overallProgress)} por ciento. ` +
+            `¡Estás haciendo un trabajo increíble! ¡Sigue así!`
+        }
+        firstName=""
+        estrellasTotales={0}
+        nivelActual={0}
+        nivelNombre=""
+        streakDays={0}
+        courses={[]}
+        onNavigate={() => {}}
+        onBack={onBack}
+      />
     </div>
   )
 }
