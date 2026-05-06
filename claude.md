@@ -149,8 +149,9 @@ Curva de Niveles (acumulación de estrellas):
 -- 10 Bosque Mágico      379+ ⭐
 -- fn_calcular_nivel(estrellas) → int (1-10)
 
-## Gemini 2.5 Flash TTS
- con voz Achernar (es-US-Studio-O) como TTS principal
-- **Web Speech API** como fallback gratuito (voiceName === "web-speech")
-- API Route: app/api/tts/route.ts
-- Variable de entorno: GOOGLE_TTS_API_KEY (en .env.local y Vercel)
+## recuerda que los alumnos
+Los alumnos pueden tener varias formas de decir una palabra por su forma de hablar aun en desarrollo ,
+el asistente debe enteder este apartado para poder enteder las respuestas.
+
+## stt de google
+ayuda a que el tts entienda mejor lo que dice el alumnnoS

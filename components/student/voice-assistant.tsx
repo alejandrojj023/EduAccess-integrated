@@ -55,10 +55,6 @@ type State = "idle" | "speaking" | "listening"
 
 // ── Pure matchers ─────────────────────────────────────────────────────────────
 
-function getSpeechRecognition() {
-  if (typeof window === "undefined") return null
-  return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null
-}
 
 function matchYesNo(t: string): boolean | null {
   const s = t.toLowerCase()
@@ -74,29 +70,88 @@ function matchYesNo(t: string): boolean | null {
 
 function matchRepeatOrReturn(t: string): "repeat" | "return" | null {
   const s = t.toLowerCase()
-  if (/\b(repite?|repetir|de\s*nuevo|otra\s*vez)\b/.test(s)) return "repeat"
-  if (/\b(regresar|regresa|volver|vuelve|panel|inicio|principal|no)\b/.test(s)) return "return"
+  if (/\b(repite?|repetir|de\s*nuevo|otra\s*vez|repete|repeti|repita|repito|repitir|otra|nuev[ao]mente)\b/.test(s)) return "repeat"
+  if (/\b(regresar|regresa|regreza|gresar|gresa|volver|vuelve|panel|inicio|principal|no|volver|güelve)\b/.test(s)) return "return"
   return null
 }
 
 function matchMenuOption(t: string): MenuOption | null {
-  const s = t.toLowerCase()
-  if (/\b(uno|1|continuar|iniciar|empezar|lección|lecciones)\b/.test(s)) return 1
-  if (/\b(dos|2|mis\s*cursos|cursos|elegir)\b/.test(s)) return 2
-  if (/\b(tres|3|calendario|aventuras)\b/.test(s)) return 3
-  if (/\b(cuatro|4|progreso|estrellas|reporte)\b/.test(s)) return 4
-  if (/\b(cinco|5|unirme|unirse|curso\s*nuevo|código)\b/.test(s)) return 5
+  const s = t.toLowerCase().trim()
+
+  // Opción 1 — continuar / lección
+  if (/\b(uno|un|unu|1|continuar|continar|continua|iniciar|empezar|lección|leccion|leción|lesión|leson|lecciones|leciones|lesiones)\b/.test(s)) return 1
+
+  // Opción 2 — mis cursos
+  if (/\b(dos|do|2|mis?\s*cursos?|mi?\s*curso|micurso|curzo|elegir)\b/.test(s)) return 2
+
+  // Opción 3 — calendario
+  if (/\b(tres|tress|tles|tre|3|calendario|carendario|calendaro|calendrio|calndario|aventuras?)\b/.test(s)) return 3
+
+  // Opción 4 — progreso
+  if (/\b(cuatro|cuato|cuatlo|4|progreso|pogreso|progeso|estrellas?|estreya|reporte|repote)\b/.test(s)) return 4
+
+  // Opción 5 — unirme a un curso
+  if (/\b(cinco|sinco|cinc|singo|5|unirme|unime|unirse|unise|curso\s*nuevo|cursonuevo|código|codico)\b/.test(s)) return 5
+
   return null
+}
+
+// Normaliza una palabra aplicando equivalencias fonéticas del español
+function phonoNorm(w: string): string {
+  return w
+    .toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "") // quita tildes
+    .replace(/ll/g, "y")
+    .replace(/v/g, "b")
+    .replace(/qu/g, "k")
+    .replace(/h/g, "")
+    .replace(/[cz](?=[eiy])/g, "s")
+    .replace(/c/g, "k")
+    .replace(/j|ge|gi/g, "x")
+    .replace(/ñ/g, "ny")  // ñ → ny
+    .replace(/[aeiou]+/g, m => m[0]) // colapsa vocales repetidas
+}
+
+// Distancia de Levenshtein compacta
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length
+  let prev = Array.from({ length: n + 1 }, (_, j) => j)
+  for (let i = 1; i <= m; i++) {
+    const curr = [i]
+    for (let j = 1; j <= n; j++)
+      curr[j] = a[i-1] === b[j-1] ? prev[j-1] : 1 + Math.min(prev[j], curr[j-1], prev[j-1])
+    prev = curr
+  }
+  return prev[n]
+}
+
+// Compara dos palabras con tolerancia fonética y de edición
+function fuzzyWordMatch(tw: string, nw: string): boolean {
+  if (tw === nw) return true
+  const pt = phonoNorm(tw), pn = phonoNorm(nw)
+  if (pt === pn) return true
+  // Prefijo: el niño dice las primeras letras del título
+  const minLen = Math.min(pt.length, pn.length)
+  if (minLen >= 4 && (pt.startsWith(pn.slice(0, minLen)) || pn.startsWith(pt.slice(0, minLen)))) return true
+  // Edición: 1 error para 4-5 chars, 2 errores para 6+ chars
+  const dist = levenshtein(pt, pn)
+  const maxLen = Math.max(pt.length, pn.length)
+  return (maxLen >= 6 && dist <= 2) || (maxLen >= 4 && dist <= 1)
 }
 
 function matchByWordScore(transcript: string, names: string[]): number | null {
   const tWords = transcript.toLowerCase().trim().split(/\s+/).filter(Boolean)
   if (tWords.length === 0) return null
+  // Palabras cortas de relleno que ignoramos
+  const stopWords = new Set(["la","el","las","los","un","una","de","del","y","a","en","mi","me","que"])
+  const meaningful = tWords.filter(w => w.length > 2 && !stopWords.has(w))
+  const pool = meaningful.length > 0 ? meaningful : tWords
+
   const scores = names.map((name, i) => {
     const nWords = name.toLowerCase().split(/\s+/).filter(Boolean)
     let matches = 0
-    for (const tw of tWords) if (nWords.some(nw => nw === tw)) matches++
-    return { i, score: matches / Math.max(tWords.length, nWords.length) }
+    for (const tw of pool) if (nWords.some(nw => fuzzyWordMatch(tw, nw))) matches++
+    return { i, score: matches / Math.max(pool.length, nWords.length) }
   })
   scores.sort((a, b) => b.score - a.score)
   if (scores[0].score === 0) return null
@@ -107,14 +162,16 @@ function matchByWordScore(transcript: string, names: string[]): number | null {
 function matchNumericIndex(t: string, total: number): number | null {
   const s = t.toLowerCase()
   const map: Record<string, number> = {
-    "uno": 0, "1": 0, "primero": 0, "primera": 0,
-    "dos": 1, "2": 1, "segundo": 1, "segunda": 1,
-    "tres": 2, "3": 2, "tercero": 2, "tercera": 2,
-    "cuatro": 3, "4": 3, "cuarto": 3, "cuarta": 3,
-    "cinco": 4, "5": 4, "quinto": 4, "quinta": 4,
-    "seis": 5, "6": 5, "sexto": 5, "sexta": 5,
-    "siete": 6, "7": 6, "ocho": 7, "8": 7,
-    "nueve": 8, "9": 8, "diez": 9, "10": 9,
+    "uno": 0, "1": 0, "primero": 0, "primera": 0, "unu": 0, "undo": 0, "un": 0,
+    "dos": 1, "2": 1, "segundo": 1, "segunda": 1, "dose": 1, "do": 1, "doz": 1,
+    "tres": 2, "3": 2, "tercero": 2, "tercera": 2, "tales": 2, "tles": 2, "trés": 2, "trehs": 2,
+    "cuatro": 3, "4": 3, "cuarto": 3, "cuarta": 3, "cuato": 3, "cuatlo": 3, "cuatros": 3,
+    "cinco": 4, "5": 4, "quinto": 4, "quinta": 4, "sinco": 4, "zinco": 4, "cinko": 4,
+    "seis": 5, "6": 5, "sexto": 5, "sexta": 5, "seys": 5,
+    "siete": 6, "7": 6, "siele": 6, "sieti": 6,
+    "ocho": 7, "8": 7,
+    "nueve": 8, "9": 8, "nuebe": 8, "nuevi": 8,
+    "diez": 9, "10": 9, "dies": 9,
   }
   for (const [word, idx] of Object.entries(map)) {
     if (new RegExp(`\\b${word}\\b`).test(s) && idx < total) return idx
@@ -160,36 +217,115 @@ export function VoiceAssistant({
     try { recognitionRef.current?.abort() } catch {}
   }, [])
 
-  // ── STT ──────────────────────────────────────────────────────────────────────
+  // ── STT — Cloud Speech-to-Text ───────────────────────────────────────────────
   const listen = useCallback((timeoutMs = 12000): Promise<string | null> =>
-    new Promise((resolve) => {
-      const SR = getSpeechRecognition()
-      if (!SR) { resolve(null); return }
+    new Promise(async (resolve) => {
       setState("listening")
-      const rec = new SR()
-      rec.lang = "es-MX"
-      rec.continuous = false
-      rec.interimResults = false
-      rec.maxAlternatives = 3
-      recognitionRef.current = rec
 
-      let done = false
-      const finish = (val: string | null) => {
-        if (done) return
-        done = true
-        clearTimeout(timer)
-        try { rec.abort() } catch {}
-        resolve(val)
+      let stream:    MediaStream   | null = null
+      let audioCtx:  AudioContext  | null = null
+      let silenceInterval: ReturnType<typeof setInterval> | null = null
+      let hardTimeout:     ReturnType<typeof setTimeout>  | null = null
+      let resolved = false
+
+      const cleanup = () => {
+        if (silenceInterval) { clearInterval(silenceInterval); silenceInterval = null }
+        if (hardTimeout)     { clearTimeout(hardTimeout);      hardTimeout     = null }
+        try { audioCtx?.close() } catch {}
+        stream?.getTracks().forEach(t => t.stop())
       }
-      const timer = setTimeout(() => finish(null), timeoutMs)
-      rec.onresult = (e: any) => {
-        const alts: string[] = []
-        for (let i = 0; i < e.results[0].length; i++) alts.push(e.results[0][i].transcript)
-        finish(alts.join(" | "))
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        if (abortRef.current.aborted) { stream.getTracks().forEach(t => t.stop()); resolve(null); return }
+
+        const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+          ? "audio/webm;codecs=opus" : "audio/webm"
+
+        const recorder = new MediaRecorder(stream, { mimeType })
+        const chunks: Blob[] = []
+
+        // Expose stop() as abort() so handleClick cancel sigue funcionando
+        recognitionRef.current = { abort: () => { try { recorder.stop() } catch {} } }
+
+        recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
+
+        recorder.onstop = async () => {
+          cleanup()
+          recognitionRef.current = null
+          // Si ya fue resuelto (abort) o abortado, no procesar audio
+          if (resolved || abortRef.current.aborted) return
+          resolved = true
+
+          if (chunks.length === 0) { resolve(null); return }
+
+          // Convertir a base64 en chunks para evitar stack overflow
+          const blob   = new Blob(chunks, { type: mimeType })
+          const buffer = await blob.arrayBuffer()
+          const bytes  = new Uint8Array(buffer)
+          let binary   = ""
+          for (let i = 0; i < bytes.length; i += 8192) {
+            binary += String.fromCharCode(...bytes.subarray(i, i + 8192))
+          }
+          const base64 = btoa(binary)
+
+          try {
+            const res = await fetch("/api/stt", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ audio: base64 }),
+            })
+            if (!res.ok) { resolve(null); return }
+            const data = await res.json()
+            resolve(data.transcript ?? null)
+          } catch {
+            resolve(null)
+          }
+        }
+
+        // Detección de silencio: para después de 1.5 s sin voz post-habla
+        audioCtx = new AudioContext()
+        const source   = audioCtx.createMediaStreamSource(stream)
+        const analyser = audioCtx.createAnalyser()
+        analyser.fftSize = 256
+        source.connect(analyser)
+        const freqData = new Uint8Array(analyser.frequencyBinCount)
+        let speechDetected = false
+        let silenceStart: number | null = null
+
+        silenceInterval = setInterval(() => {
+          // Abort externo
+          if (abortRef.current.aborted) {
+            clearInterval(silenceInterval!); silenceInterval = null
+            if (!resolved) { resolved = true; cleanup(); try { recorder.stop() } catch {}; resolve(null) }
+            return
+          }
+          analyser.getByteTimeDomainData(freqData)
+          let sum = 0
+          for (const v of freqData) sum += (v - 128) ** 2
+          const rms = Math.sqrt(sum / freqData.length)
+
+          if (rms > 8) {
+            speechDetected = true
+            silenceStart   = null
+          } else if (speechDetected) {
+            if (!silenceStart) silenceStart = Date.now()
+            else if (Date.now() - silenceStart > 450) {
+              clearInterval(silenceInterval!); silenceInterval = null
+              try { recorder.stop() } catch {}
+            }
+          }
+        }, 50)
+
+        // Timeout duro como seguridad
+        hardTimeout = setTimeout(() => { try { recorder.stop() } catch {} }, timeoutMs)
+
+        recorder.start(100)  // chunks cada 100 ms
+
+      } catch {
+        cleanup()
+        resolve(null)
       }
-      rec.onerror = () => finish(null)
-      rec.onend   = () => finish(null)
-      try { rec.start() } catch { finish(null) }
     }), [])
 
   // ── TTS ──────────────────────────────────────────────────────────────────────
@@ -258,9 +394,9 @@ export function VoiceAssistant({
 
   // ── CASE 1 — Continuar ───────────────────────────────────────────────────────
   const runCase1 = useCallback(async () => {
-    await say(`¡Hola, ${firstName}! ¡Qué bueno verte de nuevo! Sigamos aprendiendo.`)
+    await say(`¡Perfecto, ${firstName}!`)
     if (abortRef.current.aborted) return
-    await say("Vamos a iniciar una lección. ¿Estás listo para continuar?")
+    await say("¡Es hora de tu aventura! ¿Listo para comenzar?")
     if (abortRef.current.aborted) return
 
     // 3 reintentos: "sí"→avanza, "no"→regresa, no reconocido→repregunta, 3ª vez→fin
@@ -270,7 +406,7 @@ export function VoiceAssistant({
       {
         noMatch: "¡No te escuché! ¿Estás listo para continuar?",
         noHear:  "¡No te escuché! ¿Estás listo para continuar?",
-        final:   "Toca el botón de nuevo.",
+        final:   "Inténtalo de nuevo presionando el botón.",
       },
     )
     if (abortRef.current.aborted) return
@@ -327,7 +463,7 @@ export function VoiceAssistant({
       {
         noMatch: "¡No reconocí ese curso! Intenta decir el número, por ejemplo: uno, dos o tres.",
         noHear:  "¡No te escuché! ¿Con cuál curso quieres empezar?",
-        final:   "Toca el botón de nuevo.",
+        final:   "Inténtalo de nuevo presionando el botón.",
       },
     )
     if (idx === null || abortRef.current.aborted) return
@@ -447,7 +583,7 @@ export function VoiceAssistant({
       {
         noMatch: "¡Mmm, no te escuché bien! ¿Puedes repetirlo?",
         noHear:  "¡Oye, sigo aquí! ¿Quieres que repita las opciones?",
-        final:   "Toca el botón de nuevo.",
+        final:   "Inténtalo de nuevo presionando el botón.",
       },
     )
     if (!opt || abortRef.current.aborted) return
@@ -491,7 +627,7 @@ export function VoiceAssistant({
       await say("¡Has completado la lección! Puedes repetirla para seguir repasando lo aprendido.")
       if (abortRef.current.aborted) return
       const ans = await listenWithRetry(8000, matchYesNo,
-        { noMatch: "¿Quieres repetirla?", noHear: "¿Quieres repetirla?", final: "Toca el botón cuando estés listo." }, 3)
+        { noMatch: "¿Quieres repetirla?", noHear: "¿Quieres repetirla?", final: "Inténtalo de nuevo presionando el botón." }, 3)
       if (abortRef.current.aborted) return
       if (ans === true) {
         await say("¡Muy bien, vamos!")
@@ -522,28 +658,39 @@ export function VoiceAssistant({
     const siguienteIdx = ls.findIndex(l => l.pct_completado < 100)
     await say(siguienteIdx >= 0
       ? `Te sugiero la lección ${siguienteIdx + 1}: ${ls[siguienteIdx].titulo}. ¿Cuál quieres hacer?`
-      : "¡Has completado todas! Puedes repetir cualquiera para ganar más estrellas. ¿Cuál quieres hacer?")
+      : "¡Has completado todas! Puedes repetir cualquiera para no olvidar lo aprendido. ¿Cuál quieres hacer?")
+    if (abortRef.current.aborted) return
+    await say("También puedes decir 'repetir' para escucharlas de nuevo, o 'regresar' para volver a tu panel.")
     if (abortRef.current.aborted) return
 
     const lessonNames = ls.map(l => l.titulo)
     const idx = await listenWithRetry(
       12000,
       (t) => {
-        if (matchRepeatOrReturn(t) === "return") return -1 as any
+        const ror = matchRepeatOrReturn(t)
+        if (ror === "return") return -1 as any
+        if (ror === "repeat") return -2 as any
         const byNum = matchNumericIndex(t, ls.length)
         return byNum !== null ? byNum : matchByWordScore(t, lessonNames)
       },
       {
-        noMatch: "¡No reconocí esa lección! Intenta decir el número, por ejemplo: uno, dos o tres.",
-        noHear:  "¡Mmm, no te escuché!",
-        final:   "Toca el botón cuando estés listo.",
+        noMatch: "¡No reconocí esa opción! Di el número de lección, 'repetir' para escucharlas, o 'regresar' para volver.",
+        noHear:  "¡Mmm, no te escuché! Di el número de lección, 'repetir' o 'regresar'.",
+        final:   "Inténtalo de nuevo presionando el botón.",
       },
     )
     if (abortRef.current.aborted) return
 
+    if (idx === -2) {
+      await say("¡Claro! Te las repito.")
+      if (abortRef.current.aborted) return
+      await runLessons()
+      return
+    }
+
     if (idx === -1) {
       await say("Muy bien, vamos de regreso a tu panel de alumno.")
-      sessionStorage.setItem("assistant-return-menu", "1")
+      sessionStorage.setItem("assistant-return-subpage", "1")
       onBack?.()
       return
     }

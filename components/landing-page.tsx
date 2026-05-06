@@ -24,6 +24,7 @@ const ACTIVITY_TYPES = [
   { Icon: CheckSquare, name: "Opción múltiple",   desc: "Elige la respuesta entre varias opciones" },
   { Icon: Mic,         name: "Respuesta oral",    desc: "Habla tu respuesta en voz alta" },
   { Icon: PenLine,     name: "Completar oración", desc: "Completa con la palabra correcta" },
+  { Icon: Type,        name: "Respuesta corta",   desc: "Escribe tu respuesta con tus propias palabras" },
   { Icon: Search,      name: "Sopa de letras",    desc: "Encuentra las palabras ocultas" },
 ]
 
@@ -306,12 +307,12 @@ export function LandingPage({ onStudentLogin, onTeacherLogin, onScreeningTest }:
                 ¿Qué actividades hay?
               </h2>
               <p className="mt-3 mx-auto max-w-lg text-lg text-neutral-500">
-                Siete tipos de ejercicio, cada uno con su mecánica propia.
+                Ocho tipos de ejercicio, cada uno con su mecánica propia.
               </p>
             </div>
 
             <ul
-              className="grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3 [&>li:last-child]:lg:col-span-full [&>li:last-child]:lg:flex [&>li:last-child]:lg:justify-center [&>li:last-child>article]:lg:max-w-sm"
+              className="grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2 lg:grid-cols-4"
               role="list"
             >
               {ACTIVITY_TYPES.map(({ Icon, name, desc }) => (
