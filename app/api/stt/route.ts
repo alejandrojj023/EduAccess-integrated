@@ -17,9 +17,19 @@ export async function POST(request: NextRequest) {
           encoding: "WEBM_OPUS",
           languageCode: "es-MX",
           alternativeLanguageCodes: ["es-US"],
-          model: "latest_short",
-          maxAlternatives: 3,
+          model: "latest_long",
+          useEnhanced: true,
+          maxAlternatives: 1,
           enableAutomaticPunctuation: false,
+          speechContexts: [{
+            phrases: [
+              "uno","dos","tres","cuatro","cinco","seis",
+              "lección","leccion","curso","cursos","calendario","progreso","unirme",
+              "sí","no","claro","listo","dale","repetir","regresar","volver",
+              "español","matemáticas","matemáticas"
+            ],
+            boost: 15,
+          }],
         },
         audio: { content: audio },
       }),
