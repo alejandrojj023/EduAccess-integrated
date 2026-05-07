@@ -76,22 +76,22 @@ function matchMenuOption(t: string): MenuOption | null {
   const s = t.toLowerCase().trim()
 
   // Opción 1 — continuar / lección
-  if (/\b(uno|un|unu|1|continuar|continar|continua|iniciar|empezar|lección|leccion|leción|lesión|leson|lecciones|leciones|lesiones)\b/.test(s) || /mi\s*lecci[oó]n?/.test(s)) return 1
+  if (/\b(uno|un|unu|1|continuar|continar|continua|iniciar|empezar|lección|leccion|leción|lesión|leson|lecciones|leciones|lesiones)\b/.test(s) || /mi\s*lecci[oó]n?/.test(s) || /opci[oó]n\s*(1|uno)/.test(s)) return 1
 
   // Opción 2 — mis cursos
-  if (/\b(dos|do|2|mis?\s*cursos?|mi?\s*curso|micurso|curzo|elegir)\b/.test(s)) return 2
+  if (/\b(dos|do|2|mis?\s*cursos?|mi?\s*curso|micurso|curzo|elegir)\b/.test(s) || /opci[oó]n\s*(2|dos)/.test(s)) return 2
 
   // Opción 3 — calendario
-  if (/\b(tres|tress|tles|tre|3|calendario|carendario|calendaro|calendrio|calndario|aventuras?)\b/.test(s) || /mi\s*calendari[oa]?/.test(s)) return 3
+  if (/\b(tres|tress|tles|tre|3|calendario|carendario|calendaro|calendrio|calndario|aventuras?)\b/.test(s) || /mi\s*calendari[oa]?/.test(s) || /opci[oó]n\s*(3|tres)/.test(s)) return 3
 
   // Opción 4 — progreso
-  if (/\b(cuatro|cuato|cuatlo|4|progreso|pogreso|progeso|estrellas?|estreya|reporte|repote)\b/.test(s) || /mi\s*progres[oa]?/.test(s)) return 4
+  if (/\b(cuatro|cuato|cuatlo|4|progreso|pogreso|progeso|estrellas?|estreya|reporte|repote)\b/.test(s) || /mi\s*progres[oa]?/.test(s) || /opci[oó]n\s*(4|cuatro)/.test(s)) return 4
 
   // Opción 5 — unirme a un curso
-  if (/\b(cinco|sinco|cinc|singo|5|unirme|unime|unirse|unise|curso\s*nuevo|cursonuevo|código|codico)\b/.test(s) || /unirme\s*a\s*un\s*curso/.test(s)) return 5
+  if (/\b(cinco|sinco|cinc|singo|5|unirme|unime|unirse|unise|curso\s*nuevo|cursonuevo|código|codico)\b/.test(s) || /unirme\s*a\s*un\s*curso/.test(s) || /opci[oó]n\s*(5|cinco)/.test(s)) return 5
 
   // Opción 6 — repetir opciones
-  if (/\b(seis|6|repetir|repite?|repita|otra\s*vez|de\s*nuevo|las\s*opciones|repite\s*las\s*opciones|repite\s*todo|no\s*entend[ií])\b/.test(s)) return 6
+  if (/\b(seis|6|repetir|repite?|repita|otra\s*vez|de\s*nuevo|las\s*opciones|repite\s*las\s*opciones|repite\s*todo|no\s*entend[ií])\b/.test(s) || /opci[oó]n\s*(6|seis)/.test(s)) return 6
 
   return null
 }
@@ -216,6 +216,23 @@ export function VoiceAssistant({
           resolved = true
 
           if (chunks.length === 0) { resolve(null); return }
+
+          // Sonido corto de confirmación — "te escuché"
+          try {
+            const beepCtx  = new AudioContext()
+            const gain     = beepCtx.createGain()
+            const osc      = beepCtx.createOscillator()
+            osc.type       = "sine"
+            osc.frequency.setValueAtTime(880, beepCtx.currentTime)
+            osc.frequency.exponentialRampToValueAtTime(660, beepCtx.currentTime + 0.12)
+            gain.gain.setValueAtTime(0.25, beepCtx.currentTime)
+            gain.gain.exponentialRampToValueAtTime(0.001, beepCtx.currentTime + 0.15)
+            osc.connect(gain)
+            gain.connect(beepCtx.destination)
+            osc.start()
+            osc.stop(beepCtx.currentTime + 0.15)
+            osc.onended = () => beepCtx.close()
+          } catch {}
 
           // Convertir a base64 en chunks para evitar stack overflow
           const blob   = new Blob(chunks, { type: mimeType })
