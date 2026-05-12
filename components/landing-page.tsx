@@ -406,7 +406,7 @@ export function LandingPage({ onStudentLogin, onTeacherLogin, onScreeningTest }:
             </div>
             <span className="text-sm font-bold tracking-tight text-neutral-700">EduAccess</span>
           </div>
-          <p className="text-sm text-neutral-400">
+          <p className="text-sm text-neutral-400" suppressHydrationWarning>
             © {new Date().getFullYear()} EduAccess — Aprender con apoyo, a tu manera.
           </p>
           <p className="mx-auto mt-1 max-w-md text-xs text-neutral-300">

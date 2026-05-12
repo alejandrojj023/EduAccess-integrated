@@ -13,7 +13,7 @@ interface ModuleVisualProps {
 }
 
 export function ModuleVisual({ activityIndex, onComplete }: ModuleVisualProps) {
-  const [startTime] = useState(Date.now());
+  const startTimeRef = useRef(Date.now());
   const [noVeoBienCount, setNoVeoBienCount] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
 
@@ -24,9 +24,9 @@ export function ModuleVisual({ activityIndex, onComplete }: ModuleVisualProps) {
   }, []);
 
   const handleActivityComplete = useCallback((score: number, maxScore: number, errors: number = 0) => {
-    const timeSpent = Date.now() - startTime;
+    const timeSpent = Date.now() - startTimeRef.current;
     const warnings = noVeoBienCount;
-    
+
     const result: TestResult = {
       moduleId: 'visual',
       activityId: `A${activityIndex + 1}`,
@@ -36,9 +36,9 @@ export function ModuleVisual({ activityIndex, onComplete }: ModuleVisualProps) {
       errors,
       warnings
     };
-    
+
     onComplete(result);
-  }, [activityIndex, noVeoBienCount, startTime, onComplete]);
+  }, [activityIndex, noVeoBienCount, onComplete]);
 
   const renderActivity = () => {
     switch (activityIndex) {

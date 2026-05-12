@@ -296,8 +296,8 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
                 </div>
               ) : (
                 <ul className="space-y-2 list-none p-0" aria-label="Lista de actividad reciente">
-                  {recentActivity.map((activity, i) => (
-                    <li key={i}>
+                  {recentActivity.map((activity) => (
+                    <li key={`${activity.student}-${activity.activity}-${activity.time}`}>
                       <ActivityRow student={activity.student} activity={activity.activity} time={activity.time} />
                     </li>
                   ))}

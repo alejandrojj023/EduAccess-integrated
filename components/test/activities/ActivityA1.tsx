@@ -51,7 +51,6 @@ export function ActivityA1({ onComplete }: ActivityA1Props) {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [answers, setAnswers] = useState<number[]>([]);
-  const [startTime] = useState(Date.now());
 
   useEffect(() => {
     if (showFeedback) {

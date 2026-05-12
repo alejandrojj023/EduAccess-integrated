@@ -112,9 +112,9 @@ export function TestResults({ summary, onComplete, onRetry }: TestResultsProps) 
         <div className="bg-blue-50 rounded-2xl p-6 mb-8 max-w-2xl mx-auto border-2 border-blue-200">
           <h3 className="font-bold text-gray-800 mb-3">Configuraciones Recomendadas</h3>
           <div className="flex flex-wrap gap-3 justify-center">
-            {summary.recommendations.map((rec, index) => (
-              <span 
-                key={index}
+            {summary.recommendations.map((rec) => (
+              <span
+                key={rec}
                 className="bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium"
               >
                 {rec === 'ALTA_VISIBILIDAD' && '👁️ Alta Visibilidad'}

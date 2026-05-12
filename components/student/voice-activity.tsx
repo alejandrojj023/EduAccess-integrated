@@ -82,11 +82,13 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const activityStartRef = useRef<number>(Date.now())
+  const speakTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   // ── Load activity + pregunta ─────────────────────────────────
   useEffect(() => {
     if (!activityId) { setError("No se encontró la actividad."); return }
     loadData()
+    return () => clearTimeout(speakTimerRef.current)
   }, [activityId])
 
   async function loadData() {
@@ -115,7 +117,7 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
     setPregunta(pq)
     setPhase("question")
 
-    if (settings.voiceEnabled) setTimeout(() => speakQuestion(pq.enunciado), 600)
+    if (settings.voiceEnabled) speakTimerRef.current = setTimeout(() => speakQuestion(pq.enunciado), 600)
   }
 
   // ── Speech synthesis ─────────────────────────────────────────
@@ -142,6 +144,8 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
     rec.interimResults = true
     rec.lang = "es-MX"
 
+    let processTimer: ReturnType<typeof setTimeout>
+
     rec.onresult = (event: SpeechRecognitionEvent) => {
       let interim = ""
       let finalText = ""
@@ -159,7 +163,7 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
         setInterimTranscript("")
         setTranscript(finalText)
         setIsProcessing(true)
-        setTimeout(() => {
+        processTimer = setTimeout(() => {
           if (!pregunta) return
           const correct = checkAnswer(finalText, pregunta.respuesta_esperada)
           const newAttempts = attempts + 1
@@ -193,7 +197,7 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
     }
 
     recognitionRef.current = rec
-    return () => rec.abort()
+    return () => { rec.abort(); clearTimeout(processTimer) }
   }, [pregunta, attempts])
 
   function handleMic() {
@@ -430,8 +434,8 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
                       {correctOptions.length > 1 ? "Respuestas aceptadas:" : "Respuesta correcta:"}
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {correctOptions.map((opt, i) => (
-                        <span key={i} className="px-3 py-1 bg-primary/10 text-primary rounded-lg font-semibold text-lg">
+                      {correctOptions.map((opt) => (
+                        <span key={opt} className="px-3 py-1 bg-primary/10 text-primary rounded-lg font-semibold text-lg">
                           {opt}
                         </span>
                       ))}

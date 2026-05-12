@@ -199,7 +199,7 @@ export function useStudentDashboard(): UseStudentDashboardReturn {
           : 0
 
         const completedIds = new Set(
-          progresiones.filter((p: any) => p.pct_completado >= 100).map((p: any) => p.id_leccion)
+          progresiones.flatMap((p: any) => p.pct_completado >= 100 ? [p.id_leccion] : [])
         )
         const nextLesson = lecciones.find((l: any) => !completedIds.has(l.id_leccion))
 

@@ -54,6 +54,35 @@ function defaultHasta(): Date {
 // Componente principal
 // ============================================================
 
+function RadioRow({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <RadioGroupItem value={value} id={value} />
+      <Label htmlFor={value} className="cursor-pointer">{label}</Label>
+    </div>
+  )
+}
+
+function ConfigSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{title}</p>
+      {children}
+    </div>
+  )
+}
+
+function ConfigBtn({ children }: { children: React.ReactNode }) {
+  return (
+    <PopoverTrigger asChild>
+      <button type="button" className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98] shrink-0">
+        <SlidersHorizontal className="w-3.5 h-3.5" />
+        Configurar
+      </button>
+    </PopoverTrigger>
+  )
+}
+
 export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
   const { speak, settings } = useAccessibility()
   const { user }            = useAuth()
@@ -283,36 +312,6 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
     },
     itemStyle:  { color: "var(--foreground)" },
     labelStyle: { color: "var(--foreground)", fontWeight: 600 },
-  }
-
-  // ── Helpers ─────────────────────────────────────────────────
-  function RadioRow({ value, label }: { value: string; label: string }) {
-    return (
-      <div className="flex items-center gap-2">
-        <RadioGroupItem value={value} id={value} />
-        <Label htmlFor={value} className="cursor-pointer">{label}</Label>
-      </div>
-    )
-  }
-
-  function ConfigSection({ title, children }: { title: string; children: React.ReactNode }) {
-    return (
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{title}</p>
-        {children}
-      </div>
-    )
-  }
-
-  function ConfigBtn({ children }: { children: React.ReactNode }) {
-    return (
-      <PopoverTrigger asChild>
-        <button type="button" className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98] shrink-0">
-          <SlidersHorizontal className="w-3.5 h-3.5" />
-          Configurar
-        </button>
-      </PopoverTrigger>
-    )
   }
 
   // ── Render ──────────────────────────────────────────────────

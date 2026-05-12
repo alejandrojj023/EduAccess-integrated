@@ -730,6 +730,30 @@ function B3Screen({ onComplete }: { onComplete: (r: boolean[]) => void }) {
 
 /* ─────────────── RESULTS ─────────────── */
 
+function AlertRow({ label, detail, alert }: { label: string; detail: string; alert: boolean }) {
+  return (
+    <div className="flex items-start gap-3 py-3.5">
+      <div className={`w-2.5 h-2.5 rounded-full shrink-0 mt-1.5 ${alert ? "bg-red-400" : "bg-emerald-400"}`} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-foreground">{label}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{detail}</p>
+      </div>
+      <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${alert ? "bg-red-100" : "bg-emerald-100"}`}>
+        {alert ? <X className="w-4 h-4 text-red-500" /> : <Check className="w-4 h-4 text-emerald-600" />}
+      </div>
+    </div>
+  )
+}
+
+function Rec({ icon, text, bold = false }: { icon: string; text: string; bold?: boolean }) {
+  return (
+    <div className="flex items-start gap-2.5 text-sm">
+      <span className="shrink-0 text-base">{icon}</span>
+      <span className={bold ? "font-semibold text-foreground" : "text-muted-foreground"}>{text}</span>
+    </div>
+  )
+}
+
 function ResultsScreen({ results, onBack }: { results: Results; onBack: () => void }) {
   const a1Correct   = results.a1.filter((r) => r.correct).length
   const a1MinOk     = results.a1.filter((r) => r.correct).reduce((m, r) => Math.max(m, r.sizeLevel), 0)
@@ -758,30 +782,6 @@ function ResultsScreen({ results, onBack }: { results: Results; onBack: () => vo
     posible:  { label: "Posible dificultad",         sub: "Se recomienda seguimiento y estrategias de apoyo", Icon: AlertTriangle, gradient: "from-amber-500 to-orange-500" },
     requiere: { label: "Requiere atención",           sub: "Considerar derivación a especialista según el área", Icon: AlertOctagon, gradient: "from-red-500 to-rose-600" },
   }[level]
-
-  function AlertRow({ label, detail, alert }: { label: string; detail: string; alert: boolean }) {
-    return (
-      <div className="flex items-start gap-3 py-3.5">
-        <div className={`w-2.5 h-2.5 rounded-full shrink-0 mt-1.5 ${alert ? "bg-red-400" : "bg-emerald-400"}`} />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">{label}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{detail}</p>
-        </div>
-        <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${alert ? "bg-red-100" : "bg-emerald-100"}`}>
-          {alert ? <X className="w-4 h-4 text-red-500" /> : <Check className="w-4 h-4 text-emerald-600" />}
-        </div>
-      </div>
-    )
-  }
-
-  function Rec({ icon, text, bold = false }: { icon: string; text: string; bold?: boolean }) {
-    return (
-      <div className="flex items-start gap-2.5 text-sm">
-        <span className="shrink-0 text-base">{icon}</span>
-        <span className={bold ? "font-semibold text-foreground" : "text-muted-foreground"}>{text}</span>
-      </div>
-    )
-  }
 
   return (
     <div className="space-y-5 pb-6">

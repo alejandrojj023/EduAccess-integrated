@@ -15,7 +15,7 @@ import {
   ArrowLeft, Volume2, Check, X, Star, ChevronRight,
   Mic, HelpCircle, Loader2, RotateCcw, Clock,
 } from "lucide-react"
-import { motion, LayoutGroup } from "framer-motion"
+import { motion, LayoutGroup, useReducedMotion } from "framer-motion"
 import { completarLeccion } from "@/hooks/student/use-lesson-completion"
 import { VoiceActivity } from "@/components/student/voice-activity"
 
@@ -107,6 +107,7 @@ type Phase = "loading" | "question" | "result" | "done" | "lesson-done"
 export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVoiceActivity, previewMode = false }: StudentActivityProps) {
   const { user } = useAuth()
   const { speak, settings } = useAccessibility()
+  const prefersReducedMotion = useReducedMotion()
 
   const [activity, setActivity] = useState<DBActivity | null>(null)
   const [phase, setPhase] = useState<Phase>("loading")
@@ -351,6 +352,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     setWordBank([])
     setConstructionZone([])
     setSoundError(null)
+    let timerId: ReturnType<typeof setTimeout>
 
     supabase
       .from("pregunta")
@@ -370,8 +372,10 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
         }))
         setWordBank(tokens)
         // Auto-speak sentence via Web Speech API after a short delay
-        if (settings.voiceEnabled) setTimeout(() => speak(pq.respuesta_esperada), 600)
+        if (settings.voiceEnabled) timerId = setTimeout(() => speak(pq.respuesta_esperada), 600)
       })
+
+    return () => clearTimeout(timerId)
   }, [activity])
 
   // Initialize word search when activity loads
@@ -385,7 +389,8 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     setWsStart(null)
     setWsWrongFlash(false)
     setWsGrid(generateWordSearchGrid(words))
-    if (settings.voiceEnabled) setTimeout(() => speak(cfg.instrucciones ?? "Encuentra las palabras en la sopa de letras"), 400)
+    const timer = settings.voiceEnabled ? setTimeout(() => speak(cfg.instrucciones ?? "Encuentra las palabras en la sopa de letras"), 400) : undefined
+    return () => clearTimeout(timer)
   }, [activity])
 
   // Star animation when lesson-done phase starts
@@ -496,6 +501,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     setFillSelected(null)
     setFillError(null)
     setFillAttempts(0)
+    let timerId: ReturnType<typeof setTimeout>
 
     supabase
       .from("pregunta")
@@ -515,8 +521,10 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
         }))
         setFillBank(tokens)
         // Auto-speak instructions
-        if (settings.voiceEnabled) setTimeout(() => speak(activity.instrucciones ?? "Completa la oración"), 400)
+        if (settings.voiceEnabled) timerId = setTimeout(() => speak(activity.instrucciones ?? "Completa la oración"), 400)
       })
+
+    return () => clearTimeout(timerId)
   }, [activity])
 
   // Speak a single word using Web Speech API (respects user voice settings)
@@ -603,6 +611,8 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     setSeqResult([])
     setSeqAttempts(0)
 
+    let timerId: ReturnType<typeof setTimeout>
+
     supabase
       .from("pregunta")
       .select("id_pregunta, enunciado, orden, imagen_url")
@@ -613,8 +623,10 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
         const shuffled = shuffle(preguntas)
         setSeqItems(shuffled)
         setSeqZones(new Array(shuffled.length).fill(null))
-        if (settings.voiceEnabled) setTimeout(() => speak(activity.instrucciones ?? "Ordena las imágenes arrastrándolas"), 400)
+        if (settings.voiceEnabled) timerId = setTimeout(() => speak(activity.instrucciones ?? "Ordena las imágenes arrastrándolas"), 400)
       })
+
+    return () => clearTimeout(timerId)
   }, [activity])
 
   function handleSeqDropOnZone(zoneIdx: number) {
@@ -1217,7 +1229,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                               key={token.id}
                               layoutId={token.id}
                               layout
-                              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                              transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 30 }}
                               onClick={() => moveWordToBank(token.id)}
                               className="px-4 py-2 rounded-xl border-2 border-primary bg-card text-base font-semibold text-foreground hover:bg-destructive/10 hover:border-destructive"
                               aria-label={`Quitar "${token.text}" de la oración`}
@@ -1258,7 +1270,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                             key={token.id}
                             layoutId={token.id}
                             layout
-                            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                            transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 30 }}
                             onClick={() => moveWordToZone(token.id)}
                             className="px-4 py-2 rounded-xl border-2 border-border bg-muted text-base font-semibold text-foreground hover:border-primary hover:bg-primary/10"
                             aria-label={`Agregar "${token.text}" a la oración`}
@@ -1354,7 +1366,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                               <motion.button
                                 layoutId={fillSelected.id}
                                 layout
-                                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 30 }}
                                 onClick={handleFillReturn}
                                 onMouseEnter={() => settings.voiceEnabled && speakWord(fillSelected.text)}
                                 className="px-4 py-1 rounded-xl border-2 border-primary bg-primary/10 text-primary font-bold hover:bg-destructive/10 hover:border-destructive"
@@ -1407,7 +1419,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                             key={token.id}
                             layoutId={token.id}
                             layout
-                            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                            transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 30 }}
                             onClick={() => handleFillSelect(token)}
                             onMouseEnter={() => settings.voiceEnabled && speakWord(token.text)}
                             className="h-14 px-6 rounded-2xl border-2 border-border bg-card text-lg font-bold text-foreground hover:border-primary hover:bg-primary/10 shadow-sm"

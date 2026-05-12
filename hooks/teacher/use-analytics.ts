@@ -228,8 +228,8 @@ export function useAnalytics(filters: AnalyticsFilters): UseAnalyticsReturn {
     // 5. intentos ya está cargado arriba (reutilizamos la misma variable)
 
     // Stats generales
-    const pts  = intentos?.filter((i: any) => i.puntaje_total != null).map((i: any) => i.puntaje_total) ?? []
-    const segs = intentos?.filter((i: any) => i.tiempo_total_segundos != null).map((i: any) => i.tiempo_total_segundos) ?? []
+    const pts  = intentos?.flatMap((i: any) => i.puntaje_total != null ? [i.puntaje_total] : []) ?? []
+    const segs = intentos?.flatMap((i: any) => i.tiempo_total_segundos != null ? [i.tiempo_total_segundos] : []) ?? []
     const avgCorrect = pts.length  > 0 ? Math.round(pts.reduce((a: number, b: number) => a + b, 0) / pts.length) : 0
     const avgSecs    = segs.length > 0 ? segs.reduce((a: number, b: number) => a + b, 0) / segs.length : 0
 
@@ -311,8 +311,8 @@ export function useAnalytics(filters: AnalyticsFilters): UseAnalyticsReturn {
           .from("perfil").select("nombre").eq("id_perfil", alumnoId).single()
 
         const ai   = intentos?.filter((i: any) => i.id_alumno === alumnoId) ?? []
-        const aPts = ai.filter((i: any) => i.puntaje_total != null).map((i: any) => i.puntaje_total)
-        const aSeg = ai.filter((i: any) => i.tiempo_total_segundos != null).map((i: any) => i.tiempo_total_segundos)
+        const aPts = ai.flatMap((i: any) => i.puntaje_total != null ? [i.puntaje_total] : [])
+        const aSeg = ai.flatMap((i: any) => i.tiempo_total_segundos != null ? [i.tiempo_total_segundos] : [])
 
         const avgP = aPts.length > 0 ? Math.round(aPts.reduce((a: number, b: number) => a + b, 0) / aPts.length) : 0
         const avgS = aSeg.length > 0 ? aSeg.reduce((a: number, b: number) => a + b, 0) / aSeg.length : 0

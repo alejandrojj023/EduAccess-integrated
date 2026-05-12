@@ -36,7 +36,7 @@ export class AccessibilityManager {
     if (typeof window === 'undefined') return DEFAULT_ACCESSIBILITY_SETTINGS;
     
     try {
-      const saved = localStorage.getItem('accessibilitySettings');
+      const saved = localStorage.getItem('accessibilitySettings:v1');
       return saved ? { ...DEFAULT_ACCESSIBILITY_SETTINGS, ...JSON.parse(saved) } : DEFAULT_ACCESSIBILITY_SETTINGS;
     } catch {
       return DEFAULT_ACCESSIBILITY_SETTINGS;
@@ -47,7 +47,7 @@ export class AccessibilityManager {
     if (typeof window === 'undefined') return;
     
     try {
-      localStorage.setItem('accessibilitySettings', JSON.stringify(this.settings));
+      localStorage.setItem('accessibilitySettings:v1', JSON.stringify(this.settings));
     } catch (error) {
       console.error('Failed to save accessibility settings:', error);
     }

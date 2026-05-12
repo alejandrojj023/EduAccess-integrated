@@ -99,9 +99,11 @@ export function ActivityB1({ onComplete, onAudioIssue }: ActivityB1Props) {
   // Auto-play sound when question changes
   useEffect(() => {
     if (shuffledQuestions.length === 0) return; // Wait for questions to be shuffled
-    
-    const autoPlaySound = async () => {
-      await new Promise(resolve => setTimeout(resolve, 300));
+    if (showFeedback) return;
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      if (cancelled) return;
       setIsPlaying(true);
       try {
         const audioManager = getAudioManager();
@@ -109,13 +111,11 @@ export function ActivityB1({ onComplete, onAudioIssue }: ActivityB1Props) {
       } catch (error) {
         console.error('Error auto-playing sound:', error);
       } finally {
-        setIsPlaying(false);
+        if (!cancelled) setIsPlaying(false);
       }
-    };
-    
-    if (!showFeedback) {
-      autoPlaySound();
-    }
+    }, 300);
+
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [currentQuestion, showFeedback, shuffledQuestions]);
 
   useEffect(() => {

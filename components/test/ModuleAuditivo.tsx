@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { TestResult } from '@/utils/test/scoring';
 import { ActivityB1 } from './activities/ActivityB1';
 import { ActivityB2 } from './activities/ActivityB2';
@@ -13,7 +13,7 @@ interface ModuleAuditivoProps {
 }
 
 export function ModuleAuditivo({ activityIndex, onComplete }: ModuleAuditivoProps) {
-  const [startTime] = useState(Date.now());
+  const startTimeRef = useRef(Date.now());
   const [audioIssues, setAudioIssues] = useState(0);
 
   const handleAudioIssue = useCallback(() => {
@@ -21,9 +21,9 @@ export function ModuleAuditivo({ activityIndex, onComplete }: ModuleAuditivoProp
   }, []);
 
   const handleActivityComplete = useCallback((score: number, maxScore: number, errors: number = 0) => {
-    const timeSpent = Date.now() - startTime;
+    const timeSpent = Date.now() - startTimeRef.current;
     const warnings = audioIssues;
-    
+
     const result: TestResult = {
       moduleId: 'auditivo',
       activityId: `B${activityIndex + 1}`,
@@ -33,9 +33,9 @@ export function ModuleAuditivo({ activityIndex, onComplete }: ModuleAuditivoProp
       errors,
       warnings
     };
-    
+
     onComplete(result);
-  }, [activityIndex, audioIssues, startTime, onComplete]);
+  }, [activityIndex, audioIssues, onComplete]);
 
   const renderActivity = () => {
     switch (activityIndex) {
