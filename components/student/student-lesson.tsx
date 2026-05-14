@@ -139,13 +139,13 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-5 py-7 space-y-5">
+      <main className="max-w-3xl mx-auto px-5 py-4 space-y-3">
 
         {/* Video */}
         {!loading && material.material_audiovisual && (
           <section aria-label="Video de la lección">
             <div className="overflow-hidden rounded-3xl border-2 border-red-100 bg-card shadow-sm">
-              <div className="flex items-center gap-3 px-5 py-4 border-b border-red-100 bg-red-50">
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-red-100 bg-red-50">
                 <div className="w-9 h-9 rounded-xl bg-red-500 flex items-center justify-center shrink-0">
                   <Youtube className="w-4 h-4 text-white" aria-hidden />
                 </div>
@@ -154,9 +154,9 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
                   <p className="text-xs text-muted-foreground">Video de apoyo</p>
                 </div>
               </div>
-              <div className="p-5">
+              <div className="p-3">
                 {embedUrl ? (
-                  <div className="relative w-full overflow-hidden rounded-2xl border border-border" style={{ paddingBottom: "56.25%" }}>
+                  <div className="relative w-full overflow-hidden rounded-2xl border border-border" style={{ height: "calc(100vh - 290px)" }}>
                     <iframe src={embedUrl} title="Video de la lección" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="absolute inset-0 w-full h-full" />
                   </div>
                 ) : (
@@ -272,10 +272,8 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
                 return (
                   <li key={act.id_actividad}>
                     <article>
-                      <button
-                        type="button"
-                        onClick={() => onSelectActivity(act.id_actividad)}
-                        className={`group w-full rounded-3xl border-2 p-5 text-left shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99] ${
+                      <div
+                        className={`w-full rounded-3xl border-2 p-5 text-left shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${
                           act.completada
                             ? "border-emerald-200 bg-emerald-50/40 hover:border-emerald-300"
                             : "border-border bg-card hover:border-primary/40"
@@ -306,9 +304,8 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
                             </div>
                           </div>
 
-                          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden />
                         </div>
-                      </button>
+                      </div>
                     </article>
                   </li>
                 )

@@ -129,8 +129,6 @@ texto "¡Recupera tu racha hoy!" sin escribir en la DB.
 Helpers: fechaTijuana(), diferenciaDias() en lib/utils.ts.
 Lógica detallada en docs/architecture.md sección Racha.
 
-## El ajuste
-Al dar refresh no se reinicia la leccion asta el inicio ,mantiene lo que ya se a respondido.
 
 ## Regla
 Cada vez que realices un ajuste,este juste no debe modificar la logica ya existente.por ejemplo si pido que cambies el color de una actividad ,no lo vas a cambiar a todos.
@@ -155,3 +153,9 @@ el asistente debe enteder este apartado para poder enteder las respuestas.
 
 ## stt de google
 ayuda a que el tts entienda mejor lo que dice el alumnnoS
+
+## tts
+todo el sistema usa  por defecto Neural2.
+
+## Resultados 
+Cada ajuste debe hacerse de la mejora manera,todo se revisa que este funcionando bien .y evitar errores.

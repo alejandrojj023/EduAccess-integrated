@@ -122,16 +122,8 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
 
   // ── Speech synthesis ─────────────────────────────────────────
   const speakQuestion = useCallback((text: string) => {
-    window.speechSynthesis.cancel()
-    const utt = new SpeechSynthesisUtterance(text)
-    utt.lang = "es-ES"
-    utt.rate = Math.max(0.3, settings.voiceRate)
-    if (settings.voiceName) {
-      const voice = window.speechSynthesis.getVoices().find((v) => v.name === settings.voiceName)
-      if (voice) utt.voice = voice
-    }
-    window.speechSynthesis.speak(utt)
-  }, [settings.voiceRate, settings.voiceName])
+    speak(text)
+  }, [speak])
 
   // ── Speech recognition ───────────────────────────────────────
   useEffect(() => {

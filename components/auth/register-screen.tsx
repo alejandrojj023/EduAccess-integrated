@@ -21,16 +21,6 @@ export function RegisterScreen({ onSwitchToLogin, onRegisterSuccess }: RegisterS
   const { register } = useAuth()
   const { speak } = useAccessibility()
 
-  const speakLocal = (text: string) => {
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel()
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.lang = "es-ES"
-      utterance.rate = 0.9
-      window.speechSynthesis.speak(utterance)
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!role) { speak("Por favor selecciona tu rol: Docente o Estudiante"); return }
@@ -41,7 +31,7 @@ export function RegisterScreen({ onSwitchToLogin, onRegisterSuccess }: RegisterS
   }
 
   const handleReadInstructions = () => {
-    speakLocal("Crear cuenta en EduAccess. Escribe tu nombre, correo y contraseña. Selecciona tu rol: Docente o Estudiante.")
+    speak("Crear cuenta en EduAccess. Escribe tu nombre, correo y contraseña. Selecciona tu rol: Docente o Estudiante.")
   }
 
   return (

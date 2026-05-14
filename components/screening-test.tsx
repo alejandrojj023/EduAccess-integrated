@@ -7,6 +7,7 @@ import {
   ShieldAlert, ArrowLeft, Check, X, Play, ChevronRight, Sparkles,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useAccessibility } from "@/lib/accessibility-context"
 
 interface ScreeningTestProps { onBack: () => void }
 
@@ -79,13 +80,6 @@ function playBeep(high: boolean, durationMs = 400): Promise<void> {
   })
 }
 
-function speakWord(word: string, fast = false) {
-  if (!("speechSynthesis" in window)) return
-  window.speechSynthesis.cancel()
-  const u = new SpeechSynthesisUtterance(word)
-  u.lang = "es-ES"; u.rate = fast ? 1.5 : 0.85; u.pitch = fast ? 1.3 : 1.0
-  window.speechSynthesis.speak(u)
-}
 
 /* ─────────────── SHARED UI ─────────────── */
 
@@ -428,6 +422,7 @@ function ModulePause({ onContinue }: { onContinue: () => void }) {
 /* ─────────────── B1 ─────────────── */
 
 function B1Screen({ onComplete }: { onComplete: (r: { correct: boolean; noise: boolean }[]) => void }) {
+  const { speak } = useAccessibility()
   const [idx, setIdx] = useState(0)
   const [opts, setOpts] = useState<string[]>([])
   const [played, setPlayed] = useState(false)
@@ -441,7 +436,7 @@ function B1Screen({ onComplete }: { onComplete: (r: { correct: boolean; noise: b
     setPlayed(false); setSelected(null); setFeedback(null)
   }, [idx])
 
-  const handlePlay = () => { speakWord(item.word, item.noise); setPlayed(true) }
+  const handlePlay = () => { speak(item.word); setPlayed(true) }
 
   const handlePick = (opt: string) => {
     if (!played || feedback !== null) return

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
-  const { text } = await request.json()
+  const { text, speakingRate } = await request.json()
   if (!text?.trim()) return NextResponse.json({ error: "No text" }, { status: 400 })
 
   const apiKey = process.env.GOOGLE_TTS_API_KEY
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         input: { text },
         voice: { languageCode: "es-US", name: "es-US-Neural2-A" },
-        audioConfig: { audioEncoding: "MP3" },
+        audioConfig: { audioEncoding: "MP3", speakingRate: speakingRate ?? 1.0 },
       }),
     }
   )

@@ -141,32 +141,55 @@ export function StudentCalendar({ onBack }: StudentCalendarProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-card border-b-2 border-border sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="lg" onClick={onBack} className="h-12 w-12 p-0" aria-label="Volver">
-              <ArrowLeft className="w-6 h-6" />
-            </Button>
+      <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-5">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
+              aria-label="Volver"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Mi Calendario</h1>
-              <p className="text-sm text-muted-foreground">Lecciones completadas por día</p>
+              <h1 className="text-sm font-black text-foreground leading-none">Mi Calendario</h1>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Lecciones completadas por día</p>
             </div>
           </div>
           {settings.voiceEnabled && (
-            <Button
-              variant="outline"
-              size="lg"
+            <button
+              type="button"
               onClick={() => speak(`Calendario de lecciones. ${MONTHS_ES[month]} ${year}. Completaste ${completions.length} lección${completions.length !== 1 ? "es" : ""} este mes.`)}
-              className="h-12"
+              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
             >
-              <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />
-              Escuchar
-            </Button>
+              <Volume2 className="w-4 h-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Escuchar</span>
+            </button>
           )}
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <main className="mx-auto max-w-4xl px-5 py-7 space-y-6">
+
+        {/* Hero */}
+        <section aria-label="Mi calendario">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500 to-blue-600 p-6 shadow-xl shadow-blue-200/60">
+            <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" aria-hidden />
+            <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5 blur-xl" aria-hidden />
+            <div className="relative flex items-center gap-4">
+              <div className="w-14 h-14 shrink-0 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center shadow-lg">
+                <Calendar className="w-7 h-7 text-white" aria-hidden />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-white leading-tight">Mi Calendario</h2>
+                <p className="text-sm text-white/80 mt-0.5">
+                  {MONTHS_ES[month]} {year} · {completions.length} lección{completions.length !== 1 ? "es" : ""} completada{completions.length !== 1 ? "s" : ""}
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
         {/* ── Month calendar ───────────────────────────── */}
         <section aria-label={`Calendario de ${MONTHS_ES[month]} ${year}`}>
           <Card className="border-2 shadow-lg">

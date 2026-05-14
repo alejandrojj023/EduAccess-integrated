@@ -184,25 +184,19 @@ export function AccessibilityQuickPanel() {
                 </div>
               </div>
 
-              {(voices.length > 0 || user) && (
+              {user && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                     <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
                     Voz del sistema
                   </label>
                   <select
-                    value={settings.voiceName}
-                    onChange={(e) => updateSettings({ voiceName: e.target.value })}
+                    value="neural2-google"
+                    onChange={() => updateSettings({ voiceName: "neural2-google" })}
                     className="w-full h-10 px-3 text-sm border-2 border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                     aria-label="Seleccionar voz"
                   >
-                    <option value="">Voz automática (es-ES)</option>
-                    {voices.map((v) => (
-                      <option key={v.name} value={v.name}>{v.name} — {v.lang}</option>
-                    ))}
-                    {user && (
-                      <option value="neural2-google">Neural2 — Google TTS</option>
-                    )}
+                    <option value="neural2-google">Neural2 — Google TTS</option>
                   </select>
                   <Button
                     variant="outline"

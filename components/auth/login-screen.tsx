@@ -21,16 +21,6 @@ export function LoginScreen({ onSwitchToRegister, onLoginSuccess, onBack }: Logi
   const { login } = useAuth()
   const { speak } = useAccessibility()
 
-  const speakLocal = (text: string) => {
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel()
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.lang = "es-ES"
-      utterance.rate = 0.9
-      window.speechSynthesis.speak(utterance)
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
@@ -47,7 +37,7 @@ export function LoginScreen({ onSwitchToRegister, onLoginSuccess, onBack }: Logi
   }
 
   const handleReadInstructions = () => {
-    speakLocal("Bienvenido a EduAccess. Ingresa tu correo electrónico y contraseña para iniciar sesión.")
+    speak("Bienvenido a EduAccess. Ingresa tu correo electrónico y contraseña para iniciar sesión.")
   }
 
   return (

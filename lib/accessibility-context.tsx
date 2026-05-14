@@ -129,6 +129,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const achernarCtxRef   = useRef<AudioContext | null>(null)
   const achernarAbortRef = useRef<AbortController | null>(null)
+  const ttsCacheRef      = useRef<Map<string, AudioBuffer>>(new Map())
 
   // ── Cargar configuración ──────────────────────────────────
   useEffect(() => {
@@ -198,28 +199,43 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
       if (achernarAbortRef.current) { achernarAbortRef.current.abort(); achernarAbortRef.current = null }
       if (achernarCtxRef.current) { achernarCtxRef.current.close(); achernarCtxRef.current = null }
 
+      const cacheKey = `${text}::${settings.voiceRate}`
+
       try {
-        const controller = new AbortController()
-        achernarAbortRef.current = controller
-        const res = await fetch("/api/tts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text }),
-          signal: controller.signal,
-        })
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          console.warn("Cloud TTS — API error", res.status, body)
-          return
-        }
-        const { audio } = await res.json()
-        const bytes   = Uint8Array.from(atob(audio), (c) => c.charCodeAt(0)).buffer
-        const actx    = new AudioContext()
+        const actx = new AudioContext()
         achernarCtxRef.current = actx
-        const decoded = await actx.decodeAudioData(bytes)
-        const source  = actx.createBufferSource()
+
+        let decoded: AudioBuffer
+
+        if (ttsCacheRef.current.has(cacheKey)) {
+          decoded = ttsCacheRef.current.get(cacheKey)!
+        } else {
+          const controller = new AbortController()
+          achernarAbortRef.current = controller
+          const res = await fetch("/api/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text, speakingRate: settings.voiceRate }),
+            signal: controller.signal,
+          })
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}))
+            console.warn("Cloud TTS — API error", res.status, body)
+            actx.close(); achernarCtxRef.current = null
+            return
+          }
+          const { audio } = await res.json()
+          const bytes = Uint8Array.from(atob(audio), (c) => c.charCodeAt(0)).buffer
+          decoded = await actx.decodeAudioData(bytes)
+          // Guardar en caché (máx 60 entradas — FIFO)
+          if (ttsCacheRef.current.size >= 60) {
+            ttsCacheRef.current.delete(ttsCacheRef.current.keys().next().value!)
+          }
+          ttsCacheRef.current.set(cacheKey, decoded)
+        }
+
+        const source = actx.createBufferSource()
         source.buffer = decoded
-        source.playbackRate.value = settings.voiceRate
         source.connect(actx.destination)
         await new Promise<void>((resolve) => {
           source.onended = () => { actx.close(); achernarCtxRef.current = null; resolve() }

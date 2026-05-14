@@ -78,29 +78,43 @@ export function JoinGroup({ onNavigate }: JoinGroupProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-primary text-primary-foreground sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Button
-            variant="secondary"
-            size="icon"
-            onClick={() => onNavigate("student-dashboard")}
-            aria-label="Regresar al panel del estudiante"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
+      <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary-foreground/20 rounded-xl flex items-center justify-center">
-              <BookOpen className="w-5 h-5" aria-hidden="true" />
-            </div>
+            <button
+              type="button"
+              onClick={() => onNavigate("student-dashboard")}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
+              aria-label="Regresar al panel del estudiante"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
             <div>
-              <h1 className="text-xl font-bold">Unirse a un Curso</h1>
-              <p className="text-sm opacity-90">Código de curso o invitación</p>
+              <h1 className="text-sm font-black text-foreground leading-none">Unirse a un Curso</h1>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Código de curso o invitación</p>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-8">
+      <main className="mx-auto max-w-4xl px-5 py-7 space-y-6">
+
+        {/* Hero */}
+        <section aria-label="Unirse a un curso">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary/80 p-6 shadow-xl shadow-primary/20">
+            <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" aria-hidden />
+            <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5 blur-xl" aria-hidden />
+            <div className="relative flex items-center gap-4">
+              <div className="w-14 h-14 shrink-0 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center shadow-lg">
+                <BookOpen className="w-7 h-7 text-white" aria-hidden />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-white leading-tight">Unirse a un Curso</h2>
+                <p className="text-sm text-white/80 mt-0.5">Ingresa el código que te dio tu docente o acepta una invitación</p>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* Código de curso */}
         <section aria-label="Unirse por código de curso">

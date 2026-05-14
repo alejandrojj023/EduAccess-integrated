@@ -13,7 +13,7 @@ import { SpeakableText } from "@/components/ui/accessible-tooltip"
 import { TextoConGlosario, type GlosarioEntry } from "@/components/ui/texto-con-glosario"
 import {
   ArrowLeft, Volume2, Check, X, Star, ChevronRight,
-  Mic, HelpCircle, Loader2, RotateCcw, Clock,
+  Mic, HelpCircle, Loader2, RotateCcw, Clock, Turtle,
 } from "lucide-react"
 import { motion, LayoutGroup, useReducedMotion } from "framer-motion"
 import { completarLeccion } from "@/hooks/student/use-lesson-completion"
@@ -128,6 +128,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
   const [fillPregunta, setFillPregunta] = useState<{ enunciado: string; respuesta_esperada: string; palabras_distractoras: string | null; oraciones_contexto: string | null } | null>(null)
   const [fillBank, setFillBank] = useState<WordToken[]>([])
   const [fillSelected, setFillSelected] = useState<WordToken | null>(null)
+  const fillBankOriginalRef = useRef<WordToken[]>([])
   const [fillError, setFillError] = useState<string | null>(null)
   const [fillAttempts, setFillAttempts] = useState(0)
   const [fillHighlighted, setFillHighlighted] = useState<string | null>(null)
@@ -170,6 +171,18 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
   const [wsFoundWords, setWsFoundWords] = useState<Set<string>>(new Set())
   const [wsFoundCells, setWsFoundCells] = useState<Set<string>>(new Set())
   const [wsWrongFlash, setWsWrongFlash] = useState(false)
+  const [wsWordColors, setWsWordColors] = useState<Map<string, number>>(new Map())
+  const [wsCellWord, setWsCellWord]     = useState<Map<string, string>>(new Map())
+  const [wsAnimatingCells, setWsAnimatingCells] = useState<Set<string>>(new Set())
+
+  const WS_COLORS = [
+    { bg: "bg-emerald-400", border: "border-emerald-400", text: "text-emerald-700", light: "bg-emerald-400/20" },
+    { bg: "bg-blue-400",    border: "border-blue-400",    text: "text-blue-700",    light: "bg-blue-400/20"    },
+    { bg: "bg-violet-400",  border: "border-violet-400",  text: "text-violet-700",  light: "bg-violet-400/20"  },
+    { bg: "bg-amber-400",   border: "border-amber-400",   text: "text-amber-700",   light: "bg-amber-400/20"   },
+    { bg: "bg-pink-400",    border: "border-pink-400",    text: "text-pink-700",    light: "bg-pink-400/20"    },
+    { bg: "bg-orange-400",  border: "border-orange-400",  text: "text-orange-700",  light: "bg-orange-400/20"  },
+  ]
 
 
   // Load activity from DB
@@ -388,6 +401,9 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     setWsFoundCells(new Set())
     setWsStart(null)
     setWsWrongFlash(false)
+    setWsWordColors(new Map())
+    setWsCellWord(new Map())
+    setWsAnimatingCells(new Set())
     setWsGrid(generateWordSearchGrid(words))
     const timer = settings.voiceEnabled ? setTimeout(() => speak(cfg.instrucciones ?? "Encuentra las palabras en la sopa de letras"), 400) : undefined
     return () => clearTimeout(timer)
@@ -421,18 +437,8 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
       rounded >= 1 ? "¡Lo intentaste! Sigue practicando." :
                      "Sigue practicando, lo lograrás la próxima vez."
     const text = `¡Lección completada! Obtuviste ${rounded} estrella${rounded !== 1 ? "s" : ""}. ${starMsg}`
-    const t = setTimeout(() => {
-      window.speechSynthesis.cancel()
-      const utt = new SpeechSynthesisUtterance(text)
-      utt.lang = "es-ES"
-      utt.rate = settings.voiceRate ?? 1
-      if (settings.voiceName) {
-        const voice = window.speechSynthesis.getVoices().find(v => v.name === settings.voiceName)
-        if (voice) utt.voice = voice
-      }
-      window.speechSynthesis.speak(utt)
-    }, 600)
-    return () => { clearTimeout(t); window.speechSynthesis.cancel() }
+    const t = setTimeout(() => { speak(text) }, 600)
+    return () => { clearTimeout(t) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, earnedStars])
 
@@ -475,8 +481,23 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
       const newFound = new Set(wsFoundWords).add(matched)
       const newCells = new Set(wsFoundCells)
       pathCells.forEach(k => newCells.add(k))
+
+      // Assign a distinct color to the found word
+      const colorIdx = wsWordColors.size % WS_COLORS.length
+      const newWordColors = new Map(wsWordColors).set(matched, colorIdx)
+      const newCellWord = new Map(wsCellWord)
+      pathCells.forEach(k => newCellWord.set(k, matched))
+
+      // Animate newly found cells briefly
+      setWsAnimatingCells(prev => { const s = new Set(prev); pathCells.forEach(k => s.add(k)); return s })
+      setTimeout(() => {
+        setWsAnimatingCells(prev => { const s = new Set(prev); pathCells.forEach(k => s.delete(k)); return s })
+      }, 600)
+
       setWsFoundWords(newFound)
       setWsFoundCells(newCells)
+      setWsWordColors(newWordColors)
+      setWsCellWord(newCellWord)
       setWsStart(null)
       if (settings.voiceEnabled) speak(`¡Encontraste ${matched}!`)
       // Check if all words found
@@ -520,6 +541,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
           text,
         }))
         setFillBank(tokens)
+        fillBankOriginalRef.current = tokens
         // Auto-speak instructions
         if (settings.voiceEnabled) timerId = setTimeout(() => speak(activity.instrucciones ?? "Completa la oración"), 400)
       })
@@ -529,15 +551,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
 
   // Speak a single word using Web Speech API (respects user voice settings)
   function speakWord(text: string) {
-    window.speechSynthesis.cancel()
-    const utt = new SpeechSynthesisUtterance(text)
-    utt.lang = "es-ES"
-    utt.rate = Math.max(0.3, settings.voiceRate)
-    if (settings.voiceName) {
-      const voice = window.speechSynthesis.getVoices().find((v) => v.name === settings.voiceName)
-      if (voice) utt.voice = voice
-    }
-    window.speechSynthesis.speak(utt)
+    speak(text)
   }
 
   function handleFillSelect(token: WordToken) {
@@ -629,6 +643,24 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     return () => clearTimeout(timerId)
   }, [activity])
 
+  function playPlacementSound() {
+    try {
+      const ctx = new AudioContext()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = "sine"
+      osc.frequency.setValueAtTime(520, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.08)
+      gain.gain.setValueAtTime(0.25, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.22)
+      osc.onended = () => ctx.close()
+    } catch {}
+  }
+
   function handleSeqDropOnZone(zoneIdx: number) {
     if (!seqDragging) return
     setSeqZones((prev) => {
@@ -640,6 +672,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     setSeqDragOver(null)
     setSeqChecked(false)
     setSeqResult([])
+    playPlacementSound()
   }
 
   function handleSeqReturnToLeft(zoneIdx: number) {
@@ -686,18 +719,25 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     }
   }
 
-  function playSoundSentence(rate = 1) {
+  async function playSoundSentence(speakingRate = 1) {
     if (!soundPregunta) return
-    window.speechSynthesis.cancel()
-    const utt = new SpeechSynthesisUtterance(soundPregunta.respuesta_esperada)
-    utt.lang = "es-ES"
-    utt.rate = Math.max(0.3, settings.voiceRate * rate)
-    if (settings.voiceName) {
-      const voices = window.speechSynthesis.getVoices()
-      const selectedVoice = voices.find((v) => v.name === settings.voiceName)
-      if (selectedVoice) utt.voice = selectedVoice
-    }
-    window.speechSynthesis.speak(utt)
+    try {
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: soundPregunta.respuesta_esperada, speakingRate }),
+      })
+      if (!res.ok) return
+      const { audio } = await res.json()
+      const bytes   = Uint8Array.from(atob(audio), (c) => c.charCodeAt(0)).buffer
+      const actx    = new AudioContext()
+      const decoded = await actx.decodeAudioData(bytes)
+      const source  = actx.createBufferSource()
+      source.buffer = decoded
+      source.connect(actx.destination)
+      source.onended = () => actx.close()
+      source.start(0)
+    } catch {}
   }
 
   function moveWordToZone(tokenId: string) {
@@ -1005,7 +1045,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-border/60 bg-background/80 backdrop-blur">
-        <div className="max-w-3xl mx-auto px-4 py-4">
+        <div className="max-w-3xl mx-auto px-4 py-2">
           <div className="flex items-center justify-between gap-3">
             <Button
               variant="outline"
@@ -1045,24 +1085,24 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
             value={isLessonMode && lessonActivities.length > 0
               ? Math.round((lessonActIndex / lessonActivities.length) * 100)
               : phase === "done" ? 100 : phase === "result" ? 66 : 33}
-            className="h-2.5 bg-muted"
+            className="h-1.5 bg-muted mt-2"
           />
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <main className="max-w-3xl mx-auto px-4 py-2 space-y-3">
 
         {/* Instructions card */}
         <section aria-label="Instrucciones de la actividad">
           <Card className="border border-border/70 shadow-sm rounded-3xl">
-            <CardContent className="p-6 sm:p-7">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl border border-border/70 bg-muted/40 flex items-center justify-center shrink-0">
-                  <HelpCircle className="w-5 h-5 text-primary" aria-hidden="true" />
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl border border-border/70 bg-muted/40 flex items-center justify-center shrink-0">
+                  <HelpCircle className="w-4 h-4 text-primary" aria-hidden="true" />
                 </div>
                 <div className="flex-1 flex items-start gap-4">
                   <div className="flex-1">
-                    <SpeakableText as="h2" className="text-lg font-extrabold tracking-tight text-foreground mb-1">
+                    <SpeakableText as="h2" className="text-base font-extrabold tracking-tight text-foreground mb-0.5">
                       Instrucciones
                     </SpeakableText>
                     <p className="text-[15px] sm:text-base text-muted-foreground leading-relaxed">
@@ -1141,7 +1181,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                     >
                       <span className="absolute inset-x-0 top-0 h-1 rounded-t-3xl bg-gradient-to-r from-primary/25 via-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                       <div className="flex items-start gap-3">
-                        <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-border/70 bg-muted/40 text-[13px] font-black text-foreground shadow-sm">
+                        <span className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border-2 border-border bg-muted text-foreground text-sm font-black shadow-sm">
                           {String.fromCharCode(65 + i)}
                         </span>
                         <span className="text-[17px] sm:text-lg font-extrabold tracking-tight text-foreground leading-snug">
@@ -1157,7 +1197,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
             {/* Short answer */}
             {isShortAnswer && (
               <Card className="border border-border/70 shadow-sm rounded-3xl">
-                <CardContent className="p-6 space-y-4">
+                <CardContent className="px-6 pt-5 pb-5 space-y-4">
                   <label className="text-base font-semibold text-foreground" htmlFor="short-answer">
                     Escribe tu respuesta:
                   </label>
@@ -1186,104 +1226,101 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
             {activity?.tipo === "reconocimiento_sonidos" && (
               <div className="space-y-4">
                 {/* Audio playback buttons */}
-                <div className="flex items-center justify-center gap-4 py-2">
-                  <Button
-                    size="lg"
-                    className="h-20 px-10 text-xl gap-3 rounded-2xl"
-                    onClick={() => playSoundSentence(1)}
-                    disabled={!soundPregunta}
-                    aria-label="Reproducir oración a velocidad normal"
-                  >
-                    <Volume2 className="w-7 h-7" aria-hidden="true" />
-                    Escuchar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="h-20 px-8 text-lg gap-3 rounded-2xl border-2"
-                    onClick={() => playSoundSentence(0.6)}
-                    disabled={!soundPregunta}
-                    aria-label="Reproducir oración despacio"
-                  >
-                    <Volume2 className="w-6 h-6" aria-hidden="true" />
-                    Despacio
-                  </Button>
+                <div className="flex items-end justify-center gap-5">
+                  <div className="flex flex-col items-center gap-1">
+                    <button
+                      onClick={() => playSoundSentence(1)}
+                      disabled={!soundPregunta}
+                      className="w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/30 hover:bg-primary/90 hover:scale-105 active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+                      aria-label="Reproducir oración a velocidad normal"
+                    >
+                      <Volume2 className="w-7 h-7" aria-hidden="true" />
+                    </button>
+                    <span className="text-sm font-semibold text-foreground">Escuchar</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <button
+                      onClick={() => playSoundSentence(0.6)}
+                      disabled={!soundPregunta}
+                      className="w-12 h-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-md shadow-primary/20 hover:bg-primary/90 hover:scale-105 active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+                      aria-label="Reproducir oración despacio"
+                    >
+                      <Turtle className="w-5 h-5" aria-hidden="true" />
+                    </button>
+                    <span className="text-xs font-semibold text-muted-foreground">Despacio</span>
+                  </div>
                 </div>
 
                 <LayoutGroup id="word-tokens">
-                  {/* Construction zone */}
-                  <Card className="border-2 border-primary/30 bg-primary/5">
-                    <CardContent className="p-5">
-                      <p className="text-sm font-medium text-muted-foreground mb-3">Tu oración:</p>
-                      <div
-                        className="min-h-[56px] flex flex-wrap gap-2 items-center"
-                        aria-label="Zona de construcción de oración"
-                      >
-                        {constructionZone.length === 0 ? (
-                          <p className="text-muted-foreground text-sm italic">
-                            Toca las palabras de abajo para colocarlas aquí…
-                          </p>
-                        ) : (
-                          constructionZone.map((token) => (
+                  <Card className="border-2">
+                    <CardContent className="p-3 space-y-2">
+
+                      {/* Oración */}
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Tu oración</p>
+                        <div
+                          className="min-h-[38px] flex flex-wrap gap-2 items-center p-2 rounded-xl bg-primary/5 border border-primary/20"
+                          aria-label="Zona de construcción de oración"
+                        >
+                          {constructionZone.length === 0 ? (
+                            <p className="text-muted-foreground text-sm italic">
+                              Toca las palabras de abajo para colocarlas aquí…
+                            </p>
+                          ) : (
+                            constructionZone.map((token) => (
+                              <motion.button
+                                key={token.id}
+                                layoutId={token.id}
+                                layout
+                                transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 30 }}
+                                onClick={() => moveWordToBank(token.id)}
+                                className="px-4 py-2 rounded-xl border-2 border-primary bg-card text-base font-semibold text-foreground hover:bg-destructive/10 hover:border-destructive"
+                                aria-label={`Quitar "${token.text}" de la oración`}
+                              >
+                                {token.text}
+                              </motion.button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Error */}
+                      {soundError && (
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-destructive/10 border border-destructive/40">
+                          <X className="w-4 h-4 text-destructive shrink-0" aria-hidden="true" />
+                          <p className="text-destructive font-medium flex-1 text-sm">{soundError}</p>
+                          <Button variant="outline" size="sm" onClick={handleRetrySound} className="gap-2 shrink-0" aria-label="Reintentar">
+                            <RotateCcw className="w-4 h-4" aria-hidden="true" />
+                            Reintentar
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Banco de palabras */}
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Palabras disponibles</p>
+                        <div className="flex flex-wrap gap-2" aria-label="Banco de palabras">
+                          {wordBank.map((token) => (
                             <motion.button
                               key={token.id}
                               layoutId={token.id}
                               layout
                               transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 30 }}
-                              onClick={() => moveWordToBank(token.id)}
-                              className="px-4 py-2 rounded-xl border-2 border-primary bg-card text-base font-semibold text-foreground hover:bg-destructive/10 hover:border-destructive"
-                              aria-label={`Quitar "${token.text}" de la oración`}
+                              onClick={() => moveWordToZone(token.id)}
+                              className="px-4 py-2 rounded-xl border-2 border-border bg-muted text-base font-semibold text-foreground hover:border-primary hover:bg-primary/10"
+                              aria-label={`Agregar "${token.text}" a la oración`}
                             >
                               {token.text}
                             </motion.button>
-                          ))
-                        )}
+                          ))}
+                          {wordBank.length === 0 && !soundError && (
+                            <p className="text-muted-foreground text-sm italic">
+                              Todas las palabras están en tu oración.
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
 
-                  {/* Inline error with retry */}
-                  {soundError && (
-                    <div className="flex items-center gap-3 p-4 rounded-xl bg-destructive/10 border-2 border-destructive/40">
-                      <X className="w-5 h-5 text-destructive shrink-0" aria-hidden="true" />
-                      <p className="text-destructive font-medium flex-1">{soundError}</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleRetrySound}
-                        className="gap-2 shrink-0"
-                        aria-label="Reintentar"
-                      >
-                        <RotateCcw className="w-4 h-4" aria-hidden="true" />
-                        Reintentar
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Word bank */}
-                  <Card className="border-2">
-                    <CardContent className="p-5">
-                      <p className="text-sm font-medium text-muted-foreground mb-3">Palabras disponibles:</p>
-                      <div className="flex flex-wrap gap-2" aria-label="Banco de palabras">
-                        {wordBank.map((token) => (
-                          <motion.button
-                            key={token.id}
-                            layoutId={token.id}
-                            layout
-                            transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 30 }}
-                            onClick={() => moveWordToZone(token.id)}
-                            className="px-4 py-2 rounded-xl border-2 border-border bg-muted text-base font-semibold text-foreground hover:border-primary hover:bg-primary/10"
-                            aria-label={`Agregar "${token.text}" a la oración`}
-                          >
-                            {token.text}
-                          </motion.button>
-                        ))}
-                        {wordBank.length === 0 && !soundError && (
-                          <p className="text-muted-foreground text-sm italic">
-                            Todas las palabras están en tu oración.
-                          </p>
-                        )}
-                      </div>
                     </CardContent>
                   </Card>
                 </LayoutGroup>
@@ -1291,7 +1328,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                 {/* Check button */}
                 <Button
                   size="lg"
-                  className="w-full h-14 text-lg"
+                  className="w-full h-11 text-base"
                   onClick={handleCheckSound}
                   disabled={constructionZone.length === 0}
                   aria-label="Comprobar mi respuesta"
@@ -1304,7 +1341,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
 
             {/* Fill activity — completar_oracion */}
             {activity?.tipo === "completar_oracion" && (
-              <div className="space-y-5">
+              <div className="space-y-3">
                 <LayoutGroup id="fill-tokens">
                   {/* Context sentences */}
                   {fillPregunta?.oraciones_contexto && (
@@ -1337,109 +1374,130 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                     </Card>
                   )}
 
-                  {/* Target sentence with blank */}
+                  {/* Target sentence + word bank — una sola card */}
                   {fillPregunta && (() => {
                     const parts = fillPregunta.enunciado.split("___")
                     const before = parts[0] ?? ""
                     const after = parts.slice(1).join("___")
                     return (
                       <Card className="border-2 shadow-lg rounded-3xl">
-                        <CardContent className="p-6">
-                          <p className="text-base font-medium text-muted-foreground mb-3">Completa la oración:</p>
-                          <div className="flex flex-wrap items-center gap-x-1 gap-y-2 text-2xl font-bold text-foreground leading-relaxed">
-                            {before.split(/\s+/).filter(Boolean).map((word, wi) => {
-                              const hKey = `tgt-before-${wi}`
-                              const isHl = fillHighlighted === hKey
-                              const bare = word.replace(/[¿¡.,;:!?«»"']/g, "")
-                              return (
-                                <span
-                                  key={wi}
-                                  onClick={() => { speakWord(bare); setFillHighlighted(hKey); setTimeout(() => setFillHighlighted(null), 700) }}
-                                  className={`cursor-pointer rounded px-0.5 transition-colors ${isHl ? "bg-primary/20 text-primary" : "hover:text-primary"}`}
+                        <CardContent className="p-4 space-y-4">
+
+                          {/* Oración */}
+                          <div>
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Completa la oración</p>
+                            <div className="flex flex-wrap items-center gap-x-1 gap-y-2 text-2xl font-bold text-foreground leading-relaxed">
+                              {before.split(/\s+/).filter(Boolean).map((word, wi) => {
+                                const hKey = `tgt-before-${wi}`
+                                const isHl = fillHighlighted === hKey
+                                const bare = word.replace(/[¿¡.,;:!?«»"']/g, "")
+                                return (
+                                  <span
+                                    key={wi}
+                                    onClick={() => { speakWord(bare); setFillHighlighted(hKey); setTimeout(() => setFillHighlighted(null), 700) }}
+                                    className={`cursor-pointer rounded px-0.5 transition-colors ${isHl ? "bg-primary/20 text-primary" : "hover:text-primary"}`}
+                                  >
+                                    {word}
+                                  </span>
+                                )
+                              })}
+                              {fillSelected ? (
+                                <motion.button
+                                  layoutId={fillSelected.id}
+                                  layout
+                                  transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 30 }}
+                                  onClick={handleFillReturn}
+                                  onMouseEnter={() => settings.voiceEnabled && speakWord(fillSelected.text)}
+                                  className="h-9 px-4 inline-flex items-center rounded-xl border-2 border-primary bg-primary/10 text-primary font-bold hover:bg-destructive/10 hover:border-destructive"
+                                  aria-label={`Quitar "${fillSelected.text}"`}
                                 >
-                                  {word}
-                                </span>
-                              )
-                            })}
-                            {/* The blank */}
-                            {fillSelected ? (
-                              <motion.button
-                                layoutId={fillSelected.id}
-                                layout
-                                transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 30 }}
-                                onClick={handleFillReturn}
-                                onMouseEnter={() => settings.voiceEnabled && speakWord(fillSelected.text)}
-                                className="px-4 py-1 rounded-xl border-2 border-primary bg-primary/10 text-primary font-bold hover:bg-destructive/10 hover:border-destructive"
-                                aria-label={`Quitar "${fillSelected.text}"`}
-                              >
-                                {fillSelected.text}
-                              </motion.button>
-                            ) : (
-                              <span className="inline-flex items-end min-w-[100px] h-9 border-b-4 border-dashed border-primary mx-1" aria-label="Espacio en blanco" />
-                            )}
-                            {after.split(/\s+/).filter(Boolean).map((word, wi) => {
-                              const hKey = `tgt-after-${wi}`
-                              const isHl = fillHighlighted === hKey
-                              const bare = word.replace(/[¿¡.,;:!?«»"']/g, "")
-                              return (
-                                <span
-                                  key={wi}
-                                  onClick={() => { speakWord(bare); setFillHighlighted(hKey); setTimeout(() => setFillHighlighted(null), 700) }}
-                                  className={`cursor-pointer rounded px-0.5 transition-colors ${isHl ? "bg-primary/20 text-primary" : "hover:text-primary"}`}
-                                >
-                                  {word}
-                                </span>
-                              )
-                            })}
+                                  {fillSelected.text}
+                                </motion.button>
+                              ) : (
+                                <span className="inline-flex items-end min-w-[100px] h-9 border-b-4 border-dashed border-primary mx-1" aria-label="Espacio en blanco" />
+                              )}
+                              {after.split(/\s+/).filter(Boolean).map((word, wi) => {
+                                const hKey = `tgt-after-${wi}`
+                                const isHl = fillHighlighted === hKey
+                                const bare = word.replace(/[¿¡.,;:!?«»"']/g, "")
+                                return (
+                                  <span
+                                    key={wi}
+                                    onClick={() => { speakWord(bare); setFillHighlighted(hKey); setTimeout(() => setFillHighlighted(null), 700) }}
+                                    className={`cursor-pointer rounded px-0.5 transition-colors ${isHl ? "bg-primary/20 text-primary" : "hover:text-primary"}`}
+                                  >
+                                    {word}
+                                  </span>
+                                )
+                              })}
+                            </div>
                           </div>
+
+                          {/* Error */}
+                          {fillError && (
+                            <div className="flex items-center gap-3 p-3 rounded-xl bg-destructive/10 border border-destructive/40">
+                              <X className="w-4 h-4 text-destructive shrink-0" aria-hidden="true" />
+                              <p className="text-destructive font-medium flex-1 text-sm">{fillError}</p>
+                              <Button variant="outline" size="sm" onClick={handleRetryFill} className="gap-2 shrink-0">
+                                <RotateCcw className="w-4 h-4" aria-hidden="true" />
+                                Reintentar
+                              </Button>
+                            </div>
+                          )}
+
+                          {/* Divisor */}
+                          <div className="border-t border-border/50" />
+
+                          {/* Palabras */}
+                          <div>
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Palabras disponibles</p>
+                            <div className="flex flex-wrap gap-3 justify-center" aria-label="Opciones de palabras">
+                              {fillBankOriginalRef.current.map((token) => {
+                                const isSelected = fillSelected?.id === token.id
+                                const inBank = fillBank.some(t => t.id === token.id)
+                                if (isSelected) {
+                                  return (
+                                    <div
+                                      key={token.id}
+                                      className="h-11 px-5 rounded-2xl border-2 border-dashed border-border/50 bg-muted/30 flex items-center"
+                                      aria-hidden="true"
+                                    >
+                                      <span className="text-base font-bold invisible">{token.text}</span>
+                                    </div>
+                                  )
+                                }
+                                if (!inBank) return null
+                                return (
+                                  <motion.button
+                                    key={token.id}
+                                    layoutId={token.id}
+                                    layout
+                                    transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 30 }}
+                                    onClick={() => handleFillSelect(token)}
+                                    onMouseEnter={() => settings.voiceEnabled && speakWord(token.text)}
+                                    className="h-11 px-5 rounded-2xl border-2 border-border bg-card text-base font-bold text-foreground hover:border-primary hover:bg-primary/10 shadow-sm"
+                                    aria-label={`Seleccionar "${token.text}"`}
+                                  >
+                                    {token.text}
+                                  </motion.button>
+                                )
+                              })}
+                              {fillBank.length === 0 && !fillSelected && (
+                                <p className="text-muted-foreground text-sm italic">Todas las palabras están usadas.</p>
+                              )}
+                            </div>
+                          </div>
+
                         </CardContent>
                       </Card>
                     )
                   })()}
-
-                  {/* Inline error */}
-                  {fillError && (
-                    <div className="flex items-center gap-3 p-4 rounded-xl bg-destructive/10 border-2 border-destructive/40">
-                      <X className="w-5 h-5 text-destructive shrink-0" aria-hidden="true" />
-                      <p className="text-destructive font-medium flex-1">{fillError}</p>
-                      <Button variant="outline" size="sm" onClick={handleRetryFill} className="gap-2 shrink-0">
-                        <RotateCcw className="w-4 h-4" aria-hidden="true" />
-                        Reintentar
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Word bank */}
-                  <Card className="border-2 rounded-3xl shadow-md">
-                    <CardContent className="p-5">
-                      <p className="text-sm font-medium text-muted-foreground mb-4">Elige la palabra correcta:</p>
-                      <div className="flex flex-wrap gap-3 justify-center" aria-label="Opciones de palabras">
-                        {fillBank.map((token) => (
-                          <motion.button
-                            key={token.id}
-                            layoutId={token.id}
-                            layout
-                            transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 30 }}
-                            onClick={() => handleFillSelect(token)}
-                            onMouseEnter={() => settings.voiceEnabled && speakWord(token.text)}
-                            className="h-14 px-6 rounded-2xl border-2 border-border bg-card text-lg font-bold text-foreground hover:border-primary hover:bg-primary/10 shadow-sm"
-                            aria-label={`Seleccionar "${token.text}"`}
-                          >
-                            {token.text}
-                          </motion.button>
-                        ))}
-                        {fillBank.length === 0 && !fillSelected && (
-                          <p className="text-muted-foreground text-sm italic">Todas las palabras están usadas.</p>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
                 </LayoutGroup>
 
                 {/* Check button */}
                 <Button
                   size="lg"
-                  className="w-full h-14 text-lg"
+                  className="w-full h-11 text-base"
                   onClick={handleCheckFill}
                   disabled={!fillSelected}
                   aria-label="Comprobar mi respuesta"
@@ -1456,10 +1514,10 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
               const available = seqItems.filter((item) => !placedIds.has(item.id_pregunta))
               const allFilled = seqZones.every((z) => z !== null)
               return (
-                <div className="space-y-5">
-                  <div className="grid grid-cols-2 gap-3 items-start">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2 items-start">
                     {/* Left column — draggable image cards */}
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {seqItems.map((item) => {
                         const isPlaced = placedIds.has(item.id_pregunta)
                         return (
@@ -1480,11 +1538,11 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                               <img
                                 src={item.imagen_url}
                                 alt={`Imagen ${item.orden}`}
-                                className="w-full h-44 object-contain bg-card"
+                                className="w-full h-36 object-contain bg-card"
                                 draggable={false}
                               />
                             ) : (
-                              <div className="w-full h-44 bg-muted flex items-center justify-center">
+                              <div className="w-full h-36 bg-muted flex items-center justify-center">
                                 <p className="text-muted-foreground text-xs">Sin imagen</p>
                               </div>
                             )}
@@ -1494,7 +1552,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                     </div>
 
                     {/* Right column — numbered drop zones */}
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {seqZones.map((zoneItem, idx) => {
                         const isOver = seqDragOver === idx
                         const slotOk = seqChecked && seqResult.length > idx ? seqResult[idx] : null
@@ -1514,7 +1572,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                                       ? "border-primary border-solid bg-primary/10 scale-[1.02]"
                                       : "border-dashed border-border bg-muted/40"
                               }`}
-                            style={{ minHeight: "11rem" }}
+                            style={{ minHeight: "9rem" }}
                             aria-label={`Zona ${idx + 1}${zoneItem ? `: ${zoneItem.enunciado}` : " vacía"}`}
                           >
                             {/* Zone number badge */}
@@ -1543,18 +1601,18 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                                   <img
                                     src={zoneItem.imagen_url}
                                     alt={`Imagen colocada en zona ${idx + 1}`}
-                                    className="w-full h-44 object-contain bg-card group-hover:opacity-80 transition-opacity"
+                                    className="w-full h-36 object-contain bg-card group-hover:opacity-80 transition-opacity"
                                     draggable={false}
                                   />
                                 ) : (
-                                  <div className="w-full h-44 bg-muted flex items-center justify-center">
+                                  <div className="w-full h-36 bg-muted flex items-center justify-center">
                                     <p className="text-muted-foreground text-xs">Sin imagen</p>
                                   </div>
                                 )}
                               </button>
                             ) : (
                               /* Empty zone */
-                              <div className="h-44 flex items-center justify-center">
+                              <div className="h-36 flex items-center justify-center">
                                 <span className="text-4xl font-black text-muted-foreground/20 select-none">
                                   {idx + 1}
                                 </span>
@@ -1585,7 +1643,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
 
                   <Button
                     size="lg"
-                    className="w-full h-14 text-lg"
+                    className="w-full h-11 text-base"
                     onClick={handleCheckSeq}
                     disabled={!allFilled || phase !== "question"}
                     aria-label="Comprobar el orden de las imágenes"
@@ -1599,12 +1657,12 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
 
             {/* Word search activity — sopa de letras */}
             {activity?.tipo === "sopa_letras" && wsGrid.length > 0 && (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {/* Grid + word list side by side */}
                 <div className="flex gap-3 items-start">
                   {/* Grid */}
                   <Card className={`border-2 transition-all flex-1 min-w-0 ${wsWrongFlash ? "border-destructive" : "border-border"}`}>
-                    <CardContent className="p-3 flex justify-center overflow-x-auto">
+                    <CardContent className="p-2 flex justify-center overflow-x-auto">
                       <div
                         className="inline-grid gap-1"
                         style={{ gridTemplateColumns: `repeat(${wsGrid[0]?.length ?? 12}, minmax(0, 1fr))` }}
@@ -1614,13 +1672,17 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                           rowArr.map((letter, c) => {
                             const key = `${r}-${c}`
                             const isFound = wsFoundCells.has(key)
+                            const wordKey = wsCellWord.get(key)
+                            const colorIdx = wordKey !== undefined ? wsWordColors.get(wordKey) : undefined
+                            const color = colorIdx !== undefined ? WS_COLORS[colorIdx] : null
+                            const isAnimating = wsAnimatingCells.has(key)
                             const isStart = wsStart?.row === r && wsStart?.col === c
                             return (
                               <button
                                 key={key}
                                 onClick={() => handleWsCellClick(r, c)}
-                                className={`w-7 h-7 sm:w-8 sm:h-8 text-xs sm:text-sm font-bold rounded flex items-center justify-center transition-all select-none ${isFound
-                                    ? "bg-green-400 text-white"
+                                className={`w-8 h-8 sm:w-9 sm:h-9 text-xs sm:text-sm font-bold rounded flex items-center justify-center transition-all select-none ${isFound && color
+                                    ? `${color.bg} text-white${isAnimating ? " scale-125 shadow-md" : ""}`
                                     : isStart
                                       ? "bg-primary text-primary-foreground scale-110 z-10 relative"
                                       : wsWrongFlash
@@ -1645,31 +1707,36 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                         {wsFoundWords.size}/{wsPalabras.length}
                       </p>
                       <div className="flex flex-col gap-1.5">
-                        {wsPalabras.map(word => (
-                          <span
-                            key={word}
-                            className={`px-2 py-1 rounded-lg border-2 font-bold text-sm text-center transition-all ${wsFoundWords.has(word)
-                                ? "bg-success/10 border-success text-success line-through"
-                                : "bg-muted border-border text-foreground"
+                        {wsPalabras.map(word => {
+                          const colorIdx = wsWordColors.get(word)
+                          const color = colorIdx !== undefined ? WS_COLORS[colorIdx] : null
+                          return (
+                            <span
+                              key={word}
+                              className={`px-2 py-1 rounded-lg border-2 font-bold text-sm text-center transition-all ${
+                                color
+                                  ? `${color.light} ${color.border} ${color.text} line-through`
+                                  : "bg-muted border-border text-foreground"
                               }`}
-                          >
-                            {word}
-                          </span>
-                        ))}
+                            >
+                              {word}
+                            </span>
+                          )
+                        })}
                       </div>
                     </CardContent>
                   </Card>
                 </div>
 
-                <p className="text-center text-sm text-muted-foreground">
-                  Toca la primera y última letra de cada palabra para encontrarla
+                <p className="text-center text-xs text-muted-foreground">
+                  Toca la primera y última letra de cada palabra
                 </p>
                 {/* Give up button */}
                 {wsFoundWords.size < wsPalabras.length && (
                   <Button
                     variant="outline"
                     size="lg"
-                    className="w-full h-12 border-2"
+                    className="w-full h-9 border-2"
                     onClick={() => {
                       const wsCorrect = wsFoundWords.size >= Math.ceil(wsPalabras.length / 2)
                       const wsScore = Math.round((wsFoundWords.size / wsPalabras.length) * 100)
