@@ -35,6 +35,7 @@ const RETRY_MESSAGES = [
 interface StudentActivityProps {
   activityId: string | null
   lessonId?: string | null
+  lessonName?: string
   onBack: () => void
   onComplete: () => void
   onVoiceActivity: () => void
@@ -104,7 +105,64 @@ function generateWordSearchGrid(words: string[]): string[][] {
 
 type Phase = "loading" | "question" | "result" | "done" | "lesson-done"
 
-export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVoiceActivity, previewMode = false }: StudentActivityProps) {
+// Variable de módulo para el audio del modal — accesible fuera del ciclo de vida de React
+let _modalAudio: HTMLAudioElement | null = null
+let _modalCancelled = false
+
+function _stopModalAudio() {
+  _modalCancelled = true
+  if (_modalAudio) {
+    _modalAudio.pause()
+    _modalAudio.src = ""
+    _modalAudio = null
+  }
+}
+
+interface BackConfirmModalProps {
+  isPlayingModal: boolean
+  onSpeak: () => void
+  onContinue: () => void
+  onExit: () => void
+}
+
+function BackConfirmModal({ isPlayingModal, onSpeak, onContinue, onExit }: BackConfirmModalProps) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+      <motion.div
+        initial={{ scale: 0.85, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+        className="w-full max-w-sm rounded-3xl bg-background border-2 border-primary/20 shadow-2xl p-6 space-y-4 text-center"
+      >
+        <h2 className="text-xl font-black text-foreground" aria-hidden="true">¡Oh, espera! ¿Ya te vas?</h2>
+        <div className="flex flex-col items-center gap-1 py-1">
+          <div className="relative">
+            <motion.button
+              whileTap={{ scale: 1.25 }}
+              transition={{ type: "spring", stiffness: 500, damping: 10 }}
+              onClick={onSpeak}
+              className="relative w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:bg-primary/90 hover:scale-105 transition-all duration-150"
+              aria-label="Escuchar mensaje"
+            >
+              <Volume2 className="w-7 h-7" aria-hidden="true" />
+            </motion.button>
+          </div>
+          <span className="text-sm font-semibold text-foreground" aria-hidden="true">Toca para repetir</span>
+        </div>
+        <div className="flex flex-col gap-2 pt-1">
+          <Button size="lg" className="h-11 text-base font-black" onClick={onContinue}>
+            ¡SÍ, QUIERO SEGUIR!
+          </Button>
+          <Button size="lg" variant="ghost" className="h-11 text-base text-muted-foreground hover:text-foreground" onClick={onExit}>
+            Terminar por ahora
+          </Button>
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
+export function StudentActivity({ activityId, lessonId, lessonName, onBack, onComplete, onVoiceActivity, previewMode = false }: StudentActivityProps) {
   const { user } = useAuth()
   const { speak, settings } = useAccessibility()
   const prefersReducedMotion = useReducedMotion()
@@ -157,6 +215,14 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
   const [retryBanner, setRetryBanner] = useState<string | null>(null)
   const [earnedStars, setEarnedStars] = useState(0)
   const [starsAnimated, setStarsAnimated] = useState(0)
+  const [starPopping, setStarPopping] = useState<number | null>(null)
+  const [isCompletingLesson, setIsCompletingLesson] = useState(false)
+  const [fadeActive, setFadeActive] = useState(false)
+  const [resultVisible, setResultVisible] = useState(false)
+  const [lessonDoneVisible, setLessonDoneVisible] = useState(false)
+  const [retryVisible, setRetryVisible] = useState(false)
+  const [showBackConfirm, setShowBackConfirm] = useState(false)
+  const [isPlayingModal, setIsPlayingModal] = useState(false)
   const [resultMessage, setResultMessage] = useState("")
 
   // Timer — tracks elapsed time per activity and total lesson time
@@ -191,6 +257,43 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     if (isLessonMode ? !lessonId : !activityId) return
     loadActivity()
   }, [user, activityId, lessonId])
+
+  // Auto-speak modal de confirmación al abrirse (DUA Principio 1)
+  useEffect(() => {
+    if (showBackConfirm) {
+      handleModalSpeak()
+    } else {
+      stopModalAudio()
+    }
+  }, [showBackConfirm])
+
+  async function handleModalSpeak() {
+    _stopModalAudio()
+    _modalCancelled = false
+    setIsPlayingModal(true)
+    try {
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: "¡Lo estás haciendo increíble! Si te quedas un poquito más, estarás más cerca de completar la lección. Si sales ahora, tendrás que empezar de nuevo. ¿Seguimos aprendiendo?" }),
+      })
+      if (_modalCancelled) return
+      if (!res.ok) { setIsPlayingModal(false); return }
+      const { audio } = await res.json()
+      if (_modalCancelled) return
+      const audioEl = new Audio(`data:audio/mp3;base64,${audio}`)
+      _modalAudio = audioEl
+      audioEl.onended = () => { setIsPlayingModal(false); _modalAudio = null }
+      await audioEl.play()
+    } catch {
+      setIsPlayingModal(false)
+    }
+  }
+
+  function stopModalAudio() {
+    _stopModalAudio()
+    setIsPlayingModal(false)
+  }
 
   // ── Session storage helpers ────────────────────────────────
   function lessonKey() { return lessonId ? `lesson_progress_${lessonId}` : null }
@@ -413,15 +516,20 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
   useEffect(() => {
     if (phase !== "lesson-done") return
     setStarsAnimated(0)
-    const rounded = Math.round(earnedStars)
-    if (rounded === 0) return
+    setStarPopping(null)
+    const total = Math.ceil(earnedStars)
+    if (total === 0) return
     let count = 0
+    const timers: ReturnType<typeof setTimeout>[] = []
     const timer = setInterval(() => {
       count++
       setStarsAnimated(count)
-      if (count >= rounded) clearInterval(timer)
-    }, 350)
-    return () => clearInterval(timer)
+      setStarPopping(count - 1)
+      const t = setTimeout(() => setStarPopping(null), 300)
+      timers.push(t)
+      if (count >= total) clearInterval(timer)
+    }, 380)
+    return () => { clearInterval(timer); timers.forEach(clearTimeout) }
   }, [phase, earnedStars])
 
   // Audio announcement on lesson completion (always plays, independent of voiceEnabled setting)
@@ -429,6 +537,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     if (phase !== "lesson-done") return
     if (!("speechSynthesis" in window)) return
     const rounded = Math.round(earnedStars)
+    const displayStars = earnedStars % 1 === 0 ? earnedStars : earnedStars.toFixed(1)
     const starMsg =
       rounded >= 5 ? "¡Perfecto! Dominas esta lección." :
       rounded >= 4 ? "¡Excelente trabajo! Casi lo tienes perfecto." :
@@ -436,11 +545,44 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
       rounded >= 2 ? "¡Buen esfuerzo! Puedes lograrlo mejor." :
       rounded >= 1 ? "¡Lo intentaste! Sigue practicando." :
                      "Sigue practicando, lo lograrás la próxima vez."
-    const text = `¡Lección completada! Obtuviste ${rounded} estrella${rounded !== 1 ? "s" : ""}. ${starMsg}`
+    const text = `¡Lección completada! Obtuviste ${displayStars} estrella${earnedStars !== 1 ? "s" : ""}. ${starMsg}`
     const t = setTimeout(() => { speak(text) }, 600)
     return () => { clearTimeout(t) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, earnedStars])
+
+  // Fade-in del resultado al aparecer
+  useEffect(() => {
+    if (phase === "result") {
+      setResultVisible(false)
+      const t = setTimeout(() => setResultVisible(true), 30)
+      return () => clearTimeout(t)
+    } else {
+      setResultVisible(false)
+    }
+  }, [phase])
+
+  // Fade-in de lección completada
+  useEffect(() => {
+    if (phase === "lesson-done") {
+      setLessonDoneVisible(false)
+      const t = setTimeout(() => setLessonDoneVisible(true), 30)
+      return () => clearTimeout(t)
+    } else {
+      setLessonDoneVisible(false)
+    }
+  }, [phase])
+
+  // Fade-in del banner de reintento
+  useEffect(() => {
+    if (retryBanner) {
+      setRetryVisible(false)
+      const t = setTimeout(() => setRetryVisible(true), 30)
+      return () => clearTimeout(t)
+    } else {
+      setRetryVisible(false)
+    }
+  }, [retryBanner])
 
   function handleWsCellClick(row: number, col: number) {
     if (phase !== "question") return
@@ -938,11 +1080,13 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
       return
     }
     clearLessonProgress()
+    setIsCompletingLesson(true)
     setPhase("loading")
     const totalSecs = Math.round((Date.now() - lessonStartRef.current) / 1000)
     setLessonElapsedSecs(totalSecs)
     const stars = await completarLeccion(user!.id, lessonId!, results, totalSecs)
     setEarnedStars(stars)
+    setIsCompletingLesson(false)
     setPhase("lesson-done")
   }
 
@@ -954,9 +1098,21 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     if (nextIndex >= lessonActivities.length) {
       await handleLessonComplete(newResults)
     } else {
-      saveLessonProgress(nextIndex, newResults)
-      setLessonActIndex(nextIndex)
-      loadActivityData(lessonActivities[nextIndex])
+      setFadeActive(true)
+      setTimeout(() => {
+        saveLessonProgress(nextIndex, newResults)
+        setLessonActIndex(nextIndex)
+        loadActivityData(lessonActivities[nextIndex])
+        setTimeout(() => setFadeActive(false), 50)
+      }, 180)
+    }
+  }
+
+  function handleBackPress() {
+    if (isLessonMode && (activityResults.length > 0 || phase === "result")) {
+      setShowBackConfirm(true)
+    } else {
+      onBack()
     }
   }
 
@@ -993,15 +1149,25 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
   // Solo durante phase="question": si phase cambia a "loading"/"lesson-done" hay que mostrar esas pantallas
   if (isLessonMode && activity?.tipo === "respuesta_oral" && phase === "question") {
     return (
-      <VoiceActivity
-        activityId={activity.id_actividad}
-        onBack={onBack}
-        onComplete={() =>
-          handleAdvanceLesson({ id: activity.id_actividad, correct: true, attempts: 1 })
-        }
-        lessonIndex={lessonActIndex}
-        lessonTotal={lessonActivities.length}
-      />
+      <>
+        <VoiceActivity
+          activityId={activity.id_actividad}
+          onBack={handleBackPress}
+          onComplete={() =>
+            handleAdvanceLesson({ id: activity.id_actividad, correct: true, attempts: 1 })
+          }
+          lessonIndex={lessonActIndex}
+          lessonTotal={lessonActivities.length}
+        />
+        {showBackConfirm && (
+          <BackConfirmModal
+            isPlayingModal={isPlayingModal}
+            onSpeak={handleModalSpeak}
+            onContinue={() => setShowBackConfirm(false)}
+            onExit={() => { _stopModalAudio(); clearLessonProgress(); onBack() }}
+          />
+        )}
+      </>
     )
   }
 
@@ -1021,8 +1187,17 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-3">
-          <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto" />
-          <p className="text-muted-foreground">Cargando actividad…</p>
+          {isCompletingLesson ? (
+            <>
+              <Star className="w-16 h-16 text-amber-400 fill-amber-400 animate-pulse mx-auto" />
+              <p className="text-muted-foreground font-medium">Calculando tus estrellas…</p>
+            </>
+          ) : (
+            <>
+              <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto" />
+              <p className="text-muted-foreground">Cargando actividad…</p>
+            </>
+          )}
         </div>
       </div>
     )
@@ -1041,6 +1216,83 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
     )
   }
 
+  // ── Pantalla completa de lección completada ─────────────────
+  if (phase === "lesson-done") {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-8">
+        <div className={`w-full max-w-md space-y-4 transition-opacity duration-500 ${lessonDoneVisible ? "opacity-100" : "opacity-0"}`}>
+          <section aria-live="polite" aria-label="Resultado de la lección" className="space-y-4">
+            <div className="relative overflow-hidden rounded-3xl border-2 border-amber-200 bg-gradient-to-b from-amber-50/80 to-orange-50/60 shadow-xl p-6 space-y-4">
+              <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-amber-300/20 blur-2xl" aria-hidden />
+              <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full bg-orange-300/20 blur-xl" aria-hidden />
+
+              <div className="relative text-center space-y-1">
+                {lessonName && (
+                  <p className="text-xs font-semibold text-amber-500/80 uppercase tracking-widest mb-1">{lessonName}</p>
+                )}
+                <h2 className="text-2xl font-black text-amber-700">¡Lección completada!</h2>
+                <p className="text-sm text-amber-600/80">Aquí están tus estrellas</p>
+              </div>
+
+              <div className="relative flex justify-center gap-3" role="img" aria-label={`${earnedStars % 1 === 0 ? earnedStars : earnedStars.toFixed(1)} de 5 estrellas`}>
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const fill = Math.min(1, Math.max(0, earnedStars - i))
+                  const revealed = i < starsAnimated
+                  const isPopping = i === starPopping
+                  const scale = isPopping ? "scale-150 drop-shadow-lg" : "scale-100"
+                  if (!revealed) {
+                    return <Star key={i} className="w-12 h-12 text-muted-foreground/30 transition-all duration-300" aria-hidden="true" />
+                  }
+                  if (fill >= 1) {
+                    return <Star key={i} className={`w-12 h-12 text-amber-400 fill-amber-400 transition-all duration-300 ${scale}`} aria-hidden="true" />
+                  }
+                  // Estrella parcial
+                  return (
+                    <div key={i} className={`relative w-12 h-12 transition-all duration-300 ${scale}`} aria-hidden="true">
+                      <Star className="w-12 h-12 text-muted-foreground/30 absolute inset-0" />
+                      <div className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+                        <Star className="w-12 h-12 text-amber-400 fill-amber-400" />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="relative flex items-center justify-center gap-4">
+                <p className="text-xl font-black text-amber-600">{earnedStars % 1 === 0 ? earnedStars : earnedStars.toFixed(1)} de 5 estrellas</p>
+                {lessonElapsedSecs > 0 && (
+                  <div className="inline-flex items-center gap-1.5 bg-white/70 rounded-full px-3 py-1 border border-amber-200">
+                    <Clock className="w-3.5 h-3.5 text-amber-500" aria-hidden="true" />
+                    <span className="text-sm font-semibold text-amber-700">
+                      {lessonElapsedSecs < 60
+                        ? `${lessonElapsedSecs} seg`
+                        : `${Math.floor(lessonElapsedSecs / 60)}:${String(lessonElapsedSecs % 60).padStart(2, "0")} min`}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <p className="relative text-center text-base text-orange-700 font-semibold border-t border-amber-200 pt-4">
+                {getStarMessage(Math.round(earnedStars))}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Button size="lg" variant="outline" className="h-11 text-base border-2" onClick={handleRetryLesson}>
+                <RotateCcw className="w-4 h-4 mr-2" aria-hidden="true" />
+                Repetir lección
+              </Button>
+              <Button size="lg" className="h-11 text-base" onClick={onComplete}>
+                Continuar
+                <ChevronRight className="w-5 h-5 ml-2" aria-hidden="true" />
+              </Button>
+            </div>
+          </section>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -1050,7 +1302,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
             <Button
               variant="outline"
               size="lg"
-              onClick={onBack}
+              onClick={handleBackPress}
               className="h-11 w-11 p-0 rounded-2xl bg-background shadow-sm border-border/60 hover:bg-muted"
               aria-label="Volver"
             >
@@ -1076,21 +1328,21 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
               <div className="text-right min-w-[72px]">
                 <p className="text-[11px] text-muted-foreground">Progreso</p>
                 <p className="font-extrabold text-foreground tabular-nums">
-                  {Math.round((lessonActIndex / lessonActivities.length) * 100)}%
+                  {Math.round(((lessonActIndex + (phase === "result" ? 1 : 0)) / lessonActivities.length) * 100)}%
                 </p>
               </div>
             )}
           </div>
           <Progress
             value={isLessonMode && lessonActivities.length > 0
-              ? Math.round((lessonActIndex / lessonActivities.length) * 100)
+              ? Math.round(((lessonActIndex + (phase === "result" ? 1 : 0)) / lessonActivities.length) * 100)
               : phase === "done" ? 100 : phase === "result" ? 66 : 33}
-            className="h-1.5 bg-muted mt-2"
+            className="h-1.5 bg-muted mt-2 [&>div]:transition-all [&>div]:duration-500 [&>div]:ease-out"
           />
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-2 space-y-3">
+      <main className={`max-w-3xl mx-auto px-4 py-2 space-y-3 transition-opacity duration-150 ${fadeActive ? "opacity-0" : "opacity-100"}`}>
 
         {/* Instructions card */}
         <section aria-label="Instrucciones de la actividad">
@@ -1134,7 +1386,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
           <section aria-label="Pregunta y opciones de respuesta">
             {/* Retry banner — shown after first wrong attempt */}
             {retryBanner && (
-              <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50/60 border border-amber-200 mb-4 shadow-sm">
+              <div className={`flex items-center gap-3 p-4 rounded-2xl bg-amber-50/60 border border-amber-200 mb-4 shadow-sm transition-opacity duration-300 ${retryVisible ? "opacity-100" : "opacity-0"}`}>
                 <div className="w-9 h-9 bg-amber-500/90 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
                   <RotateCcw className="w-4 h-4 text-white" aria-hidden="true" />
                 </div>
@@ -1253,13 +1505,13 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
 
                 <LayoutGroup id="word-tokens">
                   <Card className="border-2">
-                    <CardContent className="p-3 space-y-2">
+                    <CardContent className="px-3 py-2 space-y-2">
 
                       {/* Oración */}
                       <div>
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Tu oración</p>
                         <div
-                          className="min-h-[38px] flex flex-wrap gap-2 items-center p-2 rounded-xl bg-primary/5 border border-primary/20"
+                          className="h-12 flex flex-wrap gap-2 items-center px-2 py-1 rounded-xl bg-primary/5 border border-primary/20 overflow-hidden"
                           aria-label="Zona de construcción de oración"
                         >
                           {constructionZone.length === 0 ? (
@@ -1307,7 +1559,7 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
                               layout
                               transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 30 }}
                               onClick={() => moveWordToZone(token.id)}
-                              className="px-4 py-2 rounded-xl border-2 border-border bg-muted text-base font-semibold text-foreground hover:border-primary hover:bg-primary/10"
+                              className="px-5 py-2.5 rounded-xl border-2 border-border bg-muted text-base font-semibold text-foreground hover:border-primary hover:bg-primary/10"
                               aria-label={`Agregar "${token.text}" a la oración`}
                             >
                               {token.text}
@@ -1789,7 +2041,11 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
 
         {/* Result */}
         {phase === "result" && (
-          <section aria-live="polite" aria-label="Resultado de tu respuesta">
+          <section
+            aria-live="polite"
+            aria-label="Resultado de tu respuesta"
+            className={`transition-opacity duration-300 ${resultVisible ? "opacity-100" : "opacity-0"}`}
+          >
             <Card className={`border-4 shadow-xl ${isCorrect ? "border-green-400 bg-green-50/40" : "border-amber-400 bg-amber-50/40"}`}>
               <CardContent className="p-8 text-center space-y-4">
                 <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center ${isCorrect ? "bg-green-500" : "bg-amber-500"}`}>
@@ -1845,71 +2101,16 @@ export function StudentActivity({ activityId, lessonId, onBack, onComplete, onVo
           </section>
         )}
 
-        {/* Lesson done — star result screen */}
-        {phase === "lesson-done" && (
-          <section aria-live="polite" aria-label="Resultado de la lección" className="space-y-8 py-4">
-            <div className="text-center space-y-2">
-              <h2 className="text-3xl font-bold text-foreground">¡Lección completada!</h2>
-              <p className="text-muted-foreground text-lg">Aquí están tus estrellas</p>
-            </div>
-
-            {/* Animated stars */}
-            <div className="flex justify-center gap-3" role="img" aria-label={`${Math.round(earnedStars)} de 5 estrellas`}>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star
-                  key={i}
-                  className={`w-14 h-14 transition-all duration-300 ${i < starsAnimated ? "text-amber-400 fill-amber-400 scale-110" : "text-muted-foreground/30"}`}
-                  aria-hidden="true"
-                />
-              ))}
-            </div>
-
-            <p className="text-center text-2xl font-bold text-amber-600">
-              {Math.round(earnedStars)} de 5 estrellas
-            </p>
-
-            {/* Tiempo empleado */}
-            {lessonElapsedSecs > 0 && (
-              <div className="flex justify-center">
-                <div className="inline-flex items-center gap-2 bg-muted/60 rounded-full px-5 py-2">
-                  <Clock className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
-                  <span className="text-lg font-semibold text-foreground">
-                    {lessonElapsedSecs < 60
-                      ? `${lessonElapsedSecs} seg`
-                      : `${Math.floor(lessonElapsedSecs / 60)}:${String(lessonElapsedSecs % 60).padStart(2, "0")} min`}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <Card className="border-2 shadow-lg">
-              <CardContent className="p-6 text-center">
-                <p className="text-xl text-foreground font-medium">{getStarMessage(Math.round(earnedStars))}</p>
-              </CardContent>
-            </Card>
-
-            <div className="flex flex-col gap-4">
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-14 text-lg border-2"
-                onClick={handleRetryLesson}
-              >
-                <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
-                Repetir lección
-              </Button>
-              <Button
-                size="lg"
-                className="h-14 text-lg"
-                onClick={onComplete}
-              >
-                Continuar
-                <ChevronRight className="w-6 h-6 ml-2" aria-hidden="true" />
-              </Button>
-            </div>
-          </section>
-        )}
       </main>
+
+      {showBackConfirm && (
+        <BackConfirmModal
+          isPlayingModal={isPlayingModal}
+          onSpeak={handleModalSpeak}
+          onContinue={() => setShowBackConfirm(false)}
+          onExit={() => { clearLessonProgress(); onBack() }}
+        />
+      )}
     </div>
   )
 }

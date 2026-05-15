@@ -412,6 +412,7 @@ function AppContent() {
         <StudentActivity
           activityId={null}
           lessonId={lessonId}
+          lessonName={queryLessonName ?? undefined}
           onBack={() => router.push(`/estudiante/lecciones/${lessonId}?lessonName=${encodeURIComponent(queryLessonName ?? "")}&courseId=${queryCourseId ?? ""}&courseName=${encodeURIComponent(queryCourseName ?? "")}`)}
           onComplete={() => router.push(`/estudiante/lecciones/${lessonId}?lessonName=${encodeURIComponent(queryLessonName ?? "")}&courseId=${queryCourseId ?? ""}&courseName=${encodeURIComponent(queryCourseName ?? "")}`)}
           onVoiceActivity={() => router.push(`/estudiante/lecciones/${lessonId}?lessonName=${encodeURIComponent(queryLessonName ?? "")}&courseId=${queryCourseId ?? ""}&courseName=${encodeURIComponent(queryCourseName ?? "")}`)}

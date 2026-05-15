@@ -81,6 +81,11 @@ Config serializada en columna `instrucciones` (TEXT). Usar siempre:
 - **Modo individual** (sin `lessonId`): `student-activity` navega a pantalla `voice-activity`. `onBack`/`onComplete` van a `student-lesson` — NO a `student-activity` (evita bucle infinito).
 - **Modo lección** (con `lessonId`): `student-activity` renderiza `<VoiceActivity>` **inline**. Al completar llama `handleAdvanceLesson()` — no cambia `currentScreen`.
 
+### Modal de confirmación al salir — BackConfirmModal
+El modal "¡Oh, espera! ¿Ya te vas?" está extraído como componente `<BackConfirmModal>` en `student-activity.tsx`.
+Se usa en dos lugares (early return de VoiceActivity + return principal), pero el código del modal vive en **un solo lugar**.
+Cualquier cambio al modal se hace únicamente en el componente `BackConfirmModal`.
+
 ### Inscripción — usar alumno_curso
 Acceso a lecciones/actividades controlado por `alumno_curso`, NO por `alumno_grupo`.
 Hooks `use-student-dashboard.ts` y `use-student-progress.ts` consultan `alumno_curso`.
@@ -152,10 +157,35 @@ Los alumnos pueden tener varias formas de decir una palabra por su forma de habl
 el asistente debe enteder este apartado para poder enteder las respuestas.
 
 ## stt de google
-ayuda a que el tts entienda mejor lo que dice el alumnnoS
+ayuda a que el tts entienda mejor lo que dice el alumnno
 
 ## tts
 todo el sistema usa  por defecto Neural2.
 
 ## Resultados 
-Cada ajuste debe hacerse de la mejora manera,todo se revisa que este funcionando bien .y evitar errores.
+Cada ajuste o funcionalidad nueva debe realizarse de la mejor manera posible. Antes de dar algo por terminado, es obligatorio revisar que todo esté funcionando correctamente para evitar errores en el sistema.
+## Cuando se hacen cambios
+Cuando se agregue un ajuste técnico o un cambio visual, este debe respetar estrictamente la paleta de colores y el estilo que ya están planteados en la página. No se deben crear estilos nuevos que rompan con la estética actual.
+
+## DUA 
+Tener como prioridad el aplicar los principios de el El Diseño Universal para el Aprendizaje =DUA.
+El DUA es un modelo de enseñanza que busca eliminar barreras para que todos puedan aprender. Se basa en tres pilares: Representación, ofreciendo la información en distintos formatos (texto, audio, video); Acción y Expresión, permitiendo que el alumno demuestre lo aprendido de diversas maneras (escribiendo, hablando o programando); e Implicación, motivando al estudiante al conectar el contenido con sus metas reales. En resumen, el DUA no enseña de una sola forma, sino que adapta el "qué", el "cómo" y el "por qué" para que el aprendizaje sea accesible y significativo para cada persona.
+## Accesible para niños con baja vision y baja audicion.
+simpre tener presente que cada mejora o conifiguracion tenga presente la accesibilidad para niños con baja vision y baja audicion.
+
+## pautas WCAG
+Las WCAG se dividen en 4 principios fundamentales (POUR) que garantizan que cualquier niño, independientemente de sus capacidades, pueda usar tu app:
+Perceptible: La información debe presentarse de forma que todos puedan verla o escucharla (ej. texto alternativo en iconos de "Semilla").
+Operable: La interfaz no puede requerir interacciones imposibles (ej. botones grandes para niños con dificultades motrices).
+Comprensible: El lenguaje y el uso deben ser claros (ej. diálogos de "Edu" simples y predecibles).
+Robusto: El código debe funcionar con tecnologías asistivas como lectores de pantalla (ej. HTML semántico correcto).
+
+## buenas practicas
+recuerda simpre aplicar buenas practicas de programacion.
+1. Nombres claros: Usa nombres en variables y funciones que expliquen qué son (ej. precioTotal en lugar de x).
+2. No te repitas (DRY): Si usas el mismo código varias veces, conviértelo en una función reutilizable.
+3. Funciones cortas: Cada función debe hacer solo una tarea. Si es muy larga, divídela en partes pequeñas.
+4. Código Semántico: Usa las etiquetas y métodos correctos para lo que representan (ej. <nav> para menús en HTML o .map() para transformar datos en JS).
+5. Formato ordenado: Mantén una indentación (espacios) consistente para que el código sea fácil de escanear visualmente.
+6. Que sea escalable el proyecto lo que haces.
+7. Utilizar Patrones de Diseño: Aplica soluciones probadas a problemas comunes para que el código sea escalable y fácil de entender por otros.Ejemplo: Usa el patrón Singleton para asegurar que una conexión a la base de datos sea única y no se duplique innecesariamente,entre otros patrones para buenas practicas.
