@@ -105,6 +105,27 @@ function generateWordSearchGrid(words: string[]): string[][] {
 
 type Phase = "loading" | "question" | "result" | "done" | "lesson-done"
 
+function playWordFoundSound() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const now = ctx.currentTime
+    const notes = [523.25, 659.25, 783.99]
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = "sine"
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0, now + i * 0.1)
+      gain.gain.linearRampToValueAtTime(0.25, now + i * 0.1 + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.22)
+      osc.start(now + i * 0.1)
+      osc.stop(now + i * 0.1 + 0.22)
+    })
+  } catch {}
+}
+
 // Variable de módulo para el audio del modal — accesible fuera del ciclo de vida de React
 let _modalAudio: HTMLAudioElement | null = null
 let _modalCancelled = false
@@ -620,6 +641,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     const reversed = letters.split("").reverse().join("")
     const matched = wsPalabras.find(w => !wsFoundWords.has(w) && (letters === w || reversed === w))
     if (matched) {
+      playWordFoundSound()
       const newFound = new Set(wsFoundWords).add(matched)
       const newCells = new Set(wsFoundCells)
       pathCells.forEach(k => newCells.add(k))
@@ -641,14 +663,15 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
       setWsWordColors(newWordColors)
       setWsCellWord(newCellWord)
       setWsStart(null)
-      if (settings.voiceEnabled) speak(`¡Encontraste ${matched}!`)
       // Check if all words found
       if (newFound.size === wsPalabras.length) {
         setIsCorrect(true)
         setScore(100)
         savePendingResult(true, 100, 1)
-        setTimeout(() => setPhase("result"), 400)
-        speak("¡Felicidades! Encontraste todas las palabras.")
+        if (settings.voiceEnabled) speak(`¡Encontraste ${matched}! ¡Felicidades! Encontraste todas las palabras.`)
+        setTimeout(() => setPhase("result"), 2500)
+      } else {
+        if (settings.voiceEnabled) speak(`¡Encontraste ${matched}!`)
       }
     } else {
       setWsWrongFlash(true)
@@ -907,12 +930,20 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     setIsCorrect(correct)
     setScore(correct ? 100 : 0)
     if (correct) {
-      savePendingResult(true, 100, 1)
+      savePendingResult(true, 100, actAttempts || 1)
       setPhase("result")
       speak("¡Muy bien! Respuesta correcta.")
     } else {
-      setSoundError("Esa no es la oración correcta. ¡Inténtalo de nuevo!")
-      speak("Esa no es la oración correcta. Inténtalo de nuevo.")
+      const newAttempts = actAttempts + 1
+      setActAttempts(newAttempts)
+      if (newAttempts >= 2) {
+        savePendingResult(false, 0, newAttempts)
+        setPhase("result")
+        if (settings.voiceEnabled) speak("La respuesta correcta era: " + (soundPregunta?.respuesta_esperada ?? ""))
+      } else {
+        setSoundError("Esa no es la oración correcta. ¡Inténtalo de nuevo!")
+        speak("Esa no es la oración correcta. Inténtalo de nuevo.")
+      }
     }
   }
 
@@ -1184,54 +1215,98 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
   }
 
   if (phase === "loading") {
+    if (isCompletingLesson) {
+      return (
+        <main className="min-h-screen bg-background flex flex-col items-center justify-center gap-5 px-4" aria-label="Calculando resultado">
+          <div className="flex gap-3">
+            {[0, 1, 2, 3, 4].map(i => (
+              <Star
+                key={i}
+                className="w-12 h-12 text-amber-400 fill-amber-400"
+                style={{ animation: `bounce 1s ease-in-out ${i * 0.15}s infinite` }}
+                aria-hidden="true"
+              />
+            ))}
+          </div>
+          <p className="text-base font-semibold text-muted-foreground">Calculando tus estrellas…</p>
+        </main>
+      )
+    }
+
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-3">
-          {isCompletingLesson ? (
-            <>
-              <Star className="w-16 h-16 text-amber-400 fill-amber-400 animate-pulse mx-auto" />
-              <p className="text-muted-foreground font-medium">Calculando tus estrellas…</p>
-            </>
-          ) : (
-            <>
-              <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto" />
-              <p className="text-muted-foreground">Cargando actividad…</p>
-            </>
-          )}
-        </div>
+      <div className="min-h-screen bg-background">
+        {/* Header skeleton */}
+        <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur-md" aria-hidden="true">
+          <div className="max-w-3xl mx-auto px-4 py-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="h-11 w-11 rounded-2xl bg-muted animate-pulse" />
+              <div className="flex-1 text-center space-y-1.5">
+                <div className="h-4 w-32 rounded-full bg-muted animate-pulse mx-auto" />
+                <div className="h-3 w-20 rounded-full bg-muted/60 animate-pulse mx-auto" />
+              </div>
+              <div className="h-8 w-14 rounded-full bg-muted animate-pulse" />
+            </div>
+            <div className="h-1.5 rounded-full bg-muted animate-pulse mt-2" />
+          </div>
+        </header>
+
+        {/* Content skeleton */}
+        <main className="max-w-3xl mx-auto px-4 py-6 space-y-4" aria-label="Cargando actividad" aria-busy="true">
+          {/* Instruction card skeleton */}
+          <div className="rounded-3xl border-2 border-border bg-card p-5 space-y-3 animate-pulse">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-muted shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-24 rounded-full bg-muted" />
+                <div className="h-3 w-48 rounded-full bg-muted/60" />
+              </div>
+            </div>
+          </div>
+
+          {/* Main activity card skeleton */}
+          <div className="rounded-3xl border-2 border-border bg-card p-6 space-y-4 animate-pulse">
+            <div className="h-5 w-3/4 rounded-full bg-muted mx-auto" />
+            <div className="h-4 w-1/2 rounded-full bg-muted/60 mx-auto" />
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="h-16 rounded-2xl bg-muted" />
+              ))}
+            </div>
+          </div>
+        </main>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <main className="min-h-screen bg-background flex items-center justify-center px-4" aria-label="Error al cargar actividad">
         <Card className="border-2 max-w-md w-full">
           <CardContent className="py-10 text-center space-y-4">
             <p className="text-destructive font-semibold">{error}</p>
             <Button onClick={onBack}>Volver</Button>
           </CardContent>
         </Card>
-      </div>
+      </main>
     )
   }
 
   // ── Pantalla completa de lección completada ─────────────────
   if (phase === "lesson-done") {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-8">
+      <main className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-8" aria-label="Lección completada">
         <div className={`w-full max-w-md space-y-4 transition-opacity duration-500 ${lessonDoneVisible ? "opacity-100" : "opacity-0"}`}>
           <section aria-live="polite" aria-label="Resultado de la lección" className="space-y-4">
-            <div className="relative overflow-hidden rounded-3xl border-2 border-amber-200 bg-gradient-to-b from-amber-50/80 to-orange-50/60 shadow-xl p-6 space-y-4">
+            <div className="relative overflow-hidden rounded-3xl border-2 border-amber-500/30 bg-gradient-to-b from-amber-500/15 to-orange-500/10 shadow-xl p-6 space-y-4">
               <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-amber-300/20 blur-2xl" aria-hidden />
               <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full bg-orange-300/20 blur-xl" aria-hidden />
 
               <div className="relative text-center space-y-1">
                 {lessonName && (
-                  <p className="text-xs font-semibold text-amber-500/80 uppercase tracking-widest mb-1">{lessonName}</p>
+                  <p className="text-xs font-semibold text-amber-500 dark:text-amber-400 uppercase tracking-widest mb-1">{lessonName}</p>
                 )}
-                <h2 className="text-2xl font-black text-amber-700">¡Lección completada!</h2>
-                <p className="text-sm text-amber-600/80">Aquí están tus estrellas</p>
+                <h2 className="text-2xl font-black text-amber-700 dark:text-amber-400">¡Lección completada!</h2>
+                <p className="text-sm text-amber-600/80 dark:text-amber-400/80">Aquí están tus estrellas</p>
               </div>
 
               <div className="relative flex justify-center gap-3" role="img" aria-label={`${earnedStars % 1 === 0 ? earnedStars : earnedStars.toFixed(1)} de 5 estrellas`}>
@@ -1259,11 +1334,11 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
               </div>
 
               <div className="relative flex items-center justify-center gap-4">
-                <p className="text-xl font-black text-amber-600">{earnedStars % 1 === 0 ? earnedStars : earnedStars.toFixed(1)} de 5 estrellas</p>
+                <p className="text-xl font-black text-amber-600 dark:text-amber-400">{earnedStars % 1 === 0 ? earnedStars : earnedStars.toFixed(1)} de 5 estrellas</p>
                 {lessonElapsedSecs > 0 && (
-                  <div className="inline-flex items-center gap-1.5 bg-white/70 rounded-full px-3 py-1 border border-amber-200">
-                    <Clock className="w-3.5 h-3.5 text-amber-500" aria-hidden="true" />
-                    <span className="text-sm font-semibold text-amber-700">
+                  <div className="inline-flex items-center gap-1.5 bg-card rounded-full px-3 py-1 border border-border">
+                    <Clock className="w-3.5 h-3.5 text-foreground" aria-hidden="true" />
+                    <span className="text-sm font-semibold text-foreground">
                       {lessonElapsedSecs < 60
                         ? `${lessonElapsedSecs} seg`
                         : `${Math.floor(lessonElapsedSecs / 60)}:${String(lessonElapsedSecs % 60).padStart(2, "0")} min`}
@@ -1272,7 +1347,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                 )}
               </div>
 
-              <p className="relative text-center text-base text-orange-700 font-semibold border-t border-amber-200 pt-4">
+              <p className="relative text-center text-base text-orange-700 dark:text-orange-400 font-semibold border-t border-amber-500/30 pt-4">
                 {getStarMessage(Math.round(earnedStars))}
               </p>
             </div>
@@ -1289,7 +1364,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
             </div>
           </section>
         </div>
-      </div>
+      </main>
     )
   }
 
@@ -1303,7 +1378,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
               variant="outline"
               size="lg"
               onClick={handleBackPress}
-              className="h-11 w-11 p-0 rounded-2xl bg-background shadow-sm border-border/60 hover:bg-muted"
+              className="h-11 w-11 p-0 rounded-2xl bg-card shadow-sm border-border hover:bg-muted active:bg-muted"
               aria-label="Volver"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -1367,7 +1442,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                   {settings.voiceEnabled && (
                     <Button
                       variant="outline"
-                      className="h-11 px-4 text-sm shrink-0 self-center rounded-2xl border-border/60 bg-background shadow-sm hover:bg-muted"
+                      className="h-11 px-4 text-sm shrink-0 self-center rounded-2xl border-border bg-card shadow-sm hover:bg-muted active:bg-muted"
                       onClick={() => speak(config?.instrucciones ?? "")}
                       aria-label="Escuchar instrucciones"
                     >
@@ -2046,14 +2121,14 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
             aria-label="Resultado de tu respuesta"
             className={`transition-opacity duration-300 ${resultVisible ? "opacity-100" : "opacity-0"}`}
           >
-            <Card className={`border-4 shadow-xl ${isCorrect ? "border-green-400 bg-green-50/40" : "border-amber-400 bg-amber-50/40"}`}>
+            <Card className={`border-4 shadow-xl ${isCorrect ? "border-emerald-500 bg-emerald-500/10" : "border-amber-500 bg-amber-500/10"}`}>
               <CardContent className="p-8 text-center space-y-4">
                 <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center ${isCorrect ? "bg-green-500" : "bg-amber-500"}`}>
                   {isCorrect
                     ? <Check className="w-10 h-10 text-white" aria-hidden="true" />
                     : <X className="w-10 h-10 text-white" aria-hidden="true" />}
                 </div>
-                <SpeakableText as="h3" className={`text-3xl font-bold ${isCorrect ? "text-green-700" : "text-amber-700"}`}>
+                <SpeakableText as="h3" className={`text-3xl font-bold ${isCorrect ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
                   {isCorrect
                     ? (resultMessage || "¡Excelente!")
                     : activity?.tipo === "sopa_letras"
@@ -2072,9 +2147,9 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                         : ""}
                 </SpeakableText>
                 {!isCorrect && activity?.tipo !== "sopa_letras" && activity?.tipo !== "secuenciacion" && (
-                  <div className="bg-amber-100 border-2 border-amber-300 rounded-xl p-4 text-left">
-                    <p className="text-sm font-semibold text-amber-700 mb-1">Respuesta correcta:</p>
-                    <p className="text-lg font-bold text-amber-900">{getCorrectAnswer()}</p>
+                  <div className="bg-amber-500/10 border-2 border-amber-500/30 rounded-xl p-4 text-left">
+                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 mb-1">Respuesta correcta:</p>
+                    <p className="text-lg font-bold text-amber-900 dark:text-amber-300">{getCorrectAnswer()}</p>
                   </div>
                 )}
                 {isLessonMode ? (

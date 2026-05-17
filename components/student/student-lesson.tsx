@@ -48,10 +48,10 @@ const TIPO_META: Record<string, { label: string; Icon: React.ElementType; gradie
 
 const diffMeta = (n: number) =>
   n === 1
-    ? { label: "Fácil",   cls: "bg-green-100 text-green-700 border-green-200" }
+    ? { label: "Fácil",   cls: "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30" }
     : n === 2
-      ? { label: "Medio",   cls: "bg-amber-100 text-amber-700 border-amber-200" }
-      : { label: "Difícil", cls: "bg-red-100 text-red-700 border-red-200" }
+      ? { label: "Medio",   cls: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30" }
+      : { label: "Difícil", cls: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30" }
 
 function getYouTubeEmbedUrl(url: string): string | null {
   try {
@@ -144,14 +144,14 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
         {/* Video */}
         {!loading && material.material_audiovisual && (
           <section aria-label="Video de la lección">
-            <div className="overflow-hidden rounded-3xl border-2 border-red-100 bg-card shadow-sm">
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-red-100 bg-red-50">
+            <div className="overflow-hidden rounded-3xl border-2 border-border bg-card shadow-sm">
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-muted/40">
                 <div className="w-9 h-9 rounded-xl bg-red-500 flex items-center justify-center shrink-0">
                   <Youtube className="w-4 h-4 text-white" aria-hidden />
                 </div>
                 <div>
                   <p className="font-black text-foreground text-sm">Material Audiovisual</p>
-                  <p className="text-xs text-muted-foreground">Video de apoyo</p>
+                  <p className="text-xs text-foreground/70">Video de apoyo</p>
                 </div>
               </div>
               <div className="p-3">
@@ -178,14 +178,14 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
         {/* PDF */}
         {!loading && material.material_pdf_url && (
           <section aria-label="Material adjunto en PDF">
-            <div className="overflow-hidden rounded-3xl border-2 border-blue-100 bg-card shadow-sm">
-              <div className="flex items-center gap-3 px-5 py-4 border-b border-blue-100 bg-blue-50">
+            <div className="overflow-hidden rounded-3xl border-2 border-border bg-card shadow-sm">
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-border bg-muted/40">
                 <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center shrink-0">
                   <Paperclip className="w-4 h-4 text-white" aria-hidden />
                 </div>
                 <div>
                   <p className="font-black text-foreground text-sm">{material.material_pdf_titulo || "Material Adjunto"}</p>
-                  <p className="text-xs text-muted-foreground">Documento de apoyo</p>
+                  <p className="text-xs text-foreground/70">Documento de apoyo</p>
                 </div>
               </div>
               <div className="p-5">
@@ -275,7 +275,7 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
                       <div
                         className={`w-full rounded-3xl border-2 p-5 text-left shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${
                           act.completada
-                            ? "border-emerald-200 bg-emerald-50/40 hover:border-emerald-300"
+                            ? "border-border bg-card hover:border-primary/40"
                             : "border-border bg-card hover:border-primary/40"
                         }`}
                       >
@@ -299,7 +299,7 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
                               <span className="text-xs text-muted-foreground">{meta.label}</span>
                               <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${diff.cls}`}>{diff.label}</span>
                               {act.completada && (
-                                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">✓ Completada</span>
+                                <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full">✓ Completada</span>
                               )}
                             </div>
                           </div>

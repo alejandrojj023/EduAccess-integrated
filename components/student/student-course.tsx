@@ -162,7 +162,7 @@ export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: 
                       disabled={locked}
                       className={`group w-full rounded-3xl border-2 p-5 text-left shadow-sm transition-all duration-200 ${
                         done
-                          ? "border-emerald-200 bg-emerald-50/50 hover:border-emerald-300 hover:shadow-md"
+                          ? "border-border bg-card hover:border-primary/40 hover:shadow-md"
                           : started
                             ? "border-primary/30 bg-card hover:border-primary/50 hover:shadow-md hover:-translate-y-0.5"
                             : locked
@@ -214,7 +214,7 @@ export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: 
                                     style={{ width: `${lesson.pct_completado}%` }}
                                   />
                                 </div>
-                                <span className={`text-[11px] font-bold w-9 text-right ${done ? "text-emerald-600" : "text-primary"}`}>
+                                <span className={`text-[11px] font-bold w-9 text-right ${done ? "text-emerald-500 dark:text-emerald-400" : "text-primary"}`}>
                                   {lesson.pct_completado}%
                                 </span>
                               </div>

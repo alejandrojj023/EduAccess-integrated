@@ -118,33 +118,29 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
               <button
                 type="button"
                 onClick={handleReadInstructions}
-                className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
+                className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground active:scale-[0.98]"
                 aria-label="Escuchar resumen"
               >
                 <Volume2 className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline text-xs">Escuchar</span>
               </button>
             )}
-            <AccessibleTooltip label="Ajustes de accesibilidad">
-              <button
+            <button
                 type="button"
                 onClick={() => onNavigate("accessibility")}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:text-foreground active:scale-[0.98]"
                 aria-label="Configuración"
               >
                 <Settings className="h-4 w-4" aria-hidden="true" />
               </button>
-            </AccessibleTooltip>
-            <AccessibleTooltip label="Cerrar sesión">
-              <button
+            <button
                 type="button"
                 onClick={onLogout}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:text-foreground active:scale-[0.98]"
                 aria-label="Cerrar sesión"
               >
                 <LogOut className="h-4 w-4" aria-hidden="true" />
               </button>
-            </AccessibleTooltip>
           </div>
         </div>
       </header>
@@ -267,9 +263,9 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
                       <div className="flex items-center gap-4">
                         {/* Icon */}
                         <div className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-sm ${
-                          done ? "bg-emerald-100" : started ? "bg-primary/15" : "bg-muted"
+                          done ? "bg-emerald-500/15" : started ? "bg-primary/15" : "bg-muted"
                         }`}>
-                          <BookOpen className={`h-6 w-6 ${done ? "text-emerald-600" : started ? "text-primary" : "text-muted-foreground"}`} aria-hidden />
+                          <BookOpen className={`h-6 w-6 ${done ? "text-emerald-600 dark:text-emerald-400" : started ? "text-primary" : "text-muted-foreground"}`} aria-hidden />
                           {done && (
                             <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-card flex items-center justify-center">
                               <span className="text-white text-[9px] font-black">✓</span>
@@ -328,10 +324,10 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
               type="button"
               onClick={() => onNavigate("student-progress")}
               {...hoverProgreso}
-              className={`group flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 py-4 text-left transition-all hover:border-violet-300 hover:bg-violet-50 active:scale-[0.98] ${ringClass(4)}`}
+              className={`group flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 py-4 text-left transition-all hover:border-primary/40 hover:bg-muted active:scale-[0.98] ${ringClass(4)}`}
             >
-              <div className="w-9 h-9 rounded-xl bg-violet-100 group-hover:bg-violet-200 flex items-center justify-center transition-colors shrink-0">
-                <BarChart3 className="h-4 w-4 text-violet-600" aria-hidden />
+              <div className="w-9 h-9 rounded-xl bg-violet-500/15 group-hover:bg-violet-500/25 flex items-center justify-center transition-colors shrink-0">
+                <BarChart3 className="h-4 w-4 text-violet-600 dark:text-violet-400" aria-hidden />
               </div>
               <span className="text-sm font-bold text-foreground">Mi progreso</span>
             </button>
@@ -340,10 +336,10 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
               type="button"
               onClick={() => onNavigate("student-calendar")}
               {...hoverCalendario}
-              className={`group flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 py-4 text-left transition-all hover:border-blue-300 hover:bg-blue-50 active:scale-[0.98] ${ringClass(3)}`}
+              className={`group flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 py-4 text-left transition-all hover:border-primary/40 hover:bg-muted active:scale-[0.98] ${ringClass(3)}`}
             >
-              <div className="w-9 h-9 rounded-xl bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center transition-colors shrink-0">
-                <Calendar className="h-4 w-4 text-blue-600" aria-hidden />
+              <div className="w-9 h-9 rounded-xl bg-blue-500/15 group-hover:bg-blue-500/25 flex items-center justify-center transition-colors shrink-0">
+                <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" aria-hidden />
               </div>
               <span className="text-sm font-bold text-foreground">Mi calendario</span>
             </button>

@@ -189,3 +189,9 @@ recuerda simpre aplicar buenas practicas de programacion.
 5. Formato ordenado: Mantén una indentación (espacios) consistente para que el código sea fácil de escanear visualmente.
 6. Que sea escalable el proyecto lo que haces.
 7. Utilizar Patrones de Diseño: Aplica soluciones probadas a problemas comunes para que el código sea escalable y fácil de entender por otros.Ejemplo: Usa el patrón Singleton para asegurar que una conexión a la base de datos sea única y no se duplique innecesariamente,entre otros patrones para buenas practicas.
+
+## HTML Semantico
+Regla: Utiliza HTML semántico para estructurar el contenido en lugar de abusar de etiquetas genéricas <div>.
+Beneficio (WCAG): Cumple el pilar Robusto, permitiendo que navegadores y lectores de pantalla entiendan la interfaz.
+❌ Evita: <div className="encabezado">...</div> y <div className="menu">...</div>
+✅ Aplica: <header>...</header> y <nav>...</nav>

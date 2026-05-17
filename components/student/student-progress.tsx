@@ -139,8 +139,8 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
   const statCards = [
     {
       gradient: "from-blue-400 to-blue-600",
-      shadow: "shadow-blue-200/60",
-      border: "border-blue-200",
+      shadow: "shadow-blue-500/20",
+      border: "border-white/20",
       icon: <BookOpen className="w-6 h-6 text-white" aria-hidden />,
       value: completedLessons,
       label: "Lecciones",
@@ -148,8 +148,8 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
     },
     {
       gradient: "from-emerald-400 to-teal-600",
-      shadow: "shadow-emerald-200/60",
-      border: "border-emerald-200",
+      shadow: "shadow-emerald-500/20",
+      border: "border-white/20",
       icon: <Target className="w-6 h-6 text-white" aria-hidden />,
       value: `${averageScore}%`,
       label: "Promedio",
@@ -157,8 +157,8 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
     },
     {
       gradient: "from-amber-400 to-orange-500",
-      shadow: "shadow-amber-200/60",
-      border: "border-amber-200",
+      shadow: "shadow-amber-500/20",
+      border: "border-white/20",
       icon: <Star className="w-6 h-6 text-white fill-white" aria-hidden />,
       value: totalEstrellas,
       label: "Estrellas",
@@ -166,8 +166,8 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
     },
     {
       gradient: "from-violet-400 to-violet-600",
-      shadow: "shadow-violet-200/60",
-      border: "border-violet-200",
+      shadow: "shadow-violet-500/20",
+      border: "border-white/20",
       icon: <Clock className="w-6 h-6 text-white" aria-hidden />,
       value: totalAttempts,
       label: "Intentos",

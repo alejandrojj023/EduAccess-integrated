@@ -234,25 +234,58 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
   // ── Render: loading ──────────────────────────────────────────
   if (phase === "loading" && !error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto" />
-          <p className="text-muted-foreground">Cargando actividad…</p>
-        </div>
+      <div className="min-h-screen bg-background">
+        {/* Header skeleton */}
+        <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur-md">
+          <div className="max-w-3xl mx-auto px-4 pt-4 pb-3 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-muted animate-pulse shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-3.5 w-36 bg-muted rounded-full animate-pulse" />
+                <div className="h-2.5 w-20 bg-muted rounded-full animate-pulse" />
+              </div>
+              <div className="w-16 h-8 rounded-2xl bg-muted animate-pulse" />
+            </div>
+            <div className="h-2.5 w-full rounded-full bg-muted animate-pulse" />
+          </div>
+        </header>
+
+        <main className="max-w-3xl mx-auto px-4 py-10 space-y-8">
+          {/* Instruction skeleton */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="h-5 w-72 bg-muted rounded-full animate-pulse" />
+            <div className="h-5 w-48 bg-muted rounded-full animate-pulse" />
+          </div>
+
+          {/* Question card skeleton */}
+          <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-4">
+            <div className="flex justify-center items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-muted animate-pulse shrink-0" />
+              <div className="h-8 w-48 bg-muted rounded-full animate-pulse" />
+            </div>
+            <div className="h-3 w-40 bg-muted rounded-full animate-pulse mx-auto" />
+          </div>
+
+          {/* Mic button skeleton */}
+          <div className="flex flex-col items-center gap-5">
+            <div className="w-28 h-28 rounded-full bg-muted animate-pulse" />
+            <div className="h-4 w-32 bg-muted rounded-full animate-pulse" />
+          </div>
+        </main>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <main className="min-h-screen bg-background flex items-center justify-center px-4" aria-label="Error al cargar actividad">
         <Card className="border-2 max-w-md w-full">
           <CardContent className="py-10 text-center space-y-4">
             <p className="text-destructive font-semibold">{error}</p>
             <Button onClick={onBack}>Volver</Button>
           </CardContent>
         </Card>
-      </div>
+      </main>
     )
   }
 
