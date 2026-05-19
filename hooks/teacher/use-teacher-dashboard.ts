@@ -21,6 +21,7 @@ interface RecentActivity {
   student: string
   activity: string
   time: string
+  score: number | null
 }
 
 interface UseTeacherDashboardReturn {
@@ -132,6 +133,9 @@ export function useTeacherDashboard(): UseTeacherDashboardReturn {
         if (res.ok) {
           const json = await res.json()
           setRecentActivity(json.activity ?? [])
+        } else {
+          const err = await res.json().catch(() => ({}))
+          console.error("[useTeacherDashboard] actividad reciente HTTP", res.status, err)
         }
       } catch (err) {
         console.error("[useTeacherDashboard] actividad reciente:", err)

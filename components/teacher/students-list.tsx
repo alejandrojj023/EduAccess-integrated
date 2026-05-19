@@ -117,7 +117,7 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
             <button type="button" onClick={onBack}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Regresar al panel principal">
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             </button>
             <div>
               <h1 className="text-base font-bold text-foreground leading-none">Mis Estudiantes</h1>
@@ -137,40 +137,56 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
       <main className="mx-auto max-w-5xl px-6 py-8">
         {/* Summary Cards */}
         <section aria-label="Resumen de estudiantes" className="mb-6">
-          <ul className="grid grid-cols-1 sm:grid-cols-3 gap-4 list-none p-0">
-            <li>
-              <div className="rounded-2xl border border-border bg-card shadow-sm p-4 flex items-center gap-4" {...hoverTotal}>
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10" aria-hidden="true">
-                  <User className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{students.length}</p>
-                  <p className="text-xs text-muted-foreground">Total Estudiantes</p>
-                </div>
-              </div>
-            </li>
-            <li>
-              <div className="rounded-2xl border border-border bg-card shadow-sm p-4 flex items-center gap-4" {...hoverPromedio}>
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-100" aria-hidden="true">
-                  <TrendingUp className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{averageProgress}%</p>
-                  <p className="text-xs text-muted-foreground">Progreso Promedio</p>
-                </div>
-              </div>
-            </li>
-            <li>
-              <div className="rounded-2xl border border-border bg-card shadow-sm p-4 flex items-center gap-4" {...hoverApoyo}>
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100" aria-hidden="true">
-                  <AlertCircle className="w-5 h-5 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{studentsNeedingSupport}</p>
-                  <p className="text-xs text-muted-foreground">Necesitan Apoyo</p>
-                </div>
-              </div>
-            </li>
+          <ul className="grid grid-cols-1 sm:grid-cols-3 gap-4 list-none p-0" aria-busy={loading}>
+            {loading ? (
+              [1, 2, 3].map(i => (
+                <li key={i}>
+                  <div className="rounded-2xl border border-border bg-card shadow-sm p-4 flex items-center gap-4 animate-pulse" aria-hidden="true">
+                    <div className="h-11 w-11 shrink-0 rounded-xl bg-muted" />
+                    <div className="space-y-2">
+                      <div className="h-6 w-12 rounded-md bg-muted" />
+                      <div className="h-3 w-24 rounded-md bg-muted" />
+                    </div>
+                  </div>
+                </li>
+              ))
+            ) : (
+              <>
+                <li>
+                  <div className="rounded-2xl border border-border bg-card shadow-sm p-4 flex items-center gap-4" {...hoverTotal}>
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10" aria-hidden="true">
+                      <User className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-foreground">{students.length}</p>
+                      <p className="text-xs text-muted-foreground">Total Estudiantes</p>
+                    </div>
+                  </div>
+                </li>
+                <li>
+                  <div className="rounded-2xl border border-border bg-card shadow-sm p-4 flex items-center gap-4" {...hoverPromedio}>
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-100" aria-hidden="true">
+                      <TrendingUp className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-foreground">{averageProgress}%</p>
+                      <p className="text-xs text-muted-foreground">Progreso Promedio</p>
+                    </div>
+                  </div>
+                </li>
+                <li>
+                  <div className="rounded-2xl border border-border bg-card shadow-sm p-4 flex items-center gap-4" {...hoverApoyo}>
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100" aria-hidden="true">
+                      <AlertCircle className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-foreground">{studentsNeedingSupport}</p>
+                      <p className="text-xs text-muted-foreground">Necesitan Apoyo</p>
+                    </div>
+                  </div>
+                </li>
+              </>
+            )}
           </ul>
         </section>
 
@@ -184,10 +200,31 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
 
         {/* Students List */}
         <section aria-label="Lista de estudiantes">
-          {filteredStudents.length === 0 ? (
+          {loading ? (
+            <ul className="space-y-3 list-none p-0" aria-busy="true" aria-label="Cargando estudiantes">
+              {[1, 2, 3].map(i => (
+                <li key={i}>
+                  <div className="rounded-2xl border border-border bg-card p-5 shadow-sm animate-pulse">
+                    <div className="flex items-center gap-4">
+                      <div className="h-11 w-11 shrink-0 rounded-xl bg-muted" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 w-1/3 rounded-md bg-muted" />
+                        <div className="h-3 w-1/4 rounded-md bg-muted" />
+                      </div>
+                      <div className="flex gap-3 items-center shrink-0">
+                        <div className="h-3 w-16 rounded-md bg-muted" />
+                        <div className="h-8 w-24 rounded-xl bg-muted" />
+                      </div>
+                    </div>
+                    <div className="mt-3 h-2 w-full rounded-full bg-muted" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : filteredStudents.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card py-16 text-center">
               <User className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" aria-hidden="true" />
-              <h3 className="text-base font-bold text-foreground mb-1">No se encontraron estudiantes</h3>
+              <h2 className="text-base font-bold text-foreground mb-1">No se encontraron estudiantes</h2>
               <p className="text-sm text-muted-foreground">Intenta con otro término de búsqueda</p>
             </div>
           ) : (
@@ -208,7 +245,7 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-sm font-bold text-foreground">{student.name}</h3>
+                            <h2 className="text-sm font-bold text-foreground">{student.name}</h2>
                             {student.needsSupport && (
                               <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-700 px-2.5 py-0.5 text-xs font-medium">
                                 <AlertCircle className="w-3 h-3" aria-hidden="true" />Necesita apoyo

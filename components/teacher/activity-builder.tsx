@@ -613,7 +613,33 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
 
         <main className="mx-auto max-w-4xl px-6 py-8">
           {loadingData ? (
-            <p className="text-sm text-muted-foreground">Cargando actividades...</p>
+            <div className="space-y-8" aria-busy="true" aria-label="Cargando actividades">
+              {[1, 2].map(i => (
+                <div key={i} className="space-y-3 animate-pulse">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="h-4 w-4 rounded bg-muted" />
+                    <div className="h-4 w-32 rounded-md bg-muted" />
+                  </div>
+                  <div className="ml-4 space-y-3">
+                    {[1, 2].map(j => (
+                      <div key={j} className="rounded-2xl border border-border bg-card p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-xl bg-muted shrink-0" />
+                          <div className="flex-1 space-y-2">
+                            <div className="h-4 w-2/5 rounded-md bg-muted" />
+                            <div className="h-3 w-1/4 rounded-md bg-muted" />
+                          </div>
+                          <div className="flex gap-2 shrink-0">
+                            <div className="h-8 w-16 rounded-xl bg-muted" />
+                            <div className="h-8 w-8 rounded-xl bg-muted" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : existingActivities.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card py-16 text-center shadow-sm">
               <FileText className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" aria-hidden="true" />

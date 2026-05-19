@@ -92,7 +92,7 @@ export function CreateCourse({ onBack, onSave }: CreateCourseProps) {
         </header>
         <main className="mx-auto max-w-2xl px-6 py-16 flex flex-col items-center text-center gap-6">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-            <Check className="w-8 h-8 text-green-600" />
+            <Check className="w-8 h-8 text-green-600" aria-hidden="true" />
           </div>
           <h2 className="text-2xl font-bold text-foreground">¡Curso creado!</h2>
           <p className="text-sm text-muted-foreground max-w-xs">
@@ -103,7 +103,7 @@ export function CreateCourse({ onBack, onSave }: CreateCourseProps) {
             <p className="text-4xl font-mono font-bold tracking-[0.3em] text-foreground">{codigoCurso}</p>
             <button type="button" onClick={handleCopy}
               className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-all hover:bg-muted active:scale-[0.98]">
-              {copied ? <><Check className="w-4 h-4 text-green-600" />Copiado</> : <><Copy className="w-4 h-4" />Copiar código</>}
+              {copied ? <><Check className="w-4 h-4 text-green-600" aria-hidden="true" />Copiado</> : <><Copy className="w-4 h-4" aria-hidden="true" />Copiar código</>}
             </button>
           </div>
           <button type="button" onClick={onSave}
@@ -124,7 +124,7 @@ export function CreateCourse({ onBack, onSave }: CreateCourseProps) {
             <button type="button" onClick={onBack}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Volver">
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             </button>
             <h1 className="text-base font-bold text-foreground">Crear Curso</h1>
           </div>
@@ -157,8 +157,8 @@ export function CreateCourse({ onBack, onSave }: CreateCourseProps) {
             </div>
 
             <div className="space-y-2">
-              <span className="text-sm font-semibold text-foreground block">Grado</span>
-              <div className="grid grid-cols-3 gap-2">
+              <span id="grado-label" className="text-sm font-semibold text-foreground block">Grado</span>
+              <div role="group" aria-labelledby="grado-label" className="grid grid-cols-3 gap-2">
                 {grados.map((g) => (
                   <button key={g.id} type="button" onClick={() => setGrado(g.id)} aria-pressed={grado === g.id}
                     className={`rounded-xl border px-3 py-2.5 text-center text-sm font-semibold transition-all active:scale-[0.98] ${
@@ -191,8 +191,8 @@ export function CreateCourse({ onBack, onSave }: CreateCourseProps) {
             </div>
 
             <div className="space-y-2">
-              <span className="text-sm font-semibold text-foreground block">Materia</span>
-              <div className="grid grid-cols-3 gap-2">
+              <span id="materia-label" className="text-sm font-semibold text-foreground block">Materia</span>
+              <div role="group" aria-labelledby="materia-label" className="grid grid-cols-3 gap-2">
                 {materias.map((m) => (
                   <button key={m.id} type="button" onClick={() => setMateria(m.id)} aria-pressed={materia === m.id}
                     className={`rounded-xl border px-3 py-2.5 text-center text-sm font-semibold transition-all active:scale-[0.98] ${
@@ -202,9 +202,12 @@ export function CreateCourse({ onBack, onSave }: CreateCourseProps) {
                 ))}
               </div>
               {materia === "otra" && (
-                <Input id="materia-pers" type="text" value={materiaPers}
+                <>
+                  <label htmlFor="materia-pers" className="sr-only">Nombre de la materia personalizada</label>
+                  <Input id="materia-pers" type="text" value={materiaPers}
                   onChange={(e) => setMateriaPers(e.target.value)}
                   placeholder="Ej: Ciencias Naturales, Arte, Geografía..." className="border-border mt-2" required />
+                </>
               )}
             </div>
 

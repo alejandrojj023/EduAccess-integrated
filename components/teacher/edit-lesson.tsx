@@ -2,10 +2,14 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Input } from "@/components/ui/input"
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
-import { ArrowLeft, Save, Volume2, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip, BookMarked, Pencil, Upload, ImageIcon } from "lucide-react"
+import { ArrowLeft, Save, Volume2, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip, BookMarked, Pencil, Upload, ImageIcon, List, HelpCircle, PencilLine, Mic, AlignLeft } from "lucide-react"
 import { parseActivityConfig, serializeActivityConfig } from "@/lib/activity-config"
 
 interface EditLessonProps {
@@ -35,14 +39,14 @@ interface ActivityItem {
 }
 
 const activityTypes = [
-  { id: "image",      label: "Identificacion de imagenes",    icon: "🖼️" },
-  { id: "sound",      label: "Reconocimiento de sonidos",     icon: "🔊" },
-  { id: "sequence",   label: "Ordenar secuencias",            icon: "📊" },
-  { id: "multiple",   label: "Opcion multiple",               icon: "☑️" },
-  { id: "short",      label: "Respuesta corta escrita",       icon: "✏️" },
-  { id: "voice",      label: "Respuesta por voz",             icon: "🎤" },
-  { id: "fill",       label: "Completar oracion",             icon: "📝" },
-  { id: "wordsearch", label: "Sopa de letras",                icon: "🔤" },
+  { id: "image",      label: "Identificacion de imagenes", Icon: ImageIcon,   gradient: "from-blue-400 to-blue-600",    bg: "bg-blue-50 hover:bg-blue-100 border-blue-200",       text: "text-blue-800" },
+  { id: "sound",      label: "Reconocimiento de sonidos",  Icon: Volume2,     gradient: "from-violet-400 to-violet-600", bg: "bg-violet-50 hover:bg-violet-100 border-violet-200", text: "text-violet-800" },
+  { id: "sequence",   label: "Ordenar secuencias",         Icon: List,        gradient: "from-amber-400 to-orange-500",  bg: "bg-amber-50 hover:bg-amber-100 border-amber-200",    text: "text-amber-800" },
+  { id: "multiple",   label: "Opcion multiple",            Icon: HelpCircle,  gradient: "from-primary to-primary/80",   bg: "bg-primary/5 hover:bg-primary/10 border-primary/20", text: "text-primary" },
+  { id: "short",      label: "Respuesta corta escrita",    Icon: PencilLine,  gradient: "from-emerald-400 to-teal-500", bg: "bg-emerald-50 hover:bg-emerald-100 border-emerald-200", text: "text-emerald-800" },
+  { id: "voice",      label: "Respuesta por voz",          Icon: Mic,         gradient: "from-rose-400 to-rose-600",    bg: "bg-rose-50 hover:bg-rose-100 border-rose-200",       text: "text-rose-800" },
+  { id: "fill",       label: "Completar oracion",          Icon: AlignLeft,   gradient: "from-cyan-400 to-cyan-600",    bg: "bg-cyan-50 hover:bg-cyan-100 border-cyan-200",       text: "text-cyan-800" },
+  { id: "wordsearch", label: "Sopa de letras",             Icon: Search,      gradient: "from-indigo-400 to-indigo-600", bg: "bg-indigo-50 hover:bg-indigo-100 border-indigo-200", text: "text-indigo-800" },
 ]
 
 const difficultyLevels = [
@@ -289,7 +293,8 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
   const handleRemovePalabraSopa = (word: string) =>
     setActPalabrasSopa(actPalabrasSopa.filter((w) => w !== word))
 
-  const [actSaving, setActSaving] = useState(false)
+  const [actSaving,          setActSaving]          = useState(false)
+  const [activityToRemove,   setActivityToRemove]   = useState<string | null>(null)
 
   const handleConfirmActivity = async () => {
     if (!configuringType) return
@@ -444,8 +449,39 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
 
   if (isFetching) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">Cargando lección...</p>
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
+          <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-6">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-muted animate-pulse" />
+              <div className="h-5 w-32 rounded-md bg-muted animate-pulse" />
+            </div>
+          </div>
+        </header>
+        <main className="mx-auto max-w-3xl px-6 py-8 space-y-6" aria-busy="true" aria-label="Cargando lección">
+          <div className="rounded-2xl border border-border bg-card shadow-sm p-6 space-y-5 animate-pulse">
+            <div className="h-4 w-40 rounded-md bg-muted" />
+            <div className="h-10 w-full rounded-xl bg-muted" />
+            <div className="h-20 w-full rounded-xl bg-muted" />
+          </div>
+          <div className="rounded-2xl border border-border bg-card shadow-sm p-6 space-y-4 animate-pulse">
+            <div className="h-4 w-36 rounded-md bg-muted" />
+            {[1, 2].map(i => (
+              <div key={i} className="flex items-center gap-3 rounded-xl border border-border p-4">
+                <div className="h-9 w-9 rounded-lg bg-muted shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 w-1/2 rounded-md bg-muted" />
+                  <div className="h-3 w-1/4 rounded-md bg-muted" />
+                </div>
+                <div className="h-8 w-16 rounded-xl bg-muted shrink-0" />
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-3">
+            <div className="flex-1 h-11 rounded-xl bg-muted animate-pulse" />
+            <div className="flex-1 h-11 rounded-xl bg-muted animate-pulse" />
+          </div>
+        </main>
       </div>
     )
   }
@@ -460,7 +496,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
               onClick={() => { setConfiguringType(null); setEditingActivityId(null) }}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Volver">
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4" aria-hidden="true" />
             </button>
             <div>
               <h1 className="text-base font-bold text-foreground leading-none">
@@ -491,7 +527,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
                     </button>
                     <button type="button" onClick={handleImageDelete}
                       className="flex items-center justify-center rounded-xl border border-destructive/30 bg-card px-3 py-2 text-sm text-destructive hover:bg-destructive/10 active:scale-[0.98]">
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -513,7 +549,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
                 <h2 className="text-sm font-semibold text-foreground mb-3">Oracion Correcta</h2>
                 <div className="flex gap-2">
                   <Input value={actCorrectAnswer} onChange={(e) => setActCorrectAnswer(e.target.value)}
-                    placeholder="Ej: Los gatos son bonitos" className="border-border flex-1" />
+                    placeholder="Ej: Los gatos son bonitos" className="border-border flex-1" aria-label="Oración correcta" />
                   <button type="button"
                     onClick={() => actCorrectAnswer.trim() && speak(actCorrectAnswer.trim())}
                     disabled={!actCorrectAnswer.trim()} aria-label="Escuchar oracion"
@@ -535,7 +571,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
                   Palabras Distractoras <span className="text-muted-foreground font-normal">(opcional)</span>
                 </h2>
                 <Input value={actPalabrasDistractoras} onChange={(e) => setActPalabrasDistractoras(e.target.value)}
-                  placeholder="Ej: nube, famoso, mesa" className="border-border" />
+                  placeholder="Ej: nube, famoso, mesa" className="border-border" aria-label="Palabras distractoras separadas por comas" />
                 <p className="text-xs text-muted-foreground mt-2">Separa las palabras con <strong>comas</strong>. Se mezclaran con la oracion para aumentar la dificultad.</p>
                 {actPalabrasDistractoras.trim() && (
                   <div className="flex flex-wrap gap-1.5 p-3 bg-muted rounded-xl mt-3">
@@ -555,7 +591,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
                 <h2 className="text-sm font-semibold text-foreground mb-3">Pregunta</h2>
                 <div className="flex gap-2">
                   <Input value={actVoiceEnunciado} onChange={(e) => setActVoiceEnunciado(e.target.value)}
-                    placeholder="Ej: ¿De que color es el cielo?" className="border-border flex-1" />
+                    placeholder="Ej: ¿De que color es el cielo?" className="border-border flex-1" aria-label="Pregunta de la actividad" />
                   <button type="button"
                     onClick={() => actVoiceEnunciado.trim() && speak(actVoiceEnunciado.trim())}
                     disabled={!actVoiceEnunciado.trim()} aria-label="Escuchar pregunta"
@@ -568,7 +604,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
               <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
                 <h2 className="text-sm font-semibold text-foreground mb-3">Respuesta Correcta</h2>
                 <Input value={actCorrectAnswer} onChange={(e) => setActCorrectAnswer(e.target.value)}
-                  placeholder="Ej: azul, celeste, azul claro" className="border-border" />
+                  placeholder="Ej: azul, celeste, azul claro" className="border-border" aria-label="Respuestas correctas separadas por comas" />
                 <p className="text-xs text-muted-foreground mt-2">Separa con <strong>comas</strong> si hay varias respuestas validas. Se acepta cualquiera.</p>
                 {actCorrectAnswer.trim() && (
                   <div className="flex flex-wrap gap-1.5 p-3 bg-muted rounded-xl mt-3">
@@ -585,8 +621,8 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
           {configuringType?.type === "sequence" && (
             <>
               <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
-                <h2 className="text-sm font-semibold text-foreground mb-3">¿Cuantas imagenes?</h2>
-                <div className="grid grid-cols-3 gap-3">
+                <h2 id="seq-count-label" className="text-sm font-semibold text-foreground mb-3">¿Cuantas imagenes?</h2>
+                <div role="group" aria-labelledby="seq-count-label" className="grid grid-cols-3 gap-3">
                   {([3, 4, 5] as const).map((n) => (
                     <button key={n} type="button"
                       onClick={() => {
@@ -632,7 +668,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
                                 setActSequenceSteps(steps)
                               }}
                               className="flex items-center justify-center rounded-xl border border-destructive/30 bg-card px-2 py-1.5 text-destructive hover:bg-destructive/10 active:scale-[0.98]">
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                             </button>
                           </div>
                         </div>
@@ -682,7 +718,8 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
                           const next = [...actFillContextSentences]; next[idx] = e.target.value
                           setActFillContextSentences(next)
                         }}
-                        placeholder="Ej: Yo tengo tres mascotas." className="border-border flex-1" />
+                        placeholder="Ej: Yo tengo tres mascotas." className="border-border flex-1"
+                        aria-label={`Oración de contexto ${idx + 1}`} />
                       <button type="button"
                         onClick={() => {
                           if (actFillContextSentences.length > 1) {
@@ -691,7 +728,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
                         }}
                         disabled={actFillContextSentences.length === 1 && !sentence.trim()} aria-label="Eliminar oracion"
                         className="flex items-center justify-center rounded-xl border border-destructive/30 bg-card px-2.5 py-2 text-destructive hover:bg-destructive/10 active:scale-[0.98] disabled:opacity-50 shrink-0">
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </button>
                     </div>
                   ))}
@@ -705,7 +742,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
               <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
                 <h2 className="text-sm font-semibold text-foreground mb-3">Oracion a Completar</h2>
                 <Input value={actFillEnunciado} onChange={(e) => setActFillEnunciado(e.target.value)}
-                  placeholder="Ej: Yo tengo tres ___." className="border-border" />
+                  placeholder="Ej: Yo tengo tres ___." className="border-border" aria-label="Oración a completar con espacio en blanco" />
                 <p className="text-xs text-muted-foreground mt-2">Usa <strong>___</strong> (tres guiones bajos) para marcar el espacio en blanco.</p>
                 {actFillEnunciado.includes("___") && (
                   <div className="p-3 bg-muted rounded-xl text-sm font-medium text-foreground mt-3">
@@ -725,7 +762,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
               <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
                 <h2 className="text-sm font-semibold text-foreground mb-3">Respuesta Correcta</h2>
                 <Input value={actCorrectAnswer} onChange={(e) => setActCorrectAnswer(e.target.value)}
-                  placeholder="Ej: gatos" className="border-border" />
+                  placeholder="Ej: gatos" className="border-border" aria-label="Palabra correcta para completar el espacio" />
                 <p className="text-xs text-muted-foreground mt-2">La palabra exacta que completa el espacio en blanco.</p>
               </div>
               <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
@@ -733,7 +770,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
                   Palabras Distractoras <span className="text-muted-foreground font-normal">(opciones incorrectas)</span>
                 </h2>
                 <Input value={actPalabrasDistractoras} onChange={(e) => setActPalabrasDistractoras(e.target.value)}
-                  placeholder="Ej: gato, perros, pez" className="border-border" />
+                  placeholder="Ej: gato, perros, pez" className="border-border" aria-label="Palabras distractoras separadas por comas" />
                 <p className="text-xs text-muted-foreground mt-2">Separa con <strong>comas</strong>. Se mezclaran con la respuesta correcta como opciones.</p>
                 {actPalabrasDistractoras.trim() && (
                   <div className="flex flex-wrap gap-1.5 p-3 bg-muted rounded-xl mt-3">
@@ -756,11 +793,12 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
               <div className="flex gap-2 mb-3">
                 <Input value={actPalabraInput} onChange={(e) => setActPalabraInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddPalabraSopa())}
-                  placeholder="Ej: GATO" className="border-border flex-1" maxLength={15} />
+                  placeholder="Ej: GATO" className="border-border flex-1" maxLength={15}
+                  aria-label="Palabra para agregar a la sopa de letras" />
                 <button type="button" onClick={handleAddPalabraSopa}
                   disabled={actPalabrasSopa.length >= 10 || !actPalabraInput.trim()}
                   className="flex items-center justify-center rounded-xl bg-primary px-3 py-2 text-primary-foreground hover:opacity-90 active:scale-[0.98] disabled:opacity-50">
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
               {actPalabrasSopa.length > 0 && (
@@ -783,7 +821,8 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
             <h2 className="text-sm font-semibold text-foreground mb-3">Instrucciones de la Actividad</h2>
             <textarea value={actInstrucciones} onChange={(e) => setActInstrucciones(e.target.value)}
               placeholder="Escribe instrucciones claras y simples. Ej: Mira la imagen y selecciona la respuesta correcta."
-              className="w-full min-h-[90px] p-3 text-sm border border-input rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
+              className="w-full min-h-[90px] p-3 text-sm border border-input rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              aria-label="Instrucciones de la actividad" />
           </div>
 
           {/* Options */}
@@ -803,12 +842,13 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
                     </button>
                     <Input value={option.text}
                       onChange={(e) => setActOptions(actOptions.map((o) => o.id === option.id ? { ...o, text: e.target.value } : o))}
-                      placeholder={`Opcion ${index + 1}`} className="border-border flex-1" />
+                      placeholder={`Opcion ${index + 1}`} className="border-border flex-1"
+                      aria-label={`Texto de la opción ${index + 1}`} />
                     {actOptions.length > 2 && (
                       <button type="button" onClick={() => setActOptions(actOptions.filter((o) => o.id !== option.id))}
                         aria-label="Eliminar opcion"
                         className="flex items-center justify-center rounded-xl border border-destructive/30 bg-card p-2 text-destructive hover:bg-destructive/10 active:scale-[0.98]">
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </button>
                     )}
                   </div>
@@ -827,15 +867,15 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
             <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
               <h2 className="text-sm font-semibold text-foreground mb-3">Respuesta Correcta</h2>
               <Input value={actCorrectAnswer} onChange={(e) => setActCorrectAnswer(e.target.value)}
-                placeholder="Escribe la respuesta esperada" className="border-border" />
+                placeholder="Escribe la respuesta esperada" className="border-border" aria-label="Respuesta correcta esperada" />
               <p className="text-xs text-muted-foreground mt-2">El sistema comparara la respuesta del estudiante con esta</p>
             </div>
           )}
 
           {/* Difficulty */}
           <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
-            <h2 className="text-sm font-semibold text-foreground mb-3">Nivel de Dificultad</h2>
-            <div className="grid grid-cols-3 gap-2">
+            <h2 id="dificultad-label" className="text-sm font-semibold text-foreground mb-3">Nivel de Dificultad</h2>
+            <div role="group" aria-labelledby="dificultad-label" className="grid grid-cols-3 gap-2">
               {difficultyLevels.map((level) => (
                 <button key={level.id} type="button" onClick={() => setActDificultad(level.id)}
                   className={`rounded-xl border px-3 py-3 text-center transition-all active:scale-[0.98] ${actDificultad === level.id
@@ -878,7 +918,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
             <button type="button" onClick={onBack}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Volver">
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             </button>
             <h1 className="text-base font-bold text-foreground">Editar Lección</h1>
           </div>
@@ -921,6 +961,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
               Material de Lectura <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
             </h2>
             <p className="text-xs text-muted-foreground mb-3">Texto de lectura que los estudiantes verán antes de las actividades. Sirve como base para las preguntas.</p>
+            <label htmlFor="material-lectura" className="sr-only">Texto de lectura para los estudiantes</label>
             <textarea id="material-lectura" value={materialLectura} onChange={(e) => setMaterialLectura(e.target.value)}
               placeholder="Escribe aquí el texto de lectura para los estudiantes..."
               className="w-full min-h-[140px] p-3 text-sm border border-input rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
@@ -959,7 +1000,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
                     <button type="button" onClick={() => handleRemoveGlosario(g.palabra)}
                       className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
                       aria-label={`Eliminar ${g.palabra} del glosario`}>
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4" aria-hidden="true" />
                     </button>
                   </li>
                 ))}
@@ -975,6 +1016,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
               Material Audiovisual <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
             </h2>
             <p className="text-xs text-muted-foreground mb-3">Pega el enlace de un video de YouTube. Los estudiantes podrán verlo en la lección antes de las actividades.</p>
+            <label htmlFor="material-audiovisual" className="sr-only">Enlace del video de YouTube</label>
             <Input id="material-audiovisual" type="url" value={materialAudiovisual} onChange={(e) => setMaterialAudiovisual(e.target.value)}
               placeholder="https://www.youtube.com/watch?v=..." className="border-border" />
             {materialAudiovisual && <p className="text-xs text-muted-foreground mt-2">El video se mostrará embebido en la lección del estudiante.</p>}
@@ -1010,8 +1052,10 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {activityTypes.map((type) => (
                 <button key={type.id} type="button" onClick={() => handleSelectType(type.id, type.label)}
-                  className="flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-left text-sm font-medium text-foreground transition-all hover:border-primary/40 hover:bg-primary/5 active:scale-[0.98]">
-                  <span className="text-2xl" aria-hidden="true">{type.icon}</span>
+                  className="flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-left text-sm font-medium text-foreground transition-all hover:border-primary/40 hover:bg-muted active:scale-[0.98]">
+                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${type.gradient}`} aria-hidden="true">
+                    <type.Icon className="w-4 h-4 text-white" />
+                  </span>
                   <span>{type.label}</span>
                 </button>
               ))}
@@ -1029,27 +1073,31 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
                   const diffLabel = difficultyLevels.find((d) => d.id === activity.nivel_dificultad)?.label ?? activity.nivel_dificultad
                   return (
                     <li key={activity.id}
-                      className="flex items-center justify-between rounded-xl bg-muted px-3 py-3 cursor-pointer hover:bg-muted/80 hover:ring-1 hover:ring-primary/30 transition-all"
-                      onClick={() => handleEditActivity(activity)}
-                      role="button" aria-label={`Editar actividad ${index + 1}: ${activity.title}`}>
+                      className="flex items-center justify-between rounded-xl bg-muted px-3 py-3 transition-all">
                       <div className="flex items-center gap-3 min-w-0">
                         <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
-                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary shrink-0">{index + 1}</span>
+                        {(() => { const t = activityTypes.find(t => t.id === activity.type); return t ? (
+                          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${t.gradient}`} aria-hidden="true">
+                            <t.Icon className="w-3.5 h-3.5 text-white" />
+                          </span>
+                        ) : (
+                          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary shrink-0">{index + 1}</span>
+                        )})()}
                         <div className="min-w-0">
                           <span className="text-sm font-semibold text-foreground block truncate">{activity.title}</span>
                           <span className="text-xs text-muted-foreground line-clamp-1">{preview} · {diffLabel}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <button type="button" onClick={(e) => { e.stopPropagation(); handleEditActivity(activity) }}
+                        <button type="button" onClick={() => handleEditActivity(activity)}
                           aria-label={`Editar ${activity.title}`}
                           className="flex items-center justify-center rounded-lg p-1.5 text-primary hover:bg-primary/10 transition-colors">
-                          <Pencil className="w-4 h-4" />
+                          <Pencil className="w-4 h-4" aria-hidden="true" />
                         </button>
-                        <button type="button" onClick={(e) => { e.stopPropagation(); handleRemoveActivity(activity.id) }}
+                        <button type="button" onClick={() => setActivityToRemove(activity.id)}
                           aria-label={`Eliminar ${activity.title}`}
                           className="flex items-center justify-center rounded-lg p-1.5 text-destructive hover:bg-destructive/10 transition-colors">
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" aria-hidden="true" />
                         </button>
                       </div>
                     </li>
@@ -1060,6 +1108,26 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
           )}
 
           {error && <p className="text-sm text-destructive font-medium" role="alert">{error}</p>}
+
+          <AlertDialog open={activityToRemove !== null} onOpenChange={(open) => { if (!open) setActivityToRemove(null) }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar esta actividad?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  La actividad será eliminada de la lección. Esta acción no se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => { if (activityToRemove) handleRemoveActivity(activityToRemove); setActivityToRemove(null) }}
+                >
+                  Sí, eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {/* Actions */}
           <div className="flex gap-3">

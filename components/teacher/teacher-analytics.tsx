@@ -335,7 +335,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
             <button type="button"
               onClick={() => speak(`Analíticas. Promedio correcto: ${overallStats.averageCorrect}%. Intentos totales: ${overallStats.totalAttempts}. Tiempo promedio: ${overallStats.averageTime}. Estudiantes activos: ${overallStats.activeStudents}.`)}
               className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
-              <Volume2 className="w-4 h-4" aria-hidden />
+              <Volume2 className="w-4 h-4" aria-hidden="true" />
               <span className="hidden sm:inline">Escuchar</span>
             </button>
           )}
@@ -475,42 +475,54 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
         <section aria-label="Estadísticas generales">
           <ul className="grid grid-cols-2 lg:grid-cols-4 gap-3 list-none p-0">
             <li>
-              <div className="relative overflow-hidden rounded-3xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-400 to-teal-600 p-5 shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:shadow-xl" {...hoverCorrect}>
-                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden />
+              <div className="relative overflow-hidden rounded-3xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-400 to-teal-600 p-5 shadow-lg shadow-primary/20 transition-shadow" {...hoverCorrect}>
+                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden="true" />
                 <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
-                  <CheckCircle className="w-5 h-5 text-white" aria-hidden />
+                  <CheckCircle className="w-5 h-5 text-white" aria-hidden="true" />
                 </div>
-                <p className="text-2xl font-black text-white">{loading ? "…" : `${overallStats.averageCorrect}%`}</p>
+                {loading
+                  ? <div className="h-8 w-20 rounded-lg bg-white/30 animate-pulse mb-0.5" aria-hidden="true" />
+                  : <p className="text-2xl font-black text-white">{`${overallStats.averageCorrect}%`}</p>
+                }
                 <p className="text-xs font-medium text-white/80 mt-0.5">Respuestas Correctas</p>
               </div>
             </li>
             <li>
-              <div className="relative overflow-hidden rounded-3xl border-2 border-blue-200 bg-gradient-to-br from-blue-400 to-blue-600 p-5 shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:shadow-xl" {...hoverIntentos}>
-                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden />
+              <div className="relative overflow-hidden rounded-3xl border-2 border-blue-200 bg-gradient-to-br from-blue-400 to-blue-600 p-5 shadow-lg shadow-primary/20 transition-shadow" {...hoverIntentos}>
+                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden="true" />
                 <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
-                  <Target className="w-5 h-5 text-white" aria-hidden />
+                  <Target className="w-5 h-5 text-white" aria-hidden="true" />
                 </div>
-                <p className="text-2xl font-black text-white">{loading ? "…" : overallStats.totalAttempts}</p>
+                {loading
+                  ? <div className="h-8 w-16 rounded-lg bg-white/30 animate-pulse mb-0.5" aria-hidden="true" />
+                  : <p className="text-2xl font-black text-white">{overallStats.totalAttempts}</p>
+                }
                 <p className="text-xs font-medium text-white/80 mt-0.5">Total Intentos</p>
               </div>
             </li>
             <li>
-              <div className="relative overflow-hidden rounded-3xl border-2 border-amber-200 bg-gradient-to-br from-amber-400 to-orange-500 p-5 shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:shadow-xl" {...hoverTiempo}>
-                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden />
+              <div className="relative overflow-hidden rounded-3xl border-2 border-amber-200 bg-gradient-to-br from-amber-400 to-orange-500 p-5 shadow-lg shadow-primary/20 transition-shadow" {...hoverTiempo}>
+                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden="true" />
                 <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
-                  <Clock className="w-5 h-5 text-white" aria-hidden />
+                  <Clock className="w-5 h-5 text-white" aria-hidden="true" />
                 </div>
-                <p className="text-2xl font-black text-white">{loading ? "…" : overallStats.averageTime}</p>
+                {loading
+                  ? <div className="h-8 w-24 rounded-lg bg-white/30 animate-pulse mb-0.5" aria-hidden="true" />
+                  : <p className="text-2xl font-black text-white">{overallStats.averageTime}</p>
+                }
                 <p className="text-xs font-medium text-white/80 mt-0.5">Tiempo Promedio</p>
               </div>
             </li>
             <li>
-              <div className="relative overflow-hidden rounded-3xl border-2 border-violet-200 bg-gradient-to-br from-violet-400 to-violet-600 p-5 shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:shadow-xl" {...hoverActivos}>
-                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden />
+              <div className="relative overflow-hidden rounded-3xl border-2 border-violet-200 bg-gradient-to-br from-violet-400 to-violet-600 p-5 shadow-lg shadow-primary/20 transition-shadow" {...hoverActivos}>
+                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden="true" />
                 <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
-                  <Users className="w-5 h-5 text-white" aria-hidden />
+                  <Users className="w-5 h-5 text-white" aria-hidden="true" />
                 </div>
-                <p className="text-2xl font-black text-white">{loading ? "…" : overallStats.activeStudents}</p>
+                {loading
+                  ? <div className="h-8 w-12 rounded-lg bg-white/30 animate-pulse mb-0.5" aria-hidden="true" />
+                  : <p className="text-2xl font-black text-white">{overallStats.activeStudents}</p>
+                }
                 <p className="text-xs font-medium text-white/80 mt-0.5">Estudiantes Activos</p>
               </div>
             </li>
@@ -525,7 +537,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
             <div className="flex flex-row items-center justify-between px-5 py-4 border-b border-border">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <BarChart3 className="w-4 h-4 text-primary" aria-hidden />
+                  <BarChart3 className="w-4 h-4 text-primary" aria-hidden="true" />
                 </div>
                 <h3 className="text-sm font-black text-foreground">Rendimiento por Lección</h3>
               </div>
@@ -563,6 +575,9 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
             </div>
             <div className="p-5">
               <div className="h-72">
+                {loading ? (
+                  <div className="h-full rounded-xl bg-muted animate-pulse" aria-hidden="true" />
+                ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={processedPerf} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -597,6 +612,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                     )}
                   </BarChart>
                 </ResponsiveContainer>
+                )}
               </div>
             </div>
           </div>
@@ -606,7 +622,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
             <div className="flex flex-row items-center justify-between px-5 py-4 border-b border-border">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <TrendingUp className="w-4 h-4 text-primary" aria-hidden />
+                  <TrendingUp className="w-4 h-4 text-primary" aria-hidden="true" />
                 </div>
                 <h3 className="text-sm font-black text-foreground">
                   Progreso{progCfg.agrupar === "mes" ? " Mensual" : progCfg.agrupar === "dia" ? " Diario" : " Semanal"}
@@ -648,6 +664,9 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
             </div>
             <div className="p-5">
               <div className="h-64">
+                {loading ? (
+                  <div className="h-full rounded-xl bg-muted animate-pulse" aria-hidden="true" />
+                ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={processedProg}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -664,6 +683,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                     />
                   </LineChart>
                 </ResponsiveContainer>
+                )}
               </div>
             </div>
           </div>
@@ -715,7 +735,9 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
               </Popover>
             </div>
             <div className="p-5">
-              {tipoCfg.vista === "dona" ? (
+              {loading ? (
+                <div className="h-48 rounded-xl bg-muted animate-pulse" aria-hidden="true" />
+              ) : tipoCfg.vista === "dona" ? (
                 <>
                   <div className="h-48">
                     <ResponsiveContainer width="100%" height="100%">

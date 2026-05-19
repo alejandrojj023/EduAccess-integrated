@@ -206,6 +206,7 @@ function StarRow({ stars, size = "w-5 h-5" }: { stars: number | null; size?: str
       {[1, 2, 3, 4, 5].map((i) => (
         <Star
           key={i}
+          aria-hidden="true"
           className={`${size} ${
             stars >= i
               ? "text-amber-400 fill-amber-400"
@@ -419,7 +420,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
           <button type="button" onClick={onBack}
             className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
             aria-label="Volver">
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
           </button>
           <div className="flex-1">
             <h1 className="text-base font-bold text-foreground leading-none">Estudiantes</h1>
@@ -453,7 +454,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
         ) : students.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-card py-16 text-center shadow-sm">
             <Users className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" aria-hidden="true" />
-            <h3 className="text-base font-bold text-foreground mb-1">Sin estudiantes</h3>
+            <h2 className="text-base font-bold text-foreground mb-1">Sin estudiantes</h2>
             <p className="text-sm text-muted-foreground">Aún no hay alumnos inscritos en este curso.</p>
           </div>
         ) : (
@@ -492,7 +493,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                             className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98] disabled:opacity-50 shrink-0"
                             aria-label={`Opciones de ${student.nombre}`}
                             disabled={removingId === student.id}>
-                            {removingId === student.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <MoreVertical className="w-4 h-4" />}
+                            {removingId === student.id ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <MoreVertical className="w-4 h-4" aria-hidden="true" />}
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-52">
@@ -691,9 +692,9 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                   <div key={leccion.id_leccion} className="flex items-center justify-between bg-muted/40 rounded-lg px-4 py-3 border border-border">
                     <p className="text-sm font-medium text-foreground">{leccion.titulo}</p>
                     <div className="flex gap-2 flex-wrap justify-end">
-                      {leccion.material_lectura && <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-1"><BookOpen className="w-3 h-3" />Lectura</span>}
-                      {leccion.material_audiovisual && <span className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full flex items-center gap-1"><Video className="w-3 h-3" />Video</span>}
-                      {leccion.material_pdf_url && <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full flex items-center gap-1"><FilePdf className="w-3 h-3" />PDF</span>}
+                      {leccion.material_lectura && <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-1"><BookOpen className="w-3 h-3" aria-hidden="true" />Lectura</span>}
+                      {leccion.material_audiovisual && <span className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full flex items-center gap-1"><Video className="w-3 h-3" aria-hidden="true" />Video</span>}
+                      {leccion.material_pdf_url && <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full flex items-center gap-1"><FilePdf className="w-3 h-3" aria-hidden="true" />PDF</span>}
                       {!leccion.material_lectura && !leccion.material_audiovisual && !leccion.material_pdf_url && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Sin material</span>}
                     </div>
                   </div>

@@ -85,10 +85,10 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
   }, [speak, user?.name, dashboardStats])
 
   const navItems = [
-    { label: "Cursos",      Icon: FolderOpen,  screen: "courses",    hover: hoverCursos,      color: "bg-blue-100 group-hover:bg-blue-200",      icon: "text-blue-600"   },
-    { label: "Lecciones",   Icon: BookOpen,    screen: "courses",    hover: hoverLecciones,   color: "bg-amber-100 group-hover:bg-amber-200",    icon: "text-amber-600"  },
-    { label: "Actividades", Icon: CheckCircle, screen: "activities", hover: hoverActividades, color: "bg-violet-100 group-hover:bg-violet-200",  icon: "text-violet-600" },
-    { label: "Analíticas",  Icon: BarChart3,   screen: "analytics",  hover: hoverAnaliticas,  color: "bg-emerald-100 group-hover:bg-emerald-200", icon: "text-emerald-600" },
+    { label: "Cursos",      sub: loading ? null : `${dashboardStats.cursos} activos`,  Icon: FolderOpen,  screen: "courses",    hover: hoverCursos,      color: "bg-blue-100 group-hover:bg-blue-200",       icon: "text-blue-600"    },
+    { label: "Lecciones",   sub: "Por curso",                                           Icon: BookOpen,    screen: "courses",    hover: hoverLecciones,   color: "bg-amber-100 group-hover:bg-amber-200",    icon: "text-amber-600"   },
+    { label: "Actividades", sub: "Crear y editar",                                      Icon: CheckCircle, screen: "activities", hover: hoverActividades, color: "bg-violet-100 group-hover:bg-violet-200",  icon: "text-violet-600"  },
+    { label: "Analíticas",  sub: "Ver estadísticas",                                    Icon: BarChart3,   screen: "analytics",  hover: hoverAnaliticas,  color: "bg-emerald-100 group-hover:bg-emerald-200", icon: "text-emerald-600" },
   ]
 
   const initials = (user?.name ?? "D").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
@@ -228,7 +228,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
         <nav aria-label="Menú principal del docente">
           <h3 className="mb-4 text-xs font-black uppercase tracking-widest text-muted-foreground">Gestionar</h3>
           <ul className="grid list-none grid-cols-2 gap-3 p-0 lg:grid-cols-4">
-            {navItems.map(({ label, Icon, screen, hover, color, icon }) => (
+            {navItems.map(({ label, sub, Icon, screen, hover, color, icon }) => (
               <li key={label}>
                 <button
                   type="button"
@@ -237,9 +237,15 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
                   className="group flex w-full flex-col items-center gap-3 rounded-3xl border-2 border-border bg-card p-6 text-center transition-all hover:border-primary/30 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98]"
                 >
                   <div className={`flex h-12 w-12 items-center justify-center rounded-2xl transition-colors ${color}`}>
-                    <Icon className={`h-6 w-6 ${icon}`} aria-hidden />
+                    <Icon className={`h-6 w-6 ${icon}`} aria-hidden="true" />
                   </div>
-                  <span className="text-sm font-bold text-foreground">{label}</span>
+                  <div>
+                    <span className="text-sm font-bold text-foreground block leading-tight">{label}</span>
+                    {sub != null
+                      ? <span className="text-xs text-muted-foreground mt-0.5 block">{sub}</span>
+                      : <span className="block h-3 w-12 rounded-md bg-muted animate-pulse mt-1 mx-auto" aria-hidden="true" />
+                    }
+                  </div>
                 </button>
               </li>
             ))}
@@ -280,13 +286,13 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
                       Aquí aparecerán los avances de tus alumnos cuando completen actividades.
                     </p>
                   </div>
-                  <ul className="space-y-2 list-none p-0 opacity-40" aria-label="Ejemplo">
+                  <ul className="space-y-2 list-none p-0 opacity-40" aria-label="Ejemplo de actividad" aria-hidden="true">
                     {[
-                      { student: "Nicolás", activity: "Completó Comprensión de lectura", time: "Hace 12 min" },
-                      { student: "Sofía",   activity: "Completó Sopa de letras",         time: "Hace 45 min" },
+                      { student: "Nicolás", activity: 'Completó "Comprensión lectora"', time: "Hace 12 min", score: 85 },
+                      { student: "Sofía",   activity: 'Completó "Sopa de letras"',      time: "Hace 45 min", score: 60 },
                     ].map((item, i) => (
                       <li key={i}>
-                        <ActivityRow student={item.student} activity={item.activity} time={item.time} />
+                        <ActivityRow student={item.student} activity={item.activity} time={item.time} score={item.score} />
                       </li>
                     ))}
                   </ul>
@@ -295,7 +301,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
                 <ul className="space-y-2 list-none p-0" aria-label="Lista de actividad reciente">
                   {recentActivity.map((activity) => (
                     <li key={activity.id}>
-                      <ActivityRow student={activity.student} activity={activity.activity} time={activity.time} />
+                      <ActivityRow student={activity.student} activity={activity.activity} time={activity.time} score={activity.score} />
                     </li>
                   ))}
                 </ul>
@@ -309,15 +315,33 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
   )
 }
 
-function ActivityRow({ student, activity, time }: { student: string; activity: string; time: string }) {
+function ActivityRow({ student, activity, time, score }: {
+  student: string
+  activity: string
+  time: string
+  score?: number | null
+}) {
   const initials = student.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
+
+  const scoreBadge = score != null ? {
+    label: `${score}%`,
+    ariaLabel: `Puntaje: ${score}%`,
+    className: score >= 70
+      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+      : score >= 40
+      ? "bg-amber-50 text-amber-700 border border-amber-200"
+      : "bg-red-50 text-red-700 border border-red-200",
+  } : null
 
   return (
     <article
-      aria-label={`${student}: ${activity}`}
+      aria-label={`${student}: ${activity}${score != null ? `, puntaje ${score}%` : ""}`}
       className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 transition-all hover:border-primary/30 hover:bg-muted/30 hover:shadow-sm"
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-black text-primary">
+      <div
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-black text-primary"
+        aria-hidden="true"
+      >
         {initials}
       </div>
       <div className="min-w-0 flex-1">
@@ -326,7 +350,16 @@ function ActivityRow({ student, activity, time }: { student: string; activity: s
       </div>
       <div className="shrink-0 flex flex-col items-end gap-1">
         <time className="text-xs text-muted-foreground font-medium">{time}</time>
-        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" aria-hidden />
+        {scoreBadge ? (
+          <span
+            aria-label={scoreBadge.ariaLabel}
+            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${scoreBadge.className}`}
+          >
+            {scoreBadge.label}
+          </span>
+        ) : (
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
+        )}
       </div>
     </article>
   )

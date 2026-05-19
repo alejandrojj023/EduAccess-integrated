@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
-import { ArrowLeft, Save, Volume2, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip, BookMarked, Pencil, Upload, ImageIcon } from "lucide-react"
+import { ArrowLeft, Save, Volume2, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip, BookMarked, Pencil, Upload, ImageIcon, List, HelpCircle, PencilLine, Mic, AlignLeft } from "lucide-react"
 import { parseActivityConfig, serializeActivityConfig } from "@/lib/activity-config"
 
 interface CreateLessonProps {
@@ -34,14 +34,14 @@ interface ActivityItem {
 }
 
 const activityTypes = [
-  { id: "image",      label: "Identificacion de imagenes",    icon: "🖼️" },
-  { id: "sound",      label: "Reconocimiento de sonidos",     icon: "🔊" },
-  { id: "sequence",   label: "Ordenar secuencias",            icon: "📊" },
-  { id: "multiple",   label: "Opcion multiple",               icon: "☑️" },
-  { id: "short",      label: "Respuesta corta escrita",       icon: "✏️" },
-  { id: "voice",      label: "Respuesta por voz",             icon: "🎤" },
-  { id: "fill",       label: "Completar oracion",             icon: "📝" },
-  { id: "wordsearch", label: "Sopa de letras",                icon: "🔤" },
+  { id: "image",      label: "Identificacion de imagenes", Icon: ImageIcon,   gradient: "from-blue-400 to-blue-600" },
+  { id: "sound",      label: "Reconocimiento de sonidos",  Icon: Volume2,     gradient: "from-violet-400 to-violet-600" },
+  { id: "sequence",   label: "Ordenar secuencias",         Icon: List,        gradient: "from-amber-400 to-orange-500" },
+  { id: "multiple",   label: "Opcion multiple",            Icon: HelpCircle,  gradient: "from-primary to-primary/80" },
+  { id: "short",      label: "Respuesta corta escrita",    Icon: PencilLine,  gradient: "from-emerald-400 to-teal-500" },
+  { id: "voice",      label: "Respuesta por voz",          Icon: Mic,         gradient: "from-rose-400 to-rose-600" },
+  { id: "fill",       label: "Completar oracion",          Icon: AlignLeft,   gradient: "from-cyan-400 to-cyan-600" },
+  { id: "wordsearch", label: "Sopa de letras",             Icon: Search,      gradient: "from-indigo-400 to-indigo-600" },
 ]
 
 const difficultyLevels = [
@@ -380,7 +380,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
               onClick={() => { setConfiguringType(null); setEditingActivityId(null) }}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Volver">
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4" aria-hidden="true" />
             </button>
             <div>
               <h1 className="text-base font-bold text-foreground leading-none">
@@ -412,16 +412,16 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                       className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted active:scale-[0.98]">
                       <Upload className="w-4 h-4" aria-hidden="true" />Cambiar imagen
                     </button>
-                    <button type="button" onClick={handleImageDelete}
+                    <button type="button" onClick={handleImageDelete} aria-label="Eliminar imagen"
                       className="flex items-center justify-center rounded-xl border border-destructive/30 bg-card px-3 py-2 text-sm text-destructive hover:bg-destructive/10 active:scale-[0.98]">
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
               ) : (
                 <button type="button" onClick={() => imageInputRef.current?.click()}
                   className="w-full h-36 border border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 hover:border-primary hover:bg-primary/5 transition-all">
-                  <Upload className="w-8 h-8 text-muted-foreground" />
+                  <Upload className="w-8 h-8 text-muted-foreground" aria-hidden="true" />
                   <span className="text-sm font-medium text-muted-foreground">Haz clic para subir una imagen</span>
                   <span className="text-xs text-muted-foreground">PNG, JPG, WEBP o GIF</span>
                 </button>
@@ -436,6 +436,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                 <h2 className="text-sm font-semibold text-foreground mb-3">Oracion Correcta</h2>
                 <div className="flex gap-2">
                   <Input value={actCorrectAnswer} onChange={(e) => setActCorrectAnswer(e.target.value)}
+                    aria-label="Oración correcta"
                     placeholder="Ej: Los gatos son bonitos" className="border-border flex-1" />
                   <button type="button"
                     onClick={() => actCorrectAnswer.trim() && speak(actCorrectAnswer.trim())}
@@ -461,6 +462,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                   Palabras Distractoras <span className="text-muted-foreground font-normal">(opcional)</span>
                 </h2>
                 <Input value={actPalabrasDistractoras} onChange={(e) => setActPalabrasDistractoras(e.target.value)}
+                  aria-label="Palabras distractoras"
                   placeholder="Ej: nube, famoso, mesa" className="border-border" />
                 <p className="text-xs text-muted-foreground mt-2">
                   Separa las palabras con <strong>comas</strong>. Se mezclaran con la oracion para aumentar la dificultad.
@@ -483,6 +485,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                 <h2 className="text-sm font-semibold text-foreground mb-3">Pregunta</h2>
                 <div className="flex gap-2">
                   <Input value={actVoiceEnunciado} onChange={(e) => setActVoiceEnunciado(e.target.value)}
+                    aria-label="Pregunta"
                     placeholder="Ej: ¿De que color es el cielo?" className="border-border flex-1" />
                   <button type="button"
                     onClick={() => actVoiceEnunciado.trim() && speak(actVoiceEnunciado.trim())}
@@ -497,6 +500,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
               <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
                 <h2 className="text-sm font-semibold text-foreground mb-3">Respuesta Correcta</h2>
                 <Input value={actCorrectAnswer} onChange={(e) => setActCorrectAnswer(e.target.value)}
+                  aria-label="Respuestas correctas"
                   placeholder="Ej: azul, celeste, azul claro" className="border-border" />
                 <p className="text-xs text-muted-foreground mt-2">
                   Separa con <strong>comas</strong> si hay varias respuestas validas. Se acepta cualquiera.
@@ -516,8 +520,8 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
           {configuringType?.type === "sequence" && (
             <>
               <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
-                <h2 className="text-sm font-semibold text-foreground mb-3">¿Cuantas imagenes?</h2>
-                <div className="grid grid-cols-3 gap-3">
+                <h2 id="seq-count-label" className="text-sm font-semibold text-foreground mb-3">¿Cuantas imagenes?</h2>
+                <div role="group" aria-labelledby="seq-count-label" className="grid grid-cols-3 gap-3">
                   {([3, 4, 5] as const).map((n) => (
                     <button key={n} type="button"
                       onClick={() => {
@@ -565,7 +569,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                                 setActSequenceSteps(steps)
                               }}
                               className="flex items-center justify-center rounded-xl border border-destructive/30 bg-card px-2 py-1.5 text-destructive hover:bg-destructive/10 active:scale-[0.98]">
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                             </button>
                           </div>
                         </div>
@@ -595,6 +599,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                           steps[idx] = { ...steps[idx], description: e.target.value }
                           setActSequenceSteps(steps)
                         }}
+                        aria-label={`Descripción del paso ${idx + 1}`}
                         placeholder={`Descripcion del paso ${idx + 1} (opcional)`}
                         className="border-border" />
                     </div>
@@ -620,6 +625,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                           next[idx] = e.target.value
                           setActFillContextSentences(next)
                         }}
+                        aria-label={`Oración de contexto ${idx + 1}`}
                         placeholder="Ej: Yo tengo tres mascotas."
                         className="border-border flex-1" />
                       <button type="button"
@@ -633,7 +639,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                         disabled={actFillContextSentences.length === 1 && !sentence.trim()}
                         aria-label="Eliminar oracion"
                         className="flex items-center justify-center rounded-xl border border-destructive/30 bg-card px-2.5 py-2 text-destructive hover:bg-destructive/10 active:scale-[0.98] disabled:opacity-50 shrink-0">
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </button>
                     </div>
                   ))}
@@ -650,6 +656,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
               <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
                 <h2 className="text-sm font-semibold text-foreground mb-3">Oracion a Completar</h2>
                 <Input value={actFillEnunciado} onChange={(e) => setActFillEnunciado(e.target.value)}
+                  aria-label="Oración a completar"
                   placeholder="Ej: Yo tengo tres ___." className="border-border" />
                 <p className="text-xs text-muted-foreground mt-2">
                   Usa <strong>___</strong> (tres guiones bajos) para marcar el espacio en blanco.
@@ -673,6 +680,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
               <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
                 <h2 className="text-sm font-semibold text-foreground mb-3">Respuesta Correcta</h2>
                 <Input value={actCorrectAnswer} onChange={(e) => setActCorrectAnswer(e.target.value)}
+                  aria-label="Respuesta correcta"
                   placeholder="Ej: gatos" className="border-border" />
                 <p className="text-xs text-muted-foreground mt-2">La palabra exacta que completa el espacio en blanco.</p>
               </div>
@@ -681,6 +689,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                   Palabras Distractoras <span className="text-muted-foreground font-normal">(opciones incorrectas)</span>
                 </h2>
                 <Input value={actPalabrasDistractoras} onChange={(e) => setActPalabrasDistractoras(e.target.value)}
+                  aria-label="Palabras distractoras"
                   placeholder="Ej: gato, perros, pez" className="border-border" />
                 <p className="text-xs text-muted-foreground mt-2">
                   Separa con <strong>comas</strong>. Se mezclaran con la respuesta correcta como opciones.
@@ -709,11 +718,13 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
               <div className="flex gap-2 mb-3">
                 <Input value={actPalabraInput} onChange={(e) => setActPalabraInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddPalabraSopa())}
+                  aria-label="Nueva palabra para la sopa de letras"
                   placeholder="Ej: GATO" className="border-border flex-1" maxLength={15} />
                 <button type="button" onClick={handleAddPalabraSopa}
                   disabled={actPalabrasSopa.length >= 10 || !actPalabraInput.trim()}
+                  aria-label="Agregar palabra"
                   className="flex items-center justify-center rounded-xl bg-primary px-3 py-2 text-primary-foreground hover:opacity-90 active:scale-[0.98] disabled:opacity-50">
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
               {actPalabrasSopa.length > 0 && (
@@ -739,6 +750,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
           <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
             <h2 className="text-sm font-semibold text-foreground mb-3">Instrucciones de la Actividad</h2>
             <textarea value={actInstrucciones} onChange={(e) => setActInstrucciones(e.target.value)}
+              aria-label="Instrucciones de la actividad"
               placeholder="Escribe instrucciones claras y simples. Ej: Mira la imagen y selecciona la respuesta correcta."
               className="w-full min-h-[90px] p-3 text-sm border border-input rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
           </div>
@@ -766,7 +778,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                         onClick={() => setActOptions(actOptions.filter((o) => o.id !== option.id))}
                         aria-label="Eliminar opcion"
                         className="flex items-center justify-center rounded-xl border border-destructive/30 bg-card p-2 text-destructive hover:bg-destructive/10 active:scale-[0.98]">
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </button>
                     )}
                   </div>
@@ -786,6 +798,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
             <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
               <h2 className="text-sm font-semibold text-foreground mb-3">Respuesta Correcta</h2>
               <Input value={actCorrectAnswer} onChange={(e) => setActCorrectAnswer(e.target.value)}
+                aria-label="Respuesta correcta"
                 placeholder="Escribe la respuesta esperada" className="border-border" />
               <p className="text-xs text-muted-foreground mt-2">El sistema comparara la respuesta del estudiante con esta</p>
             </div>
@@ -793,8 +806,8 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
 
           {/* Difficulty */}
           <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
-            <h2 className="text-sm font-semibold text-foreground mb-3">Nivel de Dificultad</h2>
-            <div className="grid grid-cols-3 gap-2">
+            <h2 id="dificultad-label" className="text-sm font-semibold text-foreground mb-3">Nivel de Dificultad</h2>
+            <div role="group" aria-labelledby="dificultad-label" className="grid grid-cols-3 gap-2">
               {difficultyLevels.map((level) => (
                 <button key={level.id} type="button" onClick={() => setActDificultad(level.id)}
                   className={`rounded-xl border px-3 py-3 text-center transition-all active:scale-[0.98] ${actDificultad === level.id
@@ -838,7 +851,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
             <button type="button" onClick={onBack}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Volver">
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             </button>
             <h1 className="text-base font-bold text-foreground">Crear Lección</h1>
           </div>
@@ -887,7 +900,9 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                 <button key={type.id} type="button"
                   onClick={() => handleSelectType(type.id, type.label)}
                   className="flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-left text-sm font-medium text-foreground transition-all hover:border-primary/40 hover:bg-primary/5 active:scale-[0.98]">
-                  <span className="text-2xl" aria-hidden="true">{type.icon}</span>
+                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${type.gradient}`} aria-hidden="true">
+                    <type.Icon className="w-4 h-4 text-white" />
+                  </span>
                   <span>{type.label}</span>
                 </button>
               ))}
@@ -905,10 +920,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                   const diffLabel = difficultyLevels.find((d) => d.id === activity.nivel_dificultad)?.label ?? activity.nivel_dificultad
                   return (
                     <li key={activity.id}
-                      className="flex items-center justify-between rounded-xl bg-muted px-3 py-3 cursor-pointer hover:bg-muted/80 hover:ring-1 hover:ring-primary/30 transition-all"
-                      onClick={() => handleEditActivity(activity)}
-                      role="button"
-                      aria-label={`Editar actividad ${index + 1}: ${activity.title}`}>
+                      className="flex items-center justify-between rounded-xl bg-muted px-3 py-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
                         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary shrink-0">{index + 1}</span>
@@ -919,16 +931,16 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button type="button"
-                          onClick={(e) => { e.stopPropagation(); handleEditActivity(activity) }}
+                          onClick={() => handleEditActivity(activity)}
                           aria-label={`Editar ${activity.title}`}
                           className="flex items-center justify-center rounded-lg p-1.5 text-primary hover:bg-primary/10 transition-colors">
-                          <Pencil className="w-4 h-4" />
+                          <Pencil className="w-4 h-4" aria-hidden="true" />
                         </button>
                         <button type="button"
-                          onClick={(e) => { e.stopPropagation(); handleRemoveActivity(activity.id) }}
+                          onClick={() => handleRemoveActivity(activity.id)}
                           aria-label={`Eliminar ${activity.title}`}
                           className="flex items-center justify-center rounded-lg p-1.5 text-destructive hover:bg-destructive/10 transition-colors">
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" aria-hidden="true" />
                         </button>
                       </div>
                     </li>
@@ -948,6 +960,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
             <p className="text-xs text-muted-foreground mb-3">
               Texto de lectura que los estudiantes verán antes de las actividades. Sirve como base para las preguntas.
             </p>
+            <label htmlFor="material-lectura" className="sr-only">Material de lectura</label>
             <textarea id="material-lectura" value={materialLectura} onChange={(e) => setMaterialLectura(e.target.value)}
               placeholder="Escribe aquí el texto de lectura para los estudiantes. Ej: El sistema solar está formado por el Sol y los ocho planetas que giran a su alrededor..."
               className="w-full min-h-[140px] p-3 text-sm border border-input rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
@@ -1009,6 +1022,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
             <p className="text-xs text-muted-foreground mb-3">
               Pega el enlace de un video de YouTube. Los estudiantes podrán verlo en la lección antes de las actividades.
             </p>
+            <label htmlFor="material-audiovisual" className="sr-only">Enlace del video de YouTube</label>
             <Input id="material-audiovisual" type="url" value={materialAudiovisual} onChange={(e) => setMaterialAudiovisual(e.target.value)}
               placeholder="https://www.youtube.com/watch?v=..." className="border-border" />
             {materialAudiovisual && (

@@ -9,7 +9,6 @@ export async function GET(request: NextRequest) {
   const { data: { user } } = await supabaseAdmin.auth.getUser(token)
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
 
-  // Verificar que el solicitante es docente
   const { data: perfil } = await supabaseAdmin
     .from("perfil")
     .select("rol")
@@ -29,19 +28,17 @@ export async function GET(request: NextRequest) {
   const grupoIds = grupos?.map((g: any) => g.id_grupo) ?? []
   if (grupoIds.length === 0) return NextResponse.json({ activity: [] })
 
-  // 2. Cursos (solo para resolver actividades -> lección -> curso) y alumnos en paralelo
+  // 2. Cursos y alumnos en paralelo
   const [cursosResult, alumnosResult] = await Promise.all([
     supabaseAdmin.from("curso").select("id_curso").in("id_grupo", grupoIds),
     supabaseAdmin.from("alumno_grupo").select("id_alumno").in("id_grupo", grupoIds),
   ])
 
-  const cursoIds = (cursosResult.data ?? []).map((c: any) => c.id_curso)
   const alumnoIds = [...new Set(alumnosResult.data?.map((a: any) => a.id_alumno) ?? [])]
 
-  if (cursoIds.length === 0) return NextResponse.json({ activity: [] })
+  if ((cursosResult.data ?? []).length === 0) return NextResponse.json({ activity: [] })
 
-  // 3. Últimos 10 intentos de actividad del docente (por grupo)
-  // Nota: `app/api/attempts` inserta `fecha_inicio/fecha_fin` en `intento_actividad`.
+  // 3. Últimos 10 intentos de actividad filtrados por grupo
   const { data: intentos, error } = await supabaseAdmin
     .from("intento_actividad")
     .select("id_alumno, id_actividad, puntaje_total, fecha_fin, fecha_creacion")
@@ -56,7 +53,7 @@ export async function GET(request: NextRequest) {
 
   const activityIds = [...new Set((intentos ?? []).map((i: any) => i.id_actividad).filter(Boolean))]
 
-  // 4. Actividades y perfiles (nombres) en paralelo
+  // 4. Actividades y perfiles en paralelo
   const [actividadesResult, perfilesResult] = await Promise.all([
     activityIds.length > 0
       ? supabaseAdmin.from("actividad").select("id_actividad, titulo").in("id_actividad", activityIds)
@@ -73,7 +70,7 @@ export async function GET(request: NextRequest) {
   const activity = (intentos ?? []).map((i: any) => {
     const nombre = perfilNombres.get(i.id_alumno) ?? "Alumno"
     const actTitulo = actividadTitulos.get(i.id_actividad) ?? "una actividad"
-    const puntaje = i.puntaje_total != null ? ` — ${Math.round(i.puntaje_total)}%` : ""
+    const score: number | null = i.puntaje_total != null ? Math.round(i.puntaje_total) : null
 
     const ts = i.fecha_fin ?? i.fecha_creacion
     const diffMin = ts ? Math.round((ahora.getTime() - new Date(ts).getTime()) / 60000) : 0
@@ -92,8 +89,9 @@ export async function GET(request: NextRequest) {
     return {
       id: `${i.id_alumno}-${i.id_actividad}-${i.fecha_fin ?? i.fecha_creacion}`,
       student: nombre,
-      activity: `Completó "${actTitulo}"${puntaje}`,
+      activity: `Completó "${actTitulo}"`,
       time,
+      score,
     }
   })
 

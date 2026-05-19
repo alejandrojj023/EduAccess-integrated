@@ -152,9 +152,9 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
         <section aria-label="Bienvenida">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary/80 p-6 shadow-xl shadow-primary/20">
             {/* Decorative blobs */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" aria-hidden />
-            <div className="absolute -bottom-8 left-1/3 w-32 h-32 rounded-full bg-white/10 blur-2xl" aria-hidden />
-            <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "24px 24px" }} aria-hidden />
+            <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" aria-hidden="true" />
+            <div className="absolute -bottom-8 left-1/3 w-32 h-32 rounded-full bg-white/10 blur-2xl" aria-hidden="true" />
+            <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "24px 24px" }} aria-hidden="true" />
 
             <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
@@ -199,20 +199,30 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
 
         {/* ── STATS ── */}
         <section aria-label="Tu progreso y logros">
-          <ul className="grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-3">
-            <li><StarsCard estrellasTotales={estrellasTotales} /></li>
-            <li>
-              <LevelCard
-                nivelActual={nivelActual}
-                nivelNombre={nivelNombre}
-                nivelEmoji={nivelEmoji}
-                nivelIcon={nivelIcon}
-                nivelMax={nivelMax}
-                estrellasTotales={estrellasTotales}
-                progressToNext={progressToNext}
-              />
-            </li>
-            <li><StreakCard streakDays={streakDays} /></li>
+          <ul className="grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-3" aria-busy={loading}>
+            {loading ? (
+              [1, 2, 3].map(i => (
+                <li key={i}>
+                  <div className="rounded-3xl border-2 border-border bg-card p-5 h-32 animate-pulse" aria-hidden="true" />
+                </li>
+              ))
+            ) : (
+              <>
+                <li><StarsCard estrellasTotales={estrellasTotales} /></li>
+                <li>
+                  <LevelCard
+                    nivelActual={nivelActual}
+                    nivelNombre={nivelNombre}
+                    nivelEmoji={nivelEmoji}
+                    nivelIcon={nivelIcon}
+                    nivelMax={nivelMax}
+                    estrellasTotales={estrellasTotales}
+                    progressToNext={progressToNext}
+                  />
+                </li>
+                <li><StreakCard streakDays={streakDays} /></li>
+              </>
+            )}
           </ul>
         </section>
 
@@ -229,7 +239,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
 
           {!loading && courses.length === 0 && (
             <div className="flex flex-col items-center gap-4 rounded-3xl border-2 border-dashed border-border bg-card py-12 text-center px-6">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center" aria-hidden>
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center" aria-hidden="true">
                 <Users className="h-7 w-7 text-primary" />
               </div>
               <div>
@@ -243,21 +253,40 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
                 onClick={() => onNavigate("join-group")}
                 className="flex items-center gap-2 rounded-2xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 active:scale-[0.98]"
               >
-                <BookOpen className="h-4 w-4" aria-hidden />
+                <BookOpen className="h-4 w-4" aria-hidden="true" />
                 Unirme a un curso
               </button>
             </div>
           )}
 
+          {loading ? (
+            <ul className="space-y-3 list-none p-0" aria-busy="true" aria-label="Cargando cursos">
+              {[1, 2].map(i => (
+                <li key={i}>
+                  <div className="rounded-3xl border-2 border-border bg-card p-5 animate-pulse">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-2xl bg-muted shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 w-2/3 rounded-md bg-muted" />
+                        <div className="h-3 w-1/3 rounded-md bg-muted" />
+                        <div className="mt-2 h-1.5 w-full rounded-full bg-muted" />
+                      </div>
+                      <div className="h-5 w-12 rounded-full bg-muted shrink-0" />
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
           <ul className="space-y-3 list-none p-0">
             {courses.map((course, idx) => {
               const done = course.progress >= 100
               const started = course.progress > 0
               return (
                 <li key={course.id}>
-                  <article aria-label={`Curso: ${course.name}`}>
                     <button
                       type="button"
+                      aria-label={`Curso: ${course.name}, ${done ? "completado" : `progreso ${course.progress}%`}`}
                       onClick={() => onNavigate(`course-${course.id}|${course.name}`)}
                       className={`group w-full rounded-3xl border-2 border-border bg-card p-5 text-left shadow-sm transition-all hover:border-primary/40 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99] ${courseRing(idx)}`}
                     >
@@ -266,7 +295,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
                         <div className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-sm ${
                           done ? "bg-emerald-500/15" : started ? "bg-primary/15" : "bg-muted"
                         }`}>
-                          <BookOpen className={`h-6 w-6 ${done ? "text-emerald-600 dark:text-emerald-400" : started ? "text-primary" : "text-muted-foreground"}`} aria-hidden />
+                          <BookOpen className={`h-6 w-6 ${done ? "text-emerald-600 dark:text-emerald-400" : started ? "text-primary" : "text-muted-foreground"}`} aria-hidden="true" />
                           {done && (
                             <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-card flex items-center justify-center">
                               <span className="text-white text-[9px] font-black">✓</span>
@@ -306,15 +335,15 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
                           <span className="text-xs text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full">
                             {course.completedLessons}/{course.totalLessons}
                           </span>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden />
+                          <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden="true" />
                         </div>
                       </div>
                     </button>
-                  </article>
                 </li>
               )
             })}
           </ul>
+          )}
         </section>
 
         {/* ── QUICK ACTIONS ── */}
@@ -328,7 +357,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
               className={`group flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 py-4 text-left transition-all hover:border-primary/40 hover:bg-muted active:scale-[0.98] ${ringClass(4)}`}
             >
               <div className="w-9 h-9 rounded-xl bg-violet-500/15 group-hover:bg-violet-500/25 flex items-center justify-center transition-colors shrink-0">
-                <BarChart3 className="h-4 w-4 text-violet-600 dark:text-violet-400" aria-hidden />
+                <BarChart3 className="h-4 w-4 text-violet-600 dark:text-violet-400" aria-hidden="true" />
               </div>
               <span className="text-sm font-bold text-foreground">Mi progreso</span>
             </button>
@@ -340,7 +369,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
               className={`group flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 py-4 text-left transition-all hover:border-primary/40 hover:bg-muted active:scale-[0.98] ${ringClass(3)}`}
             >
               <div className="w-9 h-9 rounded-xl bg-blue-500/15 group-hover:bg-blue-500/25 flex items-center justify-center transition-colors shrink-0">
-                <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" aria-hidden />
+                <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" aria-hidden="true" />
               </div>
               <span className="text-sm font-bold text-foreground">Mi calendario</span>
             </button>
@@ -352,13 +381,13 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
               className={`group col-span-2 flex items-center gap-3 rounded-2xl border-2 border-dashed border-border bg-card px-4 py-4 text-left transition-all hover:border-primary/50 hover:bg-primary/5 active:scale-[0.98] ${ringClass(5)}`}
             >
               <div className="w-9 h-9 rounded-xl bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors shrink-0">
-                <BookOpen className="h-4 w-4 text-primary" aria-hidden />
+                <BookOpen className="h-4 w-4 text-primary" aria-hidden="true" />
               </div>
               <div>
                 <span className="text-sm font-bold text-foreground">Unirme a un curso</span>
                 <p className="text-xs text-muted-foreground">Ingresar código del docente</p>
               </div>
-              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 group-hover:text-primary transition-transform" aria-hidden />
+              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 group-hover:text-primary transition-transform" aria-hidden="true" />
             </button>
           </div>
         </nav>

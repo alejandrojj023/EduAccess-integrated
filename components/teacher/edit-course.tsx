@@ -101,7 +101,7 @@ export function EditCourse({ courseId, onBack, onSave }: EditCourseProps) {
             <button type="button" onClick={onBack}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Volver">
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             </button>
             <h1 className="text-base font-bold text-foreground">Editar Curso</h1>
           </div>
@@ -144,8 +144,8 @@ export function EditCourse({ courseId, onBack, onSave }: EditCourseProps) {
             </div>
 
             <div className="space-y-2">
-              <span className="text-sm font-semibold text-foreground block">Materia</span>
-              <div className="grid grid-cols-3 gap-2">
+              <span id="materia-label-edit" className="text-sm font-semibold text-foreground block">Materia</span>
+              <div role="group" aria-labelledby="materia-label-edit" className="grid grid-cols-3 gap-2">
                 {materias.map((m) => (
                   <button key={m.id} type="button" onClick={() => setMateria(m.id)} aria-pressed={materia === m.id}
                     className={`rounded-xl border px-3 py-2.5 text-center text-sm font-semibold transition-all active:scale-[0.98] ${
@@ -155,9 +155,12 @@ export function EditCourse({ courseId, onBack, onSave }: EditCourseProps) {
                 ))}
               </div>
               {materia === "otra" && (
-                <Input id="materia-pers-edit" type="text" value={materiaPers}
-                  onChange={(e) => setMateriaPers(e.target.value)}
-                  placeholder="Ej: Ciencias Naturales, Arte..." className="border-border mt-2" required />
+                <>
+                  <label htmlFor="materia-pers-edit" className="sr-only">Nombre de la materia personalizada</label>
+                  <Input id="materia-pers-edit" type="text" value={materiaPers}
+                    onChange={(e) => setMateriaPers(e.target.value)}
+                    placeholder="Ej: Ciencias Naturales, Arte..." className="border-border mt-2" required />
+                </>
               )}
             </div>
           </div>

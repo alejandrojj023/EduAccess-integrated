@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import {
@@ -59,6 +63,7 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
   const [invitaciones, setInvitaciones] = useState<Invitation[]>([])
   const [loadingInv,   setLoadingInv]   = useState(true)
   const [deletingId,   setDeletingId]   = useState<string | null>(null)
+  const [invToDelete,  setInvToDelete]  = useState<string | null>(null)
 
   useEffect(() => { loadInvitaciones() }, [courseId])
   useEffect(() => { if (tab === "list") loadDisponibles() }, [tab])
@@ -176,7 +181,7 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
           <button type="button" onClick={onBack}
             className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
             aria-label="Volver">
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
           </button>
           <div>
             <h1 className="text-base font-bold text-foreground leading-none">Invitar Alumnos</h1>
@@ -193,7 +198,12 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
             { id: "email", label: "Por correo", Icon: Mail },
             { id: "list",  label: "Mis alumnos", Icon: Users },
           ] as const).map(({ id, label, Icon }) => (
-            <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+            <button key={id}
+              id={`tab-${id}`}
+              role="tab"
+              aria-selected={tab === id}
+              aria-controls={`panel-${id}`}
+              onClick={() => setTab(id)}
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                 tab === id ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}>
@@ -204,7 +214,7 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
 
         {/* Tab: Email */}
         {tab === "email" && (
-          <section aria-label="Invitar por correo electrónico">
+          <section id="panel-email" role="tabpanel" aria-labelledby="tab-email" aria-label="Invitar por correo electrónico">
             <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-4">
               <p className="text-xs text-muted-foreground">Escribe el correo del alumno que quieres invitar a este curso.</p>
               <div className="flex gap-2">
@@ -232,7 +242,7 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
 
         {/* Tab: List */}
         {tab === "list" && (
-          <section aria-label="Seleccionar alumnos de tus grupos">
+          <section id="panel-list" role="tabpanel" aria-labelledby="tab-list" aria-label="Seleccionar alumnos de tus grupos">
             {loadingList ? (
               <ul className="space-y-1.5 list-none p-0" aria-busy="true" aria-label="Cargando alumnos">
                 {[1, 2, 3].map(i => (
@@ -338,7 +348,7 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
                         </span>
                         {inv.estado === "pendiente" && (
                           <button type="button"
-                            onClick={() => handleDeleteInvitation(inv.id_invitacion)}
+                            onClick={() => setInvToDelete(inv.id_invitacion)}
                             disabled={deletingId === inv.id_invitacion}
                             aria-label={`Cancelar invitación a ${inv.alumno?.nombre}`}
                             className="flex items-center justify-center rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50">
@@ -354,6 +364,26 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
           )}
         </section>
       </main>
+
+      <AlertDialog open={invToDelete !== null} onOpenChange={(open) => { if (!open) setInvToDelete(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Cancelar invitación?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se cancelará la invitación pendiente. El alumno no podrá aceptarla. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, mantener</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (invToDelete) handleDeleteInvitation(invToDelete); setInvToDelete(null) }}
+            >
+              Sí, cancelar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

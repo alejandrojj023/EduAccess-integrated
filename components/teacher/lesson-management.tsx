@@ -1,5 +1,10 @@
 "use client"
 
+import { useState } from "react"
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useLessons } from "@/hooks/teacher/use-lessons"
 import {
@@ -16,15 +21,18 @@ interface LessonManagementProps {
 export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagementProps) {
   const { lessons, loading, deleteLesson } = useLessons(courseId)
   const { speak, settings } = useAccessibility()
+  const [lessonToDelete, setLessonToDelete] = useState<{ id: string; title: string } | null>(null)
 
   const handleReadInstructions = () => {
     if (loading) { speak("Cargando lecciones, por favor espera."); return }
     speak(`Gestión de lecciones. Tienes ${lessons.length} ${lessons.length === 1 ? "lección" : "lecciones"} en este curso.`)
   }
 
-  const handleDeleteLesson = async (lessonId: string) => {
-    const success = await deleteLesson(lessonId)
+  const handleDeleteLesson = async () => {
+    if (!lessonToDelete) return
+    const success = await deleteLesson(lessonToDelete.id)
     if (success) speak("Lección eliminada")
+    setLessonToDelete(null)
   }
 
   const publishedCount = lessons.filter(l => l.status === "published").length
@@ -51,13 +59,13 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
             {settings.voiceEnabled && (
               <button type="button" onClick={handleReadInstructions}
                 className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
-                <Volume2 className="w-4 h-4" aria-hidden />
+                <Volume2 className="w-4 h-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Escuchar</span>
               </button>
             )}
             <button type="button" onClick={() => onNavigate("create-lesson")}
               className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 hover:shadow-md active:scale-[0.98]">
-              <Plus className="w-4 h-4" aria-hidden />
+              <Plus className="w-4 h-4" aria-hidden="true" />
               Nueva lección
             </button>
           </div>
@@ -88,13 +96,13 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
           ) : lessons.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border bg-card py-16 text-center px-6">
               <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
-                <FileText className="w-7 h-7 text-muted-foreground/50" aria-hidden />
+                <FileText className="w-7 h-7 text-muted-foreground/50" aria-hidden="true" />
               </div>
               <h3 className="text-base font-bold text-foreground mb-1">No hay lecciones</h3>
               <p className="text-sm text-muted-foreground mb-5">Crea tu primera lección para este curso</p>
               <button type="button" onClick={() => onNavigate("create-lesson")}
                 className="flex items-center gap-2 rounded-2xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground hover:opacity-90 active:scale-[0.98]">
-                <Plus className="w-4 h-4" aria-hidden /> Nueva lección
+                <Plus className="w-4 h-4" aria-hidden="true" /> Nueva lección
               </button>
             </div>
           ) : (
@@ -104,7 +112,7 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
                 return (
                   <li key={lesson.id}>
                     <article aria-label={`Lección ${index + 1}: ${lesson.title}`}
-                      className="rounded-3xl border-2 border-border bg-card p-5 shadow-sm transition-all hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5">
+                      className="rounded-3xl border-2 border-border bg-card p-5 shadow-sm transition-shadow hover:border-primary/30 hover:shadow-md">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-4 min-w-0 flex-1">
                           {/* Number badge */}
@@ -116,7 +124,7 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
 
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="text-sm font-black text-foreground truncate">{lesson.title}</h3>
+                              <h2 className="text-sm font-black text-foreground truncate">{lesson.title}</h2>
                               <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full ${
                                 published
                                   ? "bg-emerald-100 text-emerald-700"
@@ -131,7 +139,7 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
                               <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{lesson.instructions}</p>
                             )}
                             <div className="flex items-center gap-1.5 mt-1.5">
-                              <Play className="w-3 h-3 text-muted-foreground" aria-hidden />
+                              <Play className="w-3 h-3 text-muted-foreground" aria-hidden="true" />
                               <span className="text-xs text-muted-foreground font-medium">
                                 {lesson.activitiesCount} {lesson.activitiesCount === 1 ? "actividad" : "actividades"}
                               </span>
@@ -140,19 +148,19 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
                         </div>
 
                         {/* Actions */}
-                        <nav aria-label={`Acciones de la lección ${lesson.title}`} className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0">
                           <button type="button"
                             onClick={() => onNavigate(`edit-lesson-${lesson.id}`)}
                             className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground transition-all hover:bg-muted active:scale-[0.98]">
-                            <Edit className="w-3.5 h-3.5" aria-hidden /> Editar
+                            <Edit className="w-3.5 h-3.5" aria-hidden="true" /> Editar
                           </button>
                           <button type="button"
-                            onClick={() => handleDeleteLesson(lesson.id)}
+                            onClick={() => setLessonToDelete({ id: lesson.id, title: lesson.title })}
                             aria-label={`Eliminar lección ${lesson.title}`}
                             className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 transition-all hover:bg-red-100 active:scale-[0.98]">
-                            <Trash2 className="w-3.5 h-3.5" aria-hidden />
+                            <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                           </button>
-                        </nav>
+                        </div>
                       </div>
                     </article>
                   </li>
@@ -162,6 +170,26 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
           )}
         </section>
       </main>
+
+      <AlertDialog open={lessonToDelete !== null} onOpenChange={(open) => { if (!open) setLessonToDelete(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar "{lessonToDelete?.title}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminarán la lección y todas sus actividades. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteLesson}
+            >
+              Sí, eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
