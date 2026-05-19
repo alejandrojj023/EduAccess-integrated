@@ -42,7 +42,7 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
             </button>
             <div>
               <h1 className="text-sm font-black text-foreground leading-none">Lecciones</h1>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {loading ? "Cargando…" : `${lessons.length} lecciones · ${publishedCount} publicadas`}
               </p>
             </div>
@@ -67,8 +67,23 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
       <main className="mx-auto max-w-5xl px-5 py-7">
         <section aria-label="Lista de lecciones">
           {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-3xl bg-muted animate-pulse" />)}
+            <div className="space-y-3" aria-busy="true" aria-label="Cargando lecciones">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="rounded-3xl border-2 border-border bg-card p-5 animate-pulse">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-muted shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 w-2/3 rounded-md bg-muted" />
+                      <div className="h-3 w-1/3 rounded-md bg-muted" />
+                      <div className="h-3 w-1/4 rounded-md bg-muted mt-1" />
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <div className="h-8 w-16 rounded-xl bg-muted" />
+                      <div className="h-8 w-8 rounded-xl bg-muted" />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : lessons.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border bg-card py-16 text-center px-6">
@@ -102,7 +117,7 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <h3 className="text-sm font-black text-foreground truncate">{lesson.title}</h3>
-                              <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                              <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full ${
                                 published
                                   ? "bg-emerald-100 text-emerald-700"
                                   : "bg-muted text-muted-foreground"
@@ -117,7 +132,7 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
                             )}
                             <div className="flex items-center gap-1.5 mt-1.5">
                               <Play className="w-3 h-3 text-muted-foreground" aria-hidden />
-                              <span className="text-[11px] text-muted-foreground font-medium">
+                              <span className="text-xs text-muted-foreground font-medium">
                                 {lesson.activitiesCount} {lesson.activitiesCount === 1 ? "actividad" : "actividades"}
                               </span>
                             </div>

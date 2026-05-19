@@ -68,8 +68,27 @@ export function EditCourse({ courseId, onBack, onSave }: EditCourseProps) {
 
   if (isFetching) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">Cargando curso...</p>
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
+          <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-6">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-muted animate-pulse" />
+              <div className="h-5 w-28 rounded-md bg-muted animate-pulse" />
+            </div>
+          </div>
+        </header>
+        <main className="mx-auto max-w-3xl px-6 py-8">
+          <div className="rounded-2xl border border-border bg-card shadow-sm p-6 space-y-5 animate-pulse">
+            <div className="h-4 w-40 rounded-md bg-muted" />
+            <div className="h-10 w-full rounded-xl bg-muted" />
+            <div className="h-20 w-full rounded-xl bg-muted" />
+            <div className="grid grid-cols-3 gap-2">
+              <div className="h-10 rounded-xl bg-muted" />
+              <div className="h-10 rounded-xl bg-muted" />
+              <div className="h-10 rounded-xl bg-muted" />
+            </div>
+          </div>
+        </main>
       </div>
     )
   }

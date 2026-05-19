@@ -56,7 +56,6 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
       icon: Users,
       hover: hoverEstudiantesCard,
       gradient: "from-blue-400 to-blue-600",
-      shadow: "shadow-blue-200/60",
       border: "border-blue-200",
     },
     {
@@ -66,7 +65,6 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
       icon: BookOpen,
       hover: hoverCursosCard,
       gradient: "from-violet-400 to-violet-600",
-      shadow: "shadow-violet-200/60",
       border: "border-violet-200",
     },
     {
@@ -76,7 +74,6 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
       icon: TrendingUp,
       hover: hoverProgresoCard,
       gradient: "from-emerald-400 to-teal-600",
-      shadow: "shadow-emerald-200/60",
       border: "border-emerald-200",
     },
   ], [dashboardStats, hoverEstudiantesCard, hoverCursosCard, hoverProgresoCard])
@@ -109,7 +106,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
             </div>
             <div>
               <p className="text-sm font-black leading-none text-foreground">EduAccess</p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">Panel del Docente</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Panel del Docente</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -160,13 +157,13 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
             <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
                 <div
-                  className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-base font-black text-white shadow-lg border-2 border-white/20"
-                  style={{ backgroundColor: avatarColor ?? "rgba(255,255,255,0.15)" }}
-                  aria-hidden
+                  className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-2xl font-black text-white shadow-lg border-2 border-white/30"
+                  style={{ backgroundColor: avatarColor ?? "rgba(255,255,255,0.25)" }}
+                  aria-hidden="true"
                 >
                   {initials}
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-primary border-2 border-slate-800 flex items-center justify-center">
-                    <span className="text-[7px] text-white font-black">✓</span>
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-400 border-2 border-white flex items-center justify-center">
+                    <span className="text-[8px]">✓</span>
                   </div>
                 </div>
                 <div>
@@ -207,7 +204,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
             {statCards.map((s) => (
               <li key={s.label}>
                 <div
-                  className={`relative overflow-hidden rounded-3xl border-2 ${s.border} bg-gradient-to-br ${s.gradient} p-5 shadow-lg ${s.shadow} transition-all duration-300 hover:-translate-y-1 hover:shadow-xl`}
+                  className={`relative overflow-hidden rounded-3xl border-2 ${s.border} bg-gradient-to-br ${s.gradient} p-5 shadow-lg shadow-primary/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl`}
                   {...s.hover}
                 >
                   <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/15 blur-xl" aria-hidden />
@@ -297,7 +294,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
               ) : (
                 <ul className="space-y-2 list-none p-0" aria-label="Lista de actividad reciente">
                   {recentActivity.map((activity) => (
-                    <li key={`${activity.student}-${activity.activity}-${activity.time}`}>
+                    <li key={activity.id}>
                       <ActivityRow student={activity.student} activity={activity.activity} time={activity.time} />
                     </li>
                   ))}
@@ -328,7 +325,7 @@ function ActivityRow({ student, activity, time }: { student: string; activity: s
         <p className="truncate text-xs text-muted-foreground mt-0.5">{activity}</p>
       </div>
       <div className="shrink-0 flex flex-col items-end gap-1">
-        <time className="text-[11px] text-muted-foreground font-medium">{time}</time>
+        <time className="text-xs text-muted-foreground font-medium">{time}</time>
         <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" aria-hidden />
       </div>
     </article>

@@ -434,9 +434,22 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
 
       <main className="max-w-5xl mx-auto px-4 py-8">
         {loading ? (
-          <div className="flex items-center justify-center py-24">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
+          <ul className="grid gap-4 list-none p-0" aria-busy="true" aria-label="Cargando estudiantes">
+            {[1, 2, 3].map(i => (
+              <li key={i}>
+                <div className="rounded-2xl border border-border bg-card px-5 py-4 animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-muted shrink-0" />
+                    <div className="h-4 w-32 rounded-md bg-muted shrink-0" />
+                    <div className="h-4 w-12 rounded-md bg-muted shrink-0" />
+                    <div className="flex-1 h-2 rounded-full bg-muted" />
+                    <div className="h-4 w-10 rounded-md bg-muted shrink-0" />
+                    <div className="h-9 w-9 rounded-xl bg-muted shrink-0" />
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
         ) : students.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-card py-16 text-center shadow-sm">
             <Users className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" aria-hidden="true" />

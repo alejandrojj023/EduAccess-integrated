@@ -234,7 +234,19 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
         {tab === "list" && (
           <section aria-label="Seleccionar alumnos de tus grupos">
             {loadingList ? (
-              <p className="text-sm text-muted-foreground">Cargando alumnos…</p>
+              <ul className="space-y-1.5 list-none p-0" aria-busy="true" aria-label="Cargando alumnos">
+                {[1, 2, 3].map(i => (
+                  <li key={i}>
+                    <div className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 animate-pulse">
+                      <div className="w-8 h-8 rounded-full bg-muted shrink-0" />
+                      <div className="space-y-1.5 flex-1">
+                        <div className="h-3 w-28 rounded-md bg-muted" />
+                        <div className="h-3 w-40 rounded-md bg-muted" />
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             ) : disponibles.length === 0 ? (
               <div className="rounded-2xl border border-border bg-card shadow-sm py-10 text-center">
                 <p className="text-sm text-muted-foreground">No hay alumnos disponibles para invitar.</p>
@@ -290,7 +302,19 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
         <section aria-label="Invitaciones enviadas">
           <h2 className="text-sm font-semibold text-foreground mb-3">Invitaciones enviadas</h2>
           {loadingInv ? (
-            <p className="text-sm text-muted-foreground">Cargando…</p>
+            <ul className="space-y-2 list-none p-0" aria-busy="true" aria-label="Cargando invitaciones">
+              {[1, 2].map(i => (
+                <li key={i}>
+                  <div className="rounded-2xl border border-border bg-card px-4 py-3 flex items-center justify-between gap-4 animate-pulse">
+                    <div className="space-y-1.5 flex-1">
+                      <div className="h-4 w-32 rounded-md bg-muted" />
+                      <div className="h-3 w-48 rounded-md bg-muted" />
+                    </div>
+                    <div className="h-6 w-20 rounded-full bg-muted shrink-0" />
+                  </div>
+                </li>
+              ))}
+            </ul>
           ) : invitaciones.length === 0 ? (
             <div className="rounded-2xl border border-border bg-card shadow-sm py-8 text-center">
               <p className="text-sm text-muted-foreground">No hay invitaciones enviadas para este curso.</p>

@@ -17,6 +17,7 @@ interface DashboardStats {
 }
 
 interface RecentActivity {
+  id: string
   student: string
   activity: string
   time: string

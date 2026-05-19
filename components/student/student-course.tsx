@@ -116,8 +116,8 @@ export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: 
               <BookOpen className="w-4 h-4 text-primary" aria-hidden />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-black text-foreground truncate leading-tight">{courseName}</p>
-              <p className="text-[11px] text-muted-foreground">{completadas} de {lessons.length} lecciones</p>
+              <h1 className="text-sm font-black text-foreground truncate leading-tight">{courseName}</h1>
+              <p className="text-xs text-muted-foreground">{completadas} de {lessons.length} lecciones</p>
             </div>
           </div>
 
@@ -134,9 +134,18 @@ export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: 
 
       <main className="max-w-3xl mx-auto px-5 py-7">
         {loading ? (
-          <div className="space-y-3">
+          <div className="space-y-3" aria-busy="true" aria-label="Cargando lecciones">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-24 rounded-3xl bg-muted animate-pulse" />
+              <div key={i} className="rounded-3xl border-2 border-border bg-card p-5 animate-pulse">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-muted shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-3/4 rounded-md bg-muted" />
+                    <div className="h-3 w-1/2 rounded-md bg-muted" />
+                    <div className="h-2 w-full rounded-full bg-muted mt-1" />
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         ) : lessons.length === 0 ? (
@@ -202,7 +211,7 @@ export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: 
                           )}
 
                           <div className="flex items-center gap-3 mt-2">
-                            <span className="text-[11px] text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full">
+                            <span className="text-xs text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full">
                               {lesson.total_actividades} actividad{lesson.total_actividades !== 1 ? "es" : ""}
                             </span>
 
@@ -214,7 +223,7 @@ export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: 
                                     style={{ width: `${lesson.pct_completado}%` }}
                                   />
                                 </div>
-                                <span className={`text-[11px] font-bold w-9 text-right ${done ? "text-emerald-500 dark:text-emerald-400" : "text-primary"}`}>
+                                <span className={`text-xs font-bold w-9 text-right ${done ? "text-emerald-500 dark:text-emerald-400" : "text-primary"}`}>
                                   {lesson.pct_completado}%
                                 </span>
                               </div>

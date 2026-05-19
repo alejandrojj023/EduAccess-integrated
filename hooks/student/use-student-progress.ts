@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
+import { NIVELES } from "@/lib/utils"
 
 export interface LessonAttempt {
   id: string
@@ -32,6 +33,9 @@ interface ProgressStats {
   totalAttempts: number
   currentStreak: number
   totalStars: number
+  nivelNombre: string
+  nivelEmoji: string
+  colorPerfil: string | null
 }
 
 interface UseStudentProgressReturn {
@@ -51,6 +55,9 @@ export function useStudentProgress(): UseStudentProgressReturn {
     totalAttempts: 0,
     currentStreak: 0,
     totalStars: 0,
+    nivelNombre: NIVELES[1].nombre,
+    nivelEmoji: NIVELES[1].emoji,
+    colorPerfil: null,
   })
   const [loading, setLoading] = useState(true)
 
@@ -64,7 +71,7 @@ export function useStudentProgress(): UseStudentProgressReturn {
       const [gamiResult, inscripcionesResult] = await Promise.all([
         supabase
           .from("gamificacion")
-          .select("puntos_totales, streaks_dias")
+          .select("estrellas_totales, streaks_dias, nivel, color_perfil")
           .eq("id_alumno", user.id)
           .single(),
         supabase
@@ -155,7 +162,7 @@ export function useStudentProgress(): UseStudentProgressReturn {
                 .reduce((acc, l) => acc + l.score, 0) / completedCount
             )
           : 0
-      const totalAtt = lessonsData.reduce((acc, l) => acc + l.attempts, 0)
+      const totalAtt = historialRaw?.length ?? 0
 
       setStats({
         completedLessons: completedCount,
@@ -164,7 +171,10 @@ export function useStudentProgress(): UseStudentProgressReturn {
         averageScore: avgScore,
         totalAttempts: totalAtt,
         currentStreak: gami?.streaks_dias ?? 0,
-        totalStars: gami?.puntos_totales ?? 0,
+        totalStars: gami?.estrellas_totales ?? 0,
+        nivelNombre: (NIVELES[gami?.nivel ?? 1] ?? NIVELES[1]).nombre,
+        nivelEmoji:  (NIVELES[gami?.nivel ?? 1] ?? NIVELES[1]).emoji,
+        colorPerfil: gami?.color_perfil ?? null,
       })
 
       setLoading(false)

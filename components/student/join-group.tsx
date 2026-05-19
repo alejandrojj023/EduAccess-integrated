@@ -91,7 +91,7 @@ export function JoinGroup({ onNavigate }: JoinGroupProps) {
             </button>
             <div>
               <h1 className="text-sm font-black text-foreground leading-none">Unirse a un Curso</h1>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Código de curso o invitación</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Código de curso o invitación</p>
             </div>
           </div>
         </div>
@@ -109,8 +109,8 @@ export function JoinGroup({ onNavigate }: JoinGroupProps) {
                 <BookOpen className="w-7 h-7 text-white" aria-hidden />
               </div>
               <div>
-                <h2 className="text-lg font-black text-white leading-tight">Unirse a un Curso</h2>
-                <p className="text-sm text-white/80 mt-0.5">Ingresa el código que te dio tu docente o acepta una invitación</p>
+                <h2 className="text-lg font-black text-white leading-tight">Ingresa el código de tu docente</h2>
+                <p className="text-sm text-white/80 mt-0.5">Código de 6 caracteres o acepta una invitación pendiente</p>
               </div>
             </div>
           </div>
@@ -167,7 +167,22 @@ export function JoinGroup({ onNavigate }: JoinGroupProps) {
         <section aria-label="Invitaciones de curso pendientes">
           <h2 className="text-lg font-bold mb-3 text-foreground">Invitaciones de curso</h2>
           {loadingCourseInv ? (
-            <p className="text-muted-foreground">Cargando invitaciones…</p>
+            <ul className="space-y-3 list-none p-0" aria-busy="true" aria-label="Cargando invitaciones">
+              {[1, 2].map((i) => (
+                <li key={i}>
+                  <div className="rounded-xl border-2 border-border bg-card p-4 flex items-center justify-between gap-4 animate-pulse">
+                    <div className="space-y-2 flex-1">
+                      <div className="h-4 w-40 rounded-md bg-muted" />
+                      <div className="h-3 w-28 rounded-md bg-muted" />
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="h-8 w-20 rounded-md bg-muted" />
+                      <div className="h-8 w-20 rounded-md bg-muted" />
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
           ) : courseInvitations.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">

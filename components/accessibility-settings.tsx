@@ -63,11 +63,25 @@ export function AccessibilitySettings({ onBack }: AccessibilitySettingsProps) {
   const [selectedColor, setSelectedColor] = useState<string | null>(loadAvatarColor)
   const [showColorPicker, setShowColorPicker] = useState(false)
 
-  const handleSelectColor = (opt: typeof AVATAR_COLORS[0]) => {
+  const handleSelectColor = async (opt: typeof AVATAR_COLORS[0]) => {
     setSelectedColor(opt.color)
     localStorage.setItem(AVATAR_COLOR_KEY, opt.color)
     setShowColorPicker(false)
     speak(`Color de avatar: ${opt.name}`)
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        await fetch("/api/profile", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ color_perfil: opt.color }),
+        })
+      }
+    } catch {}
   }
 
   // ── Password change state ─────────────────────────────────

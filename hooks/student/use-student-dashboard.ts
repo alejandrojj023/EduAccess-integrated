@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
-import { fechaTijuana, diferenciaDias } from "@/lib/utils"
+import { fechaTijuana, diferenciaDias, NIVELES } from "@/lib/utils"
 
 // ============================================================
 // Hook: useStudentDashboard
@@ -26,6 +26,7 @@ interface Gamification {
   nivelMin: number
   nivelMax: number
   streakDays: number
+  colorPerfil: string | null
 }
 
 interface UseStudentDashboardReturn {
@@ -34,23 +35,11 @@ interface UseStudentDashboardReturn {
   loading: boolean
 }
 
-const NIVELES: Record<number, { nombre: string; emoji: string; icon: string; min: number; max: number }> = {
-  1:  { nombre: "Semilla Dormida",     emoji: "💤",  icon: "/Semilla%20Dormida.svg",       min: 0,   max: 9        },
-  2:  { nombre: "Semilla Saltarina",   emoji: "🌱",  icon: "/Semilla%20Saltarina.svg",     min: 10,  max: 29       },
-  3:  { nombre: "Brote Brillante",     emoji: "🌿",  icon: "/Brote%20Brillante.svg",       min: 30,  max: 59       },
-  4:  { nombre: "Trébol de la Suerte", emoji: "🍀",  icon: "/Trebol%20de%20la%20Suerte.svg", min: 60, max: 99      },
-  5:  { nombre: "Girasol Sonriente",   emoji: "🌻",  icon: "/Girasol%20Sonrriente.svg",    min: 100, max: 144      },
-  6:  { nombre: "Cactus Valiente",     emoji: "🌵",  icon: "/Cactus%20Valiente.svg",       min: 145, max: 195      },
-  7:  { nombre: "Árbol Alegre",        emoji: "🌳",  icon: "/Arbol%20Alegre.svg",          min: 196, max: 251      },
-  8:  { nombre: "Flor Guardiana",      emoji: "🌸",  icon: "/Flor%20Guardiana.svg",        min: 252, max: 312      },
-  9:  { nombre: "Gran Roble",          emoji: "🌲",  icon: "/Gran%20Roble.svg",            min: 313, max: 378      },
-  10: { nombre: "Bosque Mágico",       emoji: "✨",  icon: "/Bosque%20Magico.svg",         min: 379, max: Infinity },
-}
 
 const DEFAULT_GAMI: Gamification = {
   totalStars: 0, estrellasTotales: 0,
   nivelActual: 1, nivelNombre: NIVELES[1].nombre, nivelEmoji: NIVELES[1].emoji, nivelIcon: NIVELES[1].icon,
-  nivelMin: NIVELES[1].min, nivelMax: NIVELES[1].max, streakDays: 0,
+  nivelMin: NIVELES[1].min, nivelMax: NIVELES[1].max, streakDays: 0, colorPerfil: null,
 }
 
 // Module-level cache — shared across re-mounts (survives fast navigation)
@@ -99,7 +88,7 @@ export function useStudentDashboard(): UseStudentDashboardReturn {
       const [gamiResult, inscripcionesResult] = await Promise.all([
         supabase
           .from("gamificacion")
-          .select("puntos_totales, estrellas_totales, nivel, streaks_dias, ultimo_acceso")
+          .select("puntos_totales, estrellas_totales, nivel, streaks_dias, ultimo_acceso, color_perfil")
           .eq("id_alumno", user.id)
           .single(),
         supabase
@@ -124,6 +113,11 @@ export function useStudentDashboard(): UseStudentDashboardReturn {
           if (diff >= 2) rachaVisible = 0
         }
 
+        const colorPerfil = gamiResult.data.color_perfil ?? null
+        if (colorPerfil && typeof window !== "undefined") {
+          localStorage.setItem("ea_avatar_color", colorPerfil)
+        }
+
         newGami = {
           totalStars: gamiResult.data.puntos_totales ?? 0,
           estrellasTotales: gamiResult.data.estrellas_totales ?? 0,
@@ -134,6 +128,7 @@ export function useStudentDashboard(): UseStudentDashboardReturn {
           nivelMin: nivelInfo.min,
           nivelMax: nivelInfo.max,
           streakDays: rachaVisible,
+          colorPerfil,
         }
       }
 

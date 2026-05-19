@@ -1401,7 +1401,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
             )}
             {isLessonMode && lessonActivities.length > 0 && (
               <div className="text-right min-w-[72px]">
-                <p className="text-[11px] text-muted-foreground">Progreso</p>
+                <p className="text-xs text-muted-foreground">Progreso</p>
                 <p className="font-extrabold text-foreground tabular-nums">
                   {Math.round(((lessonActIndex + (phase === "result" ? 1 : 0)) / lessonActivities.length) * 100)}%
                 </p>

@@ -325,7 +325,7 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
               </div>
             ) : (
               <div className="text-right min-w-[72px]">
-                <p className="text-[11px] text-muted-foreground">Progreso</p>
+                <p className="text-xs text-muted-foreground">Progreso</p>
                 <p className="font-extrabold text-foreground tabular-nums">{lessonProgress}%</p>
               </div>
             )}

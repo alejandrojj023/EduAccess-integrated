@@ -307,7 +307,26 @@ export function GroupManagement({ onNavigate }: GroupManagementProps) {
         <section aria-label="Códigos de clase">
           <h2 className="text-sm font-semibold text-foreground mb-3">Códigos de clase</h2>
           {loading ? (
-            <p className="text-sm text-muted-foreground">Cargando grupos…</p>
+            <ul className="space-y-3 list-none p-0" aria-busy="true" aria-label="Cargando grupos">
+              {[1, 2].map(i => (
+                <li key={i}>
+                  <div className="rounded-2xl border border-border bg-card px-5 py-4 animate-pulse">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="space-y-2">
+                        <div className="h-4 w-24 rounded-md bg-muted" />
+                        <div className="h-3 w-40 rounded-md bg-muted" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="h-6 w-20 rounded-md bg-muted" />
+                        <div className="h-9 w-9 rounded-xl bg-muted" />
+                        <div className="h-9 w-9 rounded-xl bg-muted" />
+                        <div className="h-9 w-9 rounded-xl bg-muted" />
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
           ) : groups.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card py-10 text-center shadow-sm">
               <p className="text-sm text-muted-foreground">No tienes grupos creados aún. Crea un curso para generar un grupo.</p>
@@ -524,7 +543,21 @@ export function GroupManagement({ onNavigate }: GroupManagementProps) {
         {/* ── Historial de invitaciones ── */}
         <section aria-label="Invitaciones enviadas">
           <h2 className="text-sm font-semibold text-foreground mb-3">Invitaciones enviadas</h2>
-          {loading ? null : invitations.length === 0 ? (
+          {loading ? (
+            <ul className="space-y-2 list-none p-0" aria-busy="true" aria-label="Cargando invitaciones">
+              {[1, 2].map(i => (
+                <li key={i}>
+                  <div className="rounded-2xl border border-border bg-card px-4 py-3 flex items-center justify-between gap-3 animate-pulse">
+                    <div className="space-y-1.5">
+                      <div className="h-4 w-32 rounded-md bg-muted" />
+                      <div className="h-3 w-48 rounded-md bg-muted" />
+                    </div>
+                    <div className="h-6 w-20 rounded-full bg-muted shrink-0" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : invitations.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card py-8 text-center shadow-sm">
               <p className="text-sm text-muted-foreground">Aún no has enviado invitaciones.</p>
             </div>

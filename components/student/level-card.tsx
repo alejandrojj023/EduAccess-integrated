@@ -72,7 +72,7 @@ export function LevelCard({
                 aria-label={`${progressToNext}% hacia el siguiente nivel`}
               />
             </div>
-            <p className="text-[11px] text-emerald-100 text-right">{progressToNext}% al siguiente nivel</p>
+            <p className="text-xs text-emerald-100 text-right">{progressToNext}% al siguiente nivel</p>
           </div>
         ) : (
           <div className="flex items-center gap-2 bg-white/20 rounded-2xl px-3 py-2">

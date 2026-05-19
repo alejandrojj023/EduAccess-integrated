@@ -328,7 +328,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
             </button>
             <div>
               <h1 className="text-sm font-black text-foreground leading-none">Analíticas</h1>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Rendimiento de estudiantes</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Rendimiento de estudiantes</p>
             </div>
           </div>
           {settings.voiceEnabled && (
@@ -475,7 +475,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
         <section aria-label="Estadísticas generales">
           <ul className="grid grid-cols-2 lg:grid-cols-4 gap-3 list-none p-0">
             <li>
-              <div className="relative overflow-hidden rounded-3xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-400 to-teal-600 p-5 shadow-lg shadow-emerald-200/60 transition-all hover:-translate-y-1 hover:shadow-xl" {...hoverCorrect}>
+              <div className="relative overflow-hidden rounded-3xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-400 to-teal-600 p-5 shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:shadow-xl" {...hoverCorrect}>
                 <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden />
                 <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
                   <CheckCircle className="w-5 h-5 text-white" aria-hidden />
@@ -485,7 +485,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
               </div>
             </li>
             <li>
-              <div className="relative overflow-hidden rounded-3xl border-2 border-blue-200 bg-gradient-to-br from-blue-400 to-blue-600 p-5 shadow-lg shadow-blue-200/60 transition-all hover:-translate-y-1 hover:shadow-xl" {...hoverIntentos}>
+              <div className="relative overflow-hidden rounded-3xl border-2 border-blue-200 bg-gradient-to-br from-blue-400 to-blue-600 p-5 shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:shadow-xl" {...hoverIntentos}>
                 <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden />
                 <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
                   <Target className="w-5 h-5 text-white" aria-hidden />
@@ -495,7 +495,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
               </div>
             </li>
             <li>
-              <div className="relative overflow-hidden rounded-3xl border-2 border-amber-200 bg-gradient-to-br from-amber-400 to-orange-500 p-5 shadow-lg shadow-amber-200/60 transition-all hover:-translate-y-1 hover:shadow-xl" {...hoverTiempo}>
+              <div className="relative overflow-hidden rounded-3xl border-2 border-amber-200 bg-gradient-to-br from-amber-400 to-orange-500 p-5 shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:shadow-xl" {...hoverTiempo}>
                 <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden />
                 <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
                   <Clock className="w-5 h-5 text-white" aria-hidden />
@@ -505,7 +505,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
               </div>
             </li>
             <li>
-              <div className="relative overflow-hidden rounded-3xl border-2 border-violet-200 bg-gradient-to-br from-violet-400 to-violet-600 p-5 shadow-lg shadow-violet-200/60 transition-all hover:-translate-y-1 hover:shadow-xl" {...hoverActivos}>
+              <div className="relative overflow-hidden rounded-3xl border-2 border-violet-200 bg-gradient-to-br from-violet-400 to-violet-600 p-5 shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:shadow-xl" {...hoverActivos}>
                 <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden />
                 <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
                   <Users className="w-5 h-5 text-white" aria-hidden />

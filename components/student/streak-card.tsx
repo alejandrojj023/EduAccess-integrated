@@ -51,12 +51,12 @@ export function StreakCard({ streakDays }: StreakCardProps) {
             {streakDays === 1 ? "Día seguido" : "Días seguidos"}
           </p>
           {streakDays >= 3 && (
-            <span className="inline-block mt-1 text-[11px] font-bold text-orange-100 bg-white/20 rounded-full px-2 py-0.5">
+            <span className="inline-block mt-1 text-xs font-bold text-orange-100 bg-white/20 rounded-full px-2 py-0.5">
               ¡Racha en llamas!
             </span>
           )}
           {streakDays === 0 && (
-            <span className="inline-block mt-1 text-[11px] font-bold text-slate-100 bg-white/20 rounded-full px-2 py-0.5">
+            <span className="inline-block mt-1 text-xs font-bold text-slate-100 bg-white/20 rounded-full px-2 py-0.5">
               ¡Recupera tu racha!
             </span>
           )}

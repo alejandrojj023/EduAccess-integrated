@@ -125,8 +125,8 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-black text-foreground truncate leading-tight">{lessonName}</p>
-            <p className="text-[11px] text-muted-foreground">{completadas} de {activities.length} actividades</p>
+            <h1 className="text-sm font-black text-foreground truncate leading-tight">{lessonName}</h1>
+            <p className="text-xs text-muted-foreground">{completadas} de {activities.length} actividades</p>
           </div>
           {activities.length > 0 && (
             <div className="shrink-0 flex items-center gap-2">
@@ -273,11 +273,7 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
                   <li key={act.id_actividad}>
                     <article>
                       <div
-                        className={`w-full rounded-3xl border-2 p-5 text-left shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${
-                          act.completada
-                            ? "border-border bg-card hover:border-primary/40"
-                            : "border-border bg-card hover:border-primary/40"
-                        }`}
+                        className="w-full rounded-3xl border-2 border-border bg-card p-5 shadow-sm"
                       >
                         <div className="flex items-center gap-4">
                           {/* Icon */}
@@ -297,9 +293,9 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
                             <p className="font-bold text-foreground text-sm truncate">{act.titulo}</p>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               <span className="text-xs text-muted-foreground">{meta.label}</span>
-                              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${diff.cls}`}>{diff.label}</span>
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${diff.cls}`}>{diff.label}</span>
                               {act.completada && (
-                                <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full">✓ Completada</span>
+                                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full">✓ Completada</span>
                               )}
                             </div>
                           </div>

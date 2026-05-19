@@ -90,6 +90,7 @@ export async function GET(request: NextRequest) {
     }
 
     return {
+      id: `${i.id_alumno}-${i.id_actividad}-${i.fecha_fin ?? i.fecha_creacion}`,
       student: nombre,
       activity: `Completó "${actTitulo}"${puntaje}`,
       time,

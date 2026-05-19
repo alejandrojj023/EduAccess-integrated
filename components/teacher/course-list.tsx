@@ -79,8 +79,24 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
       <main className="mx-auto max-w-5xl px-5 py-7">
         <section aria-label="Lista de cursos">
           {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map(i => <div key={i} className="h-28 rounded-3xl bg-muted animate-pulse" />)}
+            <div className="space-y-3" aria-busy="true" aria-label="Cargando cursos">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="rounded-3xl border-2 border-border bg-card p-5 animate-pulse">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-muted shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 w-1/2 rounded-md bg-muted" />
+                      <div className="h-3 w-3/4 rounded-md bg-muted" />
+                      <div className="flex gap-2 mt-1">
+                        <div className="h-5 w-16 rounded-full bg-muted" />
+                        <div className="h-5 w-20 rounded-full bg-muted" />
+                        <div className="h-5 w-12 rounded-full bg-muted" />
+                      </div>
+                    </div>
+                    <div className="h-9 w-9 rounded-xl bg-muted shrink-0" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : courses.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border bg-card py-16 text-center px-6">
@@ -119,17 +135,17 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
                             {/* Badges */}
                             <div className="flex flex-wrap items-center gap-2 mt-2">
                               {(course.grupoNombre || course.grade) && (
-                                <span className="inline-flex items-center text-[11px] font-bold bg-muted text-foreground px-2.5 py-0.5 rounded-full">
+                                <span className="inline-flex items-center text-xs font-bold bg-muted text-foreground px-2.5 py-0.5 rounded-full">
                                   {course.grupoNombre || course.grade}
                                 </span>
                               )}
-                              <span className={`inline-flex items-center text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${mc.bg} ${mc.text} ${mc.border}`}>
+                              <span className={`inline-flex items-center text-xs font-bold px-2.5 py-0.5 rounded-full border ${mc.bg} ${mc.text} ${mc.border}`}>
                                 {course.materiaLabel}
                               </span>
-                              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                                 <Users className="w-3 h-3" aria-hidden /> {course.students}
                               </span>
-                              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                                 <BookOpen className="w-3 h-3" aria-hidden /> {course.lessons} lec.
                               </span>
                             </div>

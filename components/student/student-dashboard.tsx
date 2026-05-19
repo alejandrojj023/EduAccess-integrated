@@ -37,6 +37,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
   const [avatarColor] = useState<string | null>(() =>
     typeof window !== "undefined" ? localStorage.getItem("ea_avatar_color") : null
   )
+  const colorPerfil = gamification.colorPerfil ?? avatarColor
 
   const [highlightOption, setHighlightOption] = useState<1 | 2 | 3 | 4 | 5 | 6 | null>(null)
   const [highlightCourseIdx, setHighlightCourseIdx] = useState<number | null>(null)
@@ -110,7 +111,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
             </div>
             <div>
               <p className="text-sm font-black leading-none text-foreground">EduAccess</p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">Aprende jugando</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Aprende jugando</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -158,8 +159,8 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
             <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
                 <div
-                  className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-base font-black text-white shadow-lg border-2 border-white/30"
-                  style={{ backgroundColor: avatarColor ?? "rgba(255,255,255,0.25)" }}
+                  className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-2xl font-black text-white shadow-lg border-2 border-white/30"
+                  style={{ backgroundColor: colorPerfil ?? "rgba(255,255,255,0.25)" }}
                   aria-hidden="true"
                 >
                   {initials}
@@ -294,7 +295,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
                                 style={{ width: `${course.progress}%` }}
                               />
                             </div>
-                            <span className={`text-[11px] font-bold w-9 text-right ${done ? "text-emerald-600" : "text-primary"}`}>
+                            <span className={`text-xs font-bold w-9 text-right ${done ? "text-emerald-600" : "text-primary"}`}>
                               {course.progress}%
                             </span>
                           </div>
@@ -302,7 +303,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
 
                         {/* Lessons count + arrow */}
                         <div className="shrink-0 flex flex-col items-end gap-1.5">
-                          <span className="text-[11px] text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full">
+                          <span className="text-xs text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full">
                             {course.completedLessons}/{course.totalLessons}
                           </span>
                           <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden />

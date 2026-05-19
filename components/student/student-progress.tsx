@@ -69,6 +69,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
   const { user } = useAuth()
   const { speak, settings } = useAccessibility()
   const { lessons: lessonProgressData, stats, loading } = useStudentProgress()
+  const localColor = typeof window !== "undefined" ? localStorage.getItem("ea_avatar_color") : null
 
   const [expandedLessonId, setExpandedLessonId] = useState<string | null>(null)
   const [expandedAttemptId, setExpandedAttemptId] = useState<string | null>(null)
@@ -83,6 +84,10 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
     averageScore,
     totalAttempts,
     currentStreak,
+    totalStars,
+    nivelNombre,
+    nivelEmoji,
+    colorPerfil,
   } = stats
 
   useEffect(() => {
@@ -92,9 +97,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
     }
   }, [overallProgress])
 
-  const totalEstrellas = Math.round(
-    lessonProgressData.reduce((acc, l) => acc + (l.estrellas ?? 0), 0)
-  )
+  const totalEstrellas = totalStars
 
   function toggleLesson(lessonId: string) {
     setExpandedLessonId(prev => prev === lessonId ? null : lessonId)
@@ -170,8 +173,8 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
       border: "border-white/20",
       icon: <Clock className="w-6 h-6 text-white" aria-hidden />,
       value: totalAttempts,
-      label: "Intentos",
-      description: `Has realizado ${totalAttempts} intentos en total. Cada intento es una oportunidad de aprender.`,
+      label: "Lecciones intentadas",
+      description: `Has intentado ${totalAttempts} lecciones en total. Cada intento es una oportunidad de aprender.`,
     },
   ]
 
@@ -188,7 +191,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
             </button>
             <div>
               <h1 className="text-sm font-black text-foreground leading-none">Mi Progreso</h1>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Reporte de actividades</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Reporte de actividades</p>
             </div>
           </div>
           {settings.voiceEnabled && (
@@ -209,14 +212,21 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
             <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" aria-hidden />
             <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5 blur-xl" aria-hidden />
             <div className="relative flex items-center gap-5">
-              <div className="w-16 h-16 shrink-0 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center text-2xl font-black text-white shadow-lg">
+              <div
+                className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-2xl font-black text-white shadow-lg border-2 border-white/30"
+                style={{ backgroundColor: colorPerfil ?? localColor ?? "rgba(255,255,255,0.25)" }}
+                aria-hidden="true"
+              >
                 {user?.name?.charAt(0)?.toUpperCase() || "E"}
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-400 border-2 border-white flex items-center justify-center">
+                  <span className="text-[8px]">✓</span>
+                </div>
               </div>
               <div>
                 <h2 className="text-lg font-black text-white leading-tight">{user?.name}</h2>
                 <div className="flex items-center gap-3 mt-1.5">
                   <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold text-white">
-                    <Star className="w-3 h-3 fill-white" /> {totalEstrellas} estrellas
+                    {nivelEmoji} {nivelNombre}
                   </span>
                   <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold text-white">
                     <Flame className="w-3 h-3" /> {currentStreak} días
@@ -229,23 +239,22 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
 
         {/* Stats Grid */}
         <section aria-label="Estadísticas del estudiante">
-          <ul className="grid grid-cols-2 lg:grid-cols-4 gap-3 list-none p-0">
+          <dl className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {statCards.map((card, i) => (
-              <li key={i}>
-                <div
-                  className={`relative overflow-hidden rounded-3xl border-2 ${card.border} bg-gradient-to-br ${card.gradient} p-5 shadow-lg ${card.shadow} transition-all hover:-translate-y-1 hover:shadow-xl`}
-                  onMouseEnter={() => settings.voiceEnabled && speak(card.description)}
-                >
-                  <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden />
-                  <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
-                    {card.icon}
-                  </div>
-                  <p className="text-2xl font-black text-white">{card.value}</p>
-                  <p className="text-xs font-medium text-white/80 mt-0.5">{card.label}</p>
+              <div
+                key={i}
+                className={`relative overflow-hidden rounded-3xl border-2 ${card.border} bg-gradient-to-br ${card.gradient} p-5 shadow-lg ${card.shadow} transition-all hover:-translate-y-1 hover:shadow-xl`}
+                onMouseEnter={() => settings.voiceEnabled && speak(card.description)}
+              >
+                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/20 blur-xl" aria-hidden />
+                <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center mb-3">
+                  {card.icon}
                 </div>
-              </li>
+                <dd className="text-2xl font-black text-white">{card.value}</dd>
+                <dt className="text-xs font-medium text-white/80 mt-0.5">{card.label}</dt>
+              </div>
             ))}
-          </ul>
+          </dl>
         </section>
 
         {/* Overall Progress */}
@@ -305,10 +314,8 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
                           </div>
                           <div className="min-w-0">
                             <h4 className="text-sm font-black text-foreground truncate">{lesson.name}</h4>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">
-                              {lesson.completed
-                                ? `Completada · ${lesson.attempts} intento${lesson.attempts > 1 ? "s" : ""}`
-                                : "Pendiente"}
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {lesson.completed ? "Completada" : "Pendiente"}
                             </p>
                           </div>
                         </div>
@@ -320,11 +327,13 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
                           {lesson.historial.length > 0 && (
                             <button
                               onClick={() => toggleLesson(lesson.id)}
-                              className="flex flex-col items-center gap-0.5 text-primary hover:text-primary/70 transition-colors px-2"
+                              className="flex items-center gap-1.5 text-primary hover:text-primary/70 transition-colors"
                               aria-expanded={expandedLessonId === lesson.id}
-                              aria-label={`Ver historial de ${lesson.name}`}
+                              aria-label={`Ver historial de ${lesson.name}: ${lesson.historial.length} intento${lesson.historial.length !== 1 ? "s" : ""}`}
                             >
-                              <span className="text-[11px] font-bold">{lesson.historial.length}</span>
+                              <span className="inline-flex items-center gap-1 bg-primary/10 text-primary rounded-full px-2.5 py-1 text-xs font-bold">
+                                {lesson.historial.length} {lesson.historial.length === 1 ? "intento" : "intentos"}
+                              </span>
                               {expandedLessonId === lesson.id
                                 ? <ChevronUp className="w-3.5 h-3.5" />
                                 : <ChevronDown className="w-3.5 h-3.5" />}
@@ -337,7 +346,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
                     {/* Historial expandido */}
                     {expandedLessonId === lesson.id && lesson.historial.length > 0 && (
                       <div className="border-t border-border bg-muted/20 px-5 py-3 space-y-1.5">
-                        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">
                           Historial de intentos
                         </p>
                         {lesson.historial.map((attempt) => (
@@ -353,7 +362,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
                                 </span>
                                 <div>
                                   <p className="text-xs font-bold text-foreground">Intento {attempt.numero}</p>
-                                  <p className="text-[11px] text-muted-foreground">{formatDate(attempt.fecha)}</p>
+                                  <p className="text-xs text-muted-foreground">{formatDate(attempt.fecha)}</p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-3">
@@ -384,7 +393,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
                                     Sin detalle de actividades disponible.
                                   </p>
                                 )}
-                                <div className="mt-3 pt-2 border-t border-border/50 flex gap-4 text-[11px] text-muted-foreground">
+                                <div className="mt-3 pt-2 border-t border-border/50 flex gap-4 text-xs text-muted-foreground">
                                   <span>✓ Correctas al 1er intento: <strong>{attempt.correctasPrimerIntento}/{attempt.totalActividades}</strong></span>
                                   {attempt.totalReintentos > 0 && (
                                     <span>↺ Reintentos: <strong>{attempt.totalReintentos}</strong></span>
@@ -412,7 +421,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
             `Lecciones completadas: ${completedLessons} de ${totalLessons}. ` +
             `Promedio: ${averageScore} por ciento. ` +
             `Estrellas totales: ${totalEstrellas}. ` +
-            (totalAttempts > 0 ? `Intentos: ${totalAttempts}. ` : "") +
+            (totalAttempts > 0 ? `Lecciones intentadas: ${totalAttempts}. ` : "") +
             `Progreso general: ${Math.round(overallProgress)} por ciento. ` +
             `¡Estás haciendo un trabajo increíble! ¡Sigue así!`
         }
