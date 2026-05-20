@@ -24,7 +24,7 @@ import {
 } from "lucide-react"
 import { parseActivityConfig, serializeActivityConfig } from "@/lib/activity-config"
 import { StudentActivity } from "@/components/student/student-activity"
-import { ActivityConfigForm } from "@/components/teacher/activity-config-form"
+import { ActivityConfigForm, getActivitySpeakText } from "@/components/teacher/activity-config-form"
 
 interface ActivityBuilderProps {
   onBack: () => void
@@ -159,6 +159,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState("")
   const [attemptedSave, setAttemptedSave] = useState(false)
+  const [activityDirty, setActivityDirty] = useState(false)
   const [showExitConfirm, setShowExitConfirm] = useState(false)
 
   useEffect(() => {
@@ -244,6 +245,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
     setImageFile(file)
     setImagePreviewUrl(URL.createObjectURL(file))
     setImageDeleted(false)
+    setActivityDirty(true)
     e.target.value = ""
   }
 
@@ -253,6 +255,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
     setImagePreviewUrl("")
     setExistingImageUrl("")
     setImageDeleted(true)
+    setActivityDirty(true)
   }
 
   // ── Option handlers ──────────────────────────────────────────
@@ -280,6 +283,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
     setSelectedLessonId(lessons[0]?.id ?? "")
     setSaveError("")
     setAttemptedSave(false)
+    setActivityDirty(false)
     if (imagePreviewUrl.startsWith("blob:")) URL.revokeObjectURL(imagePreviewUrl)
     setImageFile(null)
     setImagePreviewUrl("")
@@ -309,6 +313,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
     setDificultad(difficultyFromInt(activity.nivel_dificultad))
     setSaveError("")
     setAttemptedSave(false)
+    setActivityDirty(false)
     if (imagePreviewUrl.startsWith("blob:")) URL.revokeObjectURL(imagePreviewUrl)
     setImageFile(null)
     setImagePreviewUrl("")
@@ -397,9 +402,16 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
     e.preventDefault()
     setAttemptedSave(true)
     const showsOptions = selectedType === "multiple" || selectedType === "image"
+    if (selectedType === "image" && !imagePreviewUrl && !existingImageUrl) return
+    if (showsOptions && options.some(o => !o.text.trim())) return
     if (showsOptions && !options.some(o => o.isCorrect)) return
     if (selectedType === "sequence" && sequenceSteps.filter(s => s.previewUrl || s.existingUrl).length < 3) return
     if (selectedType === "fill" && (!fillEnunciado.trim() || !fillEnunciado.includes("___") || !correctAnswer.trim())) return
+    if (selectedType === "sound" && !correctAnswer.trim()) return
+    if (selectedType === "short" && !correctAnswer.trim()) return
+    if (selectedType === "wordsearch" && wsBuilderWords.length === 0) return
+    const typeNeedsInstr = selectedType !== "sound" && selectedType !== "voice" && selectedType !== "fill" && selectedType !== "sequence" && selectedType !== "wordsearch"
+    if (typeNeedsInstr && !instrucciones.trim()) return
     setIsSaving(true)
     setSaveError("")
 
@@ -757,7 +769,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
           <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-6">
             <div className="flex items-center gap-3">
               <button type="button"
-                onClick={() => setShowExitConfirm(true)}
+                onClick={() => { if (activityDirty) { setShowExitConfirm(true) } else { setView(isEditing ? "existing" : "grid") } }}
                 className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
                 aria-label="Volver">
                 <ArrowLeft className="w-4 h-4" aria-hidden="true" />
@@ -775,7 +787,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
             </div>
             {settings.voiceEnabled && (
               <button type="button"
-                onClick={() => speak("Configura tu actividad. Escribe las instrucciones para el estudiante, configura las opciones y selecciona el nivel de dificultad.")}
+                onClick={() => speak(getActivitySpeakText(selectedType ?? "", selectedTypeInfo?.label ?? editingActivity?.typeLabel ?? ""))}
                 className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
                 <Volume2 className="w-4 h-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Escuchar</span>
@@ -863,6 +875,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
               seqInputRefs={seqInputRefs}
               speak={speak}
               showValidation={attemptedSave}
+              onDirty={() => setActivityDirty(true)}
             />
 
             {saveError && (

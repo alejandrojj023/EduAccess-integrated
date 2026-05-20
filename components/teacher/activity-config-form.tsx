@@ -22,6 +22,21 @@ export interface SequenceStep {
   preguntaId?: string
 }
 
+const ACTIVITY_SPEAK_TEXTS: Record<string, string> = {
+  image:      "Configura la actividad de Identificación de imágenes. Sube una imagen, escribe las instrucciones, agrega las opciones de respuesta y marca cuál es la correcta. Luego elige el nivel de dificultad.",
+  sound:      "Configura la actividad de Reconocimiento de sonidos. Escribe la oración correcta que el alumno debe reconocer. Puedes agregar palabras distractoras como opciones adicionales. Luego elige el nivel de dificultad.",
+  sequence:   "Configura la actividad de Ordenar secuencias. Sube entre 3 y 5 imágenes en el orden correcto. Puedes agregar una descripción a cada imagen. Luego elige el nivel de dificultad.",
+  multiple:   "Configura la actividad de Opción múltiple. Escribe la instrucción o pregunta, agrega las opciones de respuesta y marca cuál es la correcta. Luego elige el nivel de dificultad.",
+  short:      "Configura la actividad de Respuesta corta. Escribe las instrucciones y la respuesta correcta esperada. Luego elige el nivel de dificultad.",
+  voice:      "Configura la actividad de Respuesta por voz. Escribe la pregunta para el alumno y agrega las respuestas aceptadas. El alumno responderá hablando. Luego elige el nivel de dificultad.",
+  fill:       "Configura la actividad de Completar oración. Escribe la oración usando tres guiones bajos para marcar el espacio en blanco, escribe la respuesta correcta y puedes agregar palabras distractoras. Luego elige el nivel de dificultad.",
+  wordsearch: "Configura la actividad de Sopa de letras. Escribe las instrucciones y agrega las palabras que el alumno debe encontrar, hasta un máximo de diez palabras. Luego elige el nivel de dificultad.",
+}
+
+export function getActivitySpeakText(type: string, label: string): string {
+  return ACTIVITY_SPEAK_TEXTS[type] ?? `Configura la actividad de ${label}. Escribe las instrucciones para el estudiante, configura las opciones y selecciona el nivel de dificultad.`
+}
+
 export interface ActivityConfigFormProps {
   type: string
 
@@ -84,6 +99,9 @@ export interface ActivityConfigFormProps {
 
   // Validación al guardar
   showValidation?: boolean
+
+  // Notificación de cambio (para modal de salida inteligente)
+  onDirty?: () => void
 }
 
 const difficultyLevels = [
@@ -120,11 +138,16 @@ function SeqStepsGrid({ sequenceSteps, onSequenceStepsChange, seqInputRefs, show
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
-      <div>
-        <h2 className="text-sm font-semibold text-foreground">Imágenes de la secuencia</h2>
-        <p className="text-xs text-muted-foreground mt-1">
-          Sube las imágenes <strong>en el orden correcto</strong>. Arrastra una tarjeta para reordenar.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">Imágenes de la secuencia</h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Sube las imágenes <strong>en el orden correcto</strong>. Arrastra una tarjeta para reordenar.
+          </p>
+        </div>
+        <span className="text-xs text-muted-foreground shrink-0 ml-3" aria-live="polite">
+          {sequenceSteps.length} / 5
+        </span>
       </div>
 
       {showValidation && sequenceSteps.filter(s => s.previewUrl || s.existingUrl).length < 3 && (
@@ -303,9 +326,19 @@ export function ActivityConfigForm({
   sequenceCount, onSequenceCountChange, sequenceSteps, onSequenceStepsChange, seqInputRefs,
   speak,
   showValidation = false,
+  onDirty,
 }: ActivityConfigFormProps) {
 
   const [distInput, setDistInput] = useState("")
+  const [voiceAnswerInput, setVoiceAnswerInput] = useState("")
+  const [fillEnunciadoBlurred, setFillEnunciadoBlurred] = useState(false)
+  const [fillCorrectBlurred, setFillCorrectBlurred] = useState(false)
+  const [soundCorrectBlurred, setSoundCorrectBlurred] = useState(false)
+  const [blurredOptionIds, setBlurredOptionIds] = useState<Set<string>>(new Set())
+  const [shortCorrectBlurred, setShortCorrectBlurred] = useState(false)
+  const [instruccionesBlurred, setInstruccionesBlurred] = useState(false)
+  const [voiceEnunciadoBlurred, setVoiceEnunciadoBlurred] = useState(false)
+  const [voiceCorrectBlurred, setVoiceCorrectBlurred] = useState(false)
 
   const showImage    = type === "image"
   const showOptions  = type === "image" || type === "multiple"
@@ -325,16 +358,73 @@ export function ActivityConfigForm({
     if (!word || distractors.includes(word)) return
     onPalabrasDistractorasChange([...distractors, word].join(","))
     setDistInput("")
+    onDirty?.()
   }
 
   function removeDistractor(word: string) {
     onPalabrasDistractorasChange(distractors.filter(w => w !== word).join(","))
+    onDirty?.()
   }
 
-  const fillMissingBlank = showFill && fillEnunciado.trim() !== "" && !fillEnunciado.includes("___")
+  const voiceAnswers = correctAnswer.split(",").filter(s => s.trim()).map(s => s.trim())
+
+  function addVoiceAnswer() {
+    const ans = voiceAnswerInput.trim()
+    if (!ans || voiceAnswers.includes(ans)) return
+    onCorrectAnswerChange([...voiceAnswers, ans].join(","))
+    setVoiceAnswerInput("")
+    onDirty?.()
+  }
+
+  function removeVoiceAnswer(ans: string) {
+    onCorrectAnswerChange(voiceAnswers.filter(a => a !== ans).join(","))
+    onDirty?.()
+  }
+
+  const fillMissingBlank = showFill && fillEnunciadoBlurred && fillEnunciado.trim() !== "" && !fillEnunciado.includes("___")
 
   return (
     <div className="space-y-5">
+
+      {/* ── Instrucciones de la Actividad ─────────────────────────── */}
+      <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
+        <label htmlFor="act-instrucciones" className="text-sm font-semibold text-foreground mb-3 block">
+          Instrucciones de la Actividad
+        </label>
+        <textarea
+          id="act-instrucciones"
+          value={instrucciones}
+          onChange={(e) => { onInstruccionesChange(e.target.value); setInstruccionesBlurred(false); onDirty?.() }}
+          onBlur={() => setInstruccionesBlurred(true)}
+          placeholder="Escribe instrucciones claras y simples. Ejemplo: Mira la imagen y selecciona el animal que ves."
+          className="w-full min-h-[90px] p-3 text-sm border border-input rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+          required={instrRequired}
+          maxLength={150}
+          onInvalid={(e) => (e.currentTarget as HTMLTextAreaElement).setCustomValidity("Por favor, completa este campo.")}
+          onInput={(e) => (e.currentTarget as HTMLTextAreaElement).setCustomValidity("")}
+        />
+        {instrRequired && instruccionesBlurred && !instrucciones.trim() && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2 flex items-center gap-1.5" role="alert" aria-live="polite">
+            <span aria-hidden="true">⚠</span>
+            Escribe las instrucciones de la actividad.
+          </p>
+        )}
+        {instrRequired && showValidation && !instrucciones.trim() && (
+          <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2 mt-2" role="alert">
+            Las instrucciones son obligatorias antes de guardar.
+          </p>
+        )}
+        {(() => {
+          const len = instrucciones.length
+          const color = len > 80 ? "text-destructive" : "text-muted-foreground"
+          const msg   = len <= 50 ? "Instrucción clara" : len <= 80 ? "Aceptable" : "Considera simplificar"
+          return (
+            <p className={`text-xs mt-1.5 text-right ${color}`} aria-live="polite">
+              {len} / 150 · {msg}
+            </p>
+          )
+        })()}
+      </div>
 
       {/* ── Imagen de la Actividad ─────────────────────────────────── */}
       {showImage && (
@@ -388,18 +478,31 @@ export function ActivityConfigForm({
             className="hidden"
             onChange={onImageSelect}
           />
+
+          {showValidation && !imagePreviewUrl && !existingImageUrl && (
+            <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2" role="alert">
+              Sube una imagen antes de guardar.
+            </p>
+          )}
         </section>
       )}
 
       {/* ── Reconocimiento de Sonidos ──────────────────────────────── */}
       {showSound && (
         <>
+          {showValidation && !correctAnswer.trim() && (
+            <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2" role="alert" aria-live="polite">
+              Escribe la oración correcta antes de guardar.
+            </p>
+          )}
+
           <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
             <h2 className="text-sm font-semibold text-foreground">Oración Correcta</h2>
             <div className="flex gap-2">
               <Input
                 value={correctAnswer}
-                onChange={(e) => onCorrectAnswerChange(e.target.value)}
+                onChange={(e) => { onCorrectAnswerChange(e.target.value); setSoundCorrectBlurred(false); onDirty?.() }}
+                onBlur={() => setSoundCorrectBlurred(true)}
                 aria-label="Oración correcta"
                 placeholder="Ej: Los gatos son bonitos"
                 className="border-border flex-1"
@@ -416,6 +519,12 @@ export function ActivityConfigForm({
             <p className="text-xs text-muted-foreground">
               El sistema reproducirá esta oración en voz alta al alumno usando el sintetizador de voz del navegador.
             </p>
+            {soundCorrectBlurred && !correctAnswer.trim() && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-1.5" role="alert" aria-live="polite">
+                <span aria-hidden="true">⚠</span>
+                Escribe la oración que el alumno escuchará.
+              </p>
+            )}
             {correctAnswer.trim() && (
               <div className="flex flex-wrap gap-2 p-3 bg-muted rounded-xl">
                 {correctAnswer.trim().split(/\s+/).map((word, i) => (
@@ -430,23 +539,51 @@ export function ActivityConfigForm({
               Palabras Distractoras{" "}
               <span className="text-muted-foreground font-normal">(opcional)</span>
             </h2>
-            <Input
-              value={palabrasDistractoras}
-              onChange={(e) => onPalabrasDistractorasChange(e.target.value)}
-              aria-label="Palabras distractoras separadas por comas"
-              placeholder="Ej: nube, famoso, mesa"
-              className="border-border"
-            />
-            <p className="text-xs text-muted-foreground">
-              Separa las palabras con <strong>comas</strong>. Se mezclarán con la oración para aumentar la dificultad.
-            </p>
-            {palabrasDistractoras.trim() && (
+            <div className="flex gap-2">
+              <Input
+                value={distInput}
+                onChange={(e) => setDistInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); addDistractor() }
+                }}
+                aria-label="Agregar palabra distractora"
+                placeholder="Ej: nube"
+                className="border-border flex-1"
+              />
+              <button
+                type="button"
+                onClick={addDistractor}
+                disabled={!distInput.trim()}
+                aria-label="Agregar palabra distractora"
+                className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all shrink-0"
+              >
+                <Plus className="w-4 h-4" aria-hidden="true" />
+                Agregar
+              </button>
+            </div>
+            {distractors.length > 0 && (
               <div className="flex flex-wrap gap-2 p-3 bg-muted rounded-xl">
-                {palabrasDistractoras.split(",").filter(w => w.trim()).map((word, i) => (
-                  <span key={i} className="px-3 py-1 bg-destructive/10 text-destructive rounded-lg text-xs font-medium">{word.trim()}</span>
+                {distractors.map((word, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1.5 bg-destructive/10 text-destructive border border-destructive/30 px-3 py-1 rounded-lg text-xs font-medium"
+                  >
+                    {word}
+                    <button
+                      type="button"
+                      onClick={() => removeDistractor(word)}
+                      aria-label={`Eliminar ${word}`}
+                      className="text-destructive hover:opacity-70 transition-opacity"
+                    >
+                      <X className="w-3 h-3" aria-hidden="true" />
+                    </button>
+                  </span>
                 ))}
               </div>
             )}
+            <p className="text-xs text-muted-foreground">
+              Escribe una palabra y presiona <strong>Agregar</strong>. Se mezclarán con la oración para aumentar la dificultad.
+            </p>
           </div>
         </>
       )}
@@ -454,12 +591,28 @@ export function ActivityConfigForm({
       {/* ── Respuesta por Voz ──────────────────────────────────────── */}
       {showVoice && (
         <>
+          {showValidation && (!voiceEnunciado.trim() || !correctAnswer.trim()) && (
+            <div className="space-y-2" role="alert" aria-live="polite">
+              {!voiceEnunciado.trim() && (
+                <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">
+                  Escribe la pregunta antes de guardar.
+                </p>
+              )}
+              {!correctAnswer.trim() && (
+                <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">
+                  Agrega al menos una respuesta correcta antes de guardar.
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
             <h2 className="text-sm font-semibold text-foreground">Pregunta</h2>
             <div className="flex gap-2">
               <Input
                 value={voiceEnunciado}
-                onChange={(e) => onVoiceEnunciadoChange(e.target.value)}
+                onChange={(e) => { onVoiceEnunciadoChange(e.target.value); setVoiceEnunciadoBlurred(false); onDirty?.() }}
+                onBlur={() => setVoiceEnunciadoBlurred(true)}
                 aria-label="Pregunta de la actividad"
                 placeholder="Ej: ¿De qué color es el cielo?"
                 className="border-border flex-1"
@@ -473,28 +626,67 @@ export function ActivityConfigForm({
                 Escuchar
               </button>
             </div>
+            {voiceEnunciadoBlurred && !voiceEnunciado.trim() && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-1.5" role="alert" aria-live="polite">
+                <span aria-hidden="true">⚠</span>
+                Escribe la pregunta que el alumno escuchará.
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">Esta pregunta se mostrará y se leerá en voz alta al alumno.</p>
           </div>
 
           <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
-            <h2 className="text-sm font-semibold text-foreground">Respuesta Correcta</h2>
-            <Input
-              value={correctAnswer}
-              onChange={(e) => onCorrectAnswerChange(e.target.value)}
-              aria-label="Respuestas correctas separadas por comas"
-              placeholder="Ej: azul, celeste, azul claro"
-              className="border-border"
-            />
-            <p className="text-xs text-muted-foreground">
-              Separa con <strong>comas</strong> si hay varias respuestas válidas. Se acepta cualquiera.
-            </p>
-            {correctAnswer.trim() && (
+            <h2 className="text-sm font-semibold text-foreground">Respuestas Correctas</h2>
+            <div className="flex gap-2">
+              <Input
+                value={voiceAnswerInput}
+                onChange={(e) => { setVoiceAnswerInput(e.target.value); setVoiceCorrectBlurred(false) }}
+                onBlur={() => setVoiceCorrectBlurred(true)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addVoiceAnswer() } }}
+                aria-label="Agregar respuesta válida"
+                placeholder="Ej: azul"
+                className="border-border flex-1"
+              />
+              <button
+                type="button"
+                onClick={addVoiceAnswer}
+                disabled={!voiceAnswerInput.trim()}
+                aria-label="Agregar respuesta válida"
+                className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all shrink-0"
+              >
+                <Plus className="w-4 h-4" aria-hidden="true" />
+                Agregar
+              </button>
+            </div>
+            {voiceCorrectBlurred && voiceAnswers.length === 0 && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-1.5" role="alert" aria-live="polite">
+                <span aria-hidden="true">⚠</span>
+                Agrega al menos una respuesta válida.
+              </p>
+            )}
+            {voiceAnswers.length > 0 && (
               <div className="flex flex-wrap gap-2 p-3 bg-muted rounded-xl">
-                {correctAnswer.split(",").filter(s => s.trim()).map((ans, i) => (
-                  <span key={i} className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-xs font-medium">{ans.trim()}</span>
+                {voiceAnswers.map((ans, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/30 px-3 py-1 rounded-lg text-xs font-medium"
+                  >
+                    {ans}
+                    <button
+                      type="button"
+                      onClick={() => removeVoiceAnswer(ans)}
+                      aria-label={`Eliminar ${ans}`}
+                      className="text-primary hover:opacity-70 transition-opacity"
+                    >
+                      <X className="w-3 h-3" aria-hidden="true" />
+                    </button>
+                  </span>
                 ))}
               </div>
             )}
+            <p className="text-xs text-muted-foreground">
+              Escribe una respuesta y presiona <strong>Agregar</strong>. Se acepta cualquiera de las que agregues.
+            </p>
           </div>
         </>
       )}
@@ -503,7 +695,7 @@ export function ActivityConfigForm({
       {showSequence && (
         <SeqStepsGrid
           sequenceSteps={sequenceSteps}
-          onSequenceStepsChange={onSequenceStepsChange}
+          onSequenceStepsChange={(steps) => { onSequenceStepsChange(steps); onDirty?.() }}
           seqInputRefs={seqInputRefs}
           showValidation={showValidation}
         />
@@ -546,6 +738,7 @@ export function ActivityConfigForm({
                     const next = [...fillContextSentences]
                     next[idx] = e.target.value
                     onFillContextSentencesChange(next)
+                    onDirty?.()
                   }}
                   aria-label={`Oración de contexto ${idx + 1}`}
                   placeholder="Ej: Yo tengo tres mascotas."
@@ -560,6 +753,7 @@ export function ActivityConfigForm({
                     } else {
                       onFillContextSentencesChange([""])
                     }
+                    onDirty?.()
                   }}
                   className="flex items-center justify-center rounded-xl border border-border bg-card px-3 py-2 text-destructive hover:bg-destructive/10 active:scale-[0.98] disabled:opacity-50 shrink-0 transition-all">
                   <Trash2 className="w-4 h-4" aria-hidden="true" />
@@ -567,7 +761,7 @@ export function ActivityConfigForm({
               </div>
             ))}
             <button type="button"
-              onClick={() => onFillContextSentencesChange([...fillContextSentences, ""])}
+              onClick={() => { onFillContextSentencesChange([...fillContextSentences, ""]); onDirty?.() }}
               className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:border-primary/40 hover:bg-muted active:scale-[0.98] transition-all">
               <Plus className="w-4 h-4" aria-hidden="true" />
               Agregar oración de ejemplo
@@ -581,7 +775,8 @@ export function ActivityConfigForm({
             <h2 className="text-sm font-semibold text-foreground">Oración a Completar</h2>
             <Input
               value={fillEnunciado}
-              onChange={(e) => onFillEnunciadoChange(e.target.value)}
+              onChange={(e) => { onFillEnunciadoChange(e.target.value); setFillEnunciadoBlurred(false); onDirty?.() }}
+              onBlur={() => setFillEnunciadoBlurred(true)}
               aria-label="Oración a completar con espacio en blanco"
               placeholder="Ej: Yo tengo tres ___."
               className="border-border"
@@ -621,11 +816,18 @@ export function ActivityConfigForm({
             <h2 className="text-sm font-semibold text-foreground">Respuesta Correcta</h2>
             <Input
               value={correctAnswer}
-              onChange={(e) => onCorrectAnswerChange(e.target.value)}
+              onChange={(e) => { onCorrectAnswerChange(e.target.value); setFillCorrectBlurred(false); onDirty?.() }}
+              onBlur={() => setFillCorrectBlurred(true)}
               aria-label="Palabra correcta para completar el espacio"
               placeholder="Ej: gatos"
               className="border-border"
             />
+            {fillCorrectBlurred && !correctAnswer.trim() && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-1.5" role="alert" aria-live="polite">
+                <span aria-hidden="true">⚠</span>
+                Escribe la palabra que completa el espacio en blanco.
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">La palabra exacta que completa el espacio en blanco.</p>
           </div>
 
@@ -686,13 +888,33 @@ export function ActivityConfigForm({
       {/* ── Sopa de Letras ────────────────────────────────────────── */}
       {showWs && (
         <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Search className="w-4 h-4 text-primary" aria-hidden="true" />
-            Palabras a Encontrar
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Agrega las palabras que los estudiantes deben encontrar. Se convertirán a mayúsculas automáticamente. Máximo 10 palabras.
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Search className="w-4 h-4 text-primary" aria-hidden="true" />
+              Palabras a Encontrar
+            </h2>
+            <span
+              className={`text-xs font-medium ${wsWords.length >= 10 ? "text-destructive" : "text-muted-foreground"}`}
+              aria-live="polite"
+            >
+              {wsWords.length} / 10
+            </span>
+          </div>
+
+          <p className="text-xs text-muted-foreground" aria-live="polite">
+            {wsWords.length === 0 && "Agrega las palabras que el alumno debe encontrar. Se convierten a mayúsculas automáticamente."}
+            {wsWords.length >= 1 && wsWords.length <= 3 && "Agrega al menos 4 palabras para una mejor experiencia."}
+            {wsWords.length >= 4 && wsWords.length <= 6 && "¡Cantidad recomendada! 5 a 6."}
+            {wsWords.length >= 7 && wsWords.length <= 9 && "Cantidad aceptable. 7 a 9."}
+            {wsWords.length >= 10 && "Máximo de palabras alcanzado."}
           </p>
+
+          {showValidation && wsWords.length === 0 && (
+            <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2" role="alert">
+              Agrega al menos una palabra antes de guardar.
+            </p>
+          )}
+
           <div className="flex gap-2">
             <Input
               value={wsInput}
@@ -706,59 +928,39 @@ export function ActivityConfigForm({
               maxLength={15}
             />
             <button type="button"
-              onClick={onAddWsWord}
+              onClick={() => { onAddWsWord(); onDirty?.() }}
               disabled={wsWords.length >= 10 || !wsInput.trim()}
-              aria-label="Agregar palabra"
-              className="flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-primary-foreground hover:opacity-90 active:scale-[0.98] disabled:opacity-50">
+              aria-label="Agregar palabra a la sopa de letras"
+              className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all shrink-0">
               <Plus className="w-4 h-4" aria-hidden="true" />
+              Agregar
             </button>
           </div>
+
+          {wsInput.trim() && wsWords.includes(wsInput.trim().toUpperCase()) && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-1.5" role="alert" aria-live="polite">
+              <span aria-hidden="true">⚠</span>
+              Esta palabra ya fue agregada.
+            </p>
+          )}
+
           {wsWords.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {wsWords.map(word => (
-                <span key={word} className="inline-flex items-center gap-2 bg-primary/10 text-primary font-bold px-3 py-1.5 rounded-lg border border-primary/30 text-sm">
+                <span key={word} className="inline-flex items-center gap-1.5 bg-primary/10 text-primary font-bold px-3 py-1.5 rounded-lg border border-primary/30 text-sm">
                   {word}
                   <button type="button"
-                    onClick={() => onRemoveWsWord(word)}
+                    onClick={() => { onRemoveWsWord(word); onDirty?.() }}
                     aria-label={`Eliminar ${word}`}
-                    className="text-primary hover:text-destructive transition-colors">
-                    ×
+                    className="text-primary hover:opacity-70 transition-opacity">
+                    <X className="w-3 h-3" aria-hidden="true" />
                   </button>
                 </span>
               ))}
             </div>
           )}
-          {wsWords.length === 0 && (
-            <p className="text-xs text-muted-foreground italic">Agrega al menos una palabra.</p>
-          )}
         </div>
       )}
-
-      {/* ── Instrucciones de la Actividad ─────────────────────────── */}
-      <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
-        <label htmlFor="act-instrucciones" className="text-sm font-semibold text-foreground mb-3 block">
-          Instrucciones de la Actividad
-        </label>
-        <textarea
-          id="act-instrucciones"
-          value={instrucciones}
-          onChange={(e) => onInstruccionesChange(e.target.value)}
-          placeholder="Escribe instrucciones claras y simples. Ejemplo: Mira la imagen y selecciona el animal que ves."
-          className="w-full min-h-[90px] p-3 text-sm border border-input rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-          required={instrRequired}
-          maxLength={150}
-        />
-        {(() => {
-          const len = instrucciones.length
-          const color = len > 80 ? "text-destructive" : "text-muted-foreground"
-          const msg   = len <= 50 ? "Instrucción clara" : len <= 80 ? "Aceptable" : "Considera simplificar"
-          return (
-            <p className={`text-xs mt-1.5 text-right ${color}`} aria-live="polite">
-              {len} / 150 · {msg}
-            </p>
-          )
-        })()}
-      </div>
 
       {/* ── Opciones de Respuesta (imagen / opción múltiple) ─────── */}
       {showOptions && (
@@ -766,46 +968,64 @@ export function ActivityConfigForm({
           <div className="flex items-center justify-between mb-1">
             <legend className="text-sm font-semibold text-foreground px-1">Opciones de Respuesta</legend>
             <span className="text-xs text-muted-foreground" aria-live="polite">
-              {options.length} / 4 opciones
+              {options.filter(o => o.text.trim()).length} / {options.length} con texto
             </span>
           </div>
           {options.map((option, index) => (
-            <div key={option.id} className="flex items-center gap-3">
-              <button type="button"
-                onClick={() => onSetCorrect(option.id)}
-                aria-pressed={option.isCorrect}
-                aria-label={option.isCorrect
-                  ? `Opción ${index + 1} marcada como correcta`
-                  : `Marcar opción ${index + 1} como correcta`}
-                className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 transition-all text-sm font-bold ${option.isCorrect
-                  ? "bg-success border-success text-success-foreground"
-                  : "border-border hover:border-primary"}`}>
-                {option.isCorrect ? "✓" : String.fromCharCode(65 + index)}
-              </button>
-              <Input
-                value={option.text}
-                onChange={(e) => onOptionTextChange(option.id, e.target.value)}
-                aria-label={`Texto de opción ${index + 1}${option.isCorrect ? " (correcta)" : ""}`}
-                placeholder={`Opción ${index + 1}`}
-                className="border-border flex-1"
-              />
-              {options.length > 2 && (
+            <div key={option.id} className="space-y-1">
+              <div className="flex items-center gap-3">
                 <button type="button"
-                  onClick={() => onRemoveOption(option.id)}
-                  aria-label={`Eliminar opción ${index + 1}`}
-                  className="flex items-center justify-center rounded-xl border border-border bg-card p-2 text-destructive hover:bg-destructive/10 active:scale-[0.98] transition-all">
-                  <Trash2 className="w-4 h-4" aria-hidden="true" />
+                  onClick={() => { onSetCorrect(option.id); onDirty?.() }}
+                  aria-pressed={option.isCorrect}
+                  aria-label={option.isCorrect
+                    ? `Opción ${index + 1} marcada como correcta`
+                    : `Marcar opción ${index + 1} como correcta`}
+                  className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 transition-all text-sm font-bold ${option.isCorrect
+                    ? "bg-success border-success text-success-foreground"
+                    : "border-border hover:border-primary"}`}>
+                  {option.isCorrect ? "✓" : String.fromCharCode(65 + index)}
                 </button>
+                <Input
+                  value={option.text}
+                  onChange={(e) => {
+                    onOptionTextChange(option.id, e.target.value)
+                    setBlurredOptionIds(prev => { const next = new Set(prev); next.delete(option.id); return next })
+                    onDirty?.()
+                  }}
+                  onBlur={() => setBlurredOptionIds(prev => new Set(prev).add(option.id))}
+                  aria-label={`Texto de opción ${index + 1}${option.isCorrect ? " (correcta)" : ""}`}
+                  placeholder={`Opción ${index + 1}`}
+                  className="border-border flex-1"
+                />
+                {options.length > 2 && (
+                  <button type="button"
+                    onClick={() => { onRemoveOption(option.id); onDirty?.() }}
+                    aria-label={`Eliminar opción ${index + 1}`}
+                    className="flex items-center justify-center rounded-xl border border-border bg-card p-2 text-destructive hover:bg-destructive/10 active:scale-[0.98] transition-all">
+                    <Trash2 className="w-4 h-4" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+              {blurredOptionIds.has(option.id) && !option.text.trim() && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 ml-12 flex items-center gap-1.5" role="alert" aria-live="polite">
+                  <span aria-hidden="true">⚠</span>
+                  Esta opción no tiene texto.
+                </p>
               )}
             </div>
           ))}
           {options.length < 4 && (
             <button type="button"
-              onClick={onAddOption}
+              onClick={() => { onAddOption(); onDirty?.() }}
               className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:border-primary/40 hover:bg-muted active:scale-[0.98] transition-all">
               <Plus className="w-4 h-4" aria-hidden="true" />
               Agregar Opción
             </button>
+          )}
+          {showValidation && options.some(o => !o.text.trim()) && (
+            <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2" role="alert">
+              Todas las opciones deben tener texto antes de guardar.
+            </p>
           )}
           {showValidation && !options.some(o => o.isCorrect) && (
             <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2" role="alert">
@@ -821,11 +1041,23 @@ export function ActivityConfigForm({
           <h2 className="text-sm font-semibold text-foreground">Respuesta Correcta</h2>
           <Input
             value={correctAnswer}
-            onChange={(e) => onCorrectAnswerChange(e.target.value)}
+            onChange={(e) => { onCorrectAnswerChange(e.target.value); setShortCorrectBlurred(false); onDirty?.() }}
+            onBlur={() => setShortCorrectBlurred(true)}
             aria-label="Respuesta correcta esperada"
             placeholder="Escribe la respuesta esperada"
             className="border-border"
           />
+          {shortCorrectBlurred && !correctAnswer.trim() && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-1.5" role="alert" aria-live="polite">
+              <span aria-hidden="true">⚠</span>
+              Escribe la respuesta que se comparará con la del alumno.
+            </p>
+          )}
+          {showValidation && !correctAnswer.trim() && (
+            <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2" role="alert">
+              La respuesta correcta es obligatoria antes de guardar.
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">
             El sistema comparará la respuesta del estudiante con esta.
           </p>

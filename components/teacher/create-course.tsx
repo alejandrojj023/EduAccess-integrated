@@ -146,14 +146,18 @@ export function CreateCourse({ onBack, onSave }: CreateCourseProps) {
             <div className="space-y-1.5">
               <label htmlFor="course-name" className="text-sm font-semibold text-foreground block">Nombre del curso</label>
               <Input id="course-name" type="text" value={name} onChange={(e) => setName(e.target.value)}
-                placeholder="Ej: Matemáticas Básicas" className="border-border" required />
+                placeholder="Ej: Matemáticas Básicas" className="border-border" required
+                onInvalid={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity("Por favor, completa este campo.")}
+                onInput={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity("")} />
             </div>
 
             <div className="space-y-1.5">
               <label htmlFor="description" className="text-sm font-semibold text-foreground block">Descripción</label>
               <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe brevemente el contenido del curso"
-                className="w-full min-h-[90px] p-3 text-sm border border-input rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none" required />
+                className="w-full min-h-[90px] p-3 text-sm border border-input rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none" required
+                onInvalid={(e) => (e.currentTarget as HTMLTextAreaElement).setCustomValidity("Por favor, completa este campo.")}
+                onInput={(e) => (e.currentTarget as HTMLTextAreaElement).setCustomValidity("")} />
             </div>
 
             <div className="space-y-2">
@@ -206,7 +210,9 @@ export function CreateCourse({ onBack, onSave }: CreateCourseProps) {
                   <label htmlFor="materia-pers" className="sr-only">Nombre de la materia personalizada</label>
                   <Input id="materia-pers" type="text" value={materiaPers}
                   onChange={(e) => setMateriaPers(e.target.value)}
-                  placeholder="Ej: Ciencias Naturales, Arte, Geografía..." className="border-border mt-2" required />
+                  placeholder="Ej: Ciencias Naturales, Arte, Geografía..." className="border-border mt-2" required
+                  onInvalid={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity("Por favor, completa este campo.")}
+                  onInput={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity("")} />
                 </>
               )}
             </div>

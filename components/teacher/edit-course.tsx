@@ -134,7 +134,9 @@ export function EditCourse({ courseId, onBack, onSave }: EditCourseProps) {
             <div className="space-y-1.5">
               <label htmlFor="course-title" className="text-sm font-semibold text-foreground block">Título del curso</label>
               <Input id="course-title" type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)}
-                placeholder="Ej: Matemáticas Básicas" className="border-border" required />
+                placeholder="Ej: Matemáticas Básicas" className="border-border" required
+                onInvalid={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity("Por favor, completa este campo.")}
+                onInput={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity("")} />
             </div>
 
             <div className="space-y-1.5">
@@ -160,7 +162,9 @@ export function EditCourse({ courseId, onBack, onSave }: EditCourseProps) {
                   <label htmlFor="materia-pers-edit" className="sr-only">Nombre de la materia personalizada</label>
                   <Input id="materia-pers-edit" type="text" value={materiaPers}
                     onChange={(e) => setMateriaPers(e.target.value)}
-                    placeholder="Ej: Ciencias Naturales, Arte..." className="border-border mt-2" required />
+                    placeholder="Ej: Ciencias Naturales, Arte..." className="border-border mt-2" required
+                    onInvalid={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity("Por favor, completa este campo.")}
+                    onInput={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity("")} />
                 </>
               )}
             </div>

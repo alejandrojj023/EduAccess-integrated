@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import { ArrowLeft, Save, Volume2, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip, BookMarked, Pencil, ImageIcon, List, ListOrdered, HelpCircle, PencilLine, Mic, AlignLeft } from "lucide-react"
 import { parseActivityConfig, serializeActivityConfig } from "@/lib/activity-config"
-import { ActivityConfigForm, ActivityOption, SequenceStep } from "@/components/teacher/activity-config-form"
+import { ActivityConfigForm, ActivityOption, SequenceStep, getActivitySpeakText } from "@/components/teacher/activity-config-form"
 
 interface EditLessonProps {
   lessonId: string | null
@@ -113,12 +113,14 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
     if (actImagePreview.startsWith("blob:")) URL.revokeObjectURL(actImagePreview)
     setActImageFile(file)
     setActImagePreview(URL.createObjectURL(file))
+    setActivityDirty(true)
     e.target.value = ""
   }
 
   const handleImageDelete = () => {
     if (actImagePreview.startsWith("blob:")) URL.revokeObjectURL(actImagePreview)
     setActImageFile(null); setActImagePreview(""); setActExistingImageUrl("")
+    setActivityDirty(true)
   }
 
   useEffect(() => {
@@ -205,6 +207,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
     setEditingActivityId(null)
     setConfiguringType({ type, label })
     setAttemptedSave(false)
+    setActivityDirty(false)
     setShowExitConfirm(false)
     setActInstrucciones(""); setActDificultad("facil")
     setActOptions([{ id: "1", text: "", isCorrect: false }, { id: "2", text: "", isCorrect: false }])
@@ -223,6 +226,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
     setEditingActivityId(activity.id)
     setConfiguringType({ type: activity.type, label: typeInfo?.label ?? activity.title })
     setAttemptedSave(false)
+    setActivityDirty(false)
     setShowExitConfirm(false)
     setActDificultad(activity.nivel_dificultad)
     if (actImagePreview.startsWith("blob:")) URL.revokeObjectURL(actImagePreview)
@@ -292,19 +296,28 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
   const handleRemovePalabraSopa = (word: string) =>
     setActPalabrasSopa(actPalabrasSopa.filter((w) => w !== word))
 
-  const [actSaving,          setActSaving]          = useState(false)
-  const [activityToRemove,   setActivityToRemove]   = useState<string | null>(null)
-  const [attemptedSave,      setAttemptedSave]      = useState(false)
-  const [showExitConfirm,    setShowExitConfirm]    = useState(false)
+  const [actSaving,             setActSaving]             = useState(false)
+  const [activityToRemove,      setActivityToRemove]      = useState<string | null>(null)
+  const [attemptedSave,         setAttemptedSave]         = useState(false)
+  const [activityDirty,         setActivityDirty]         = useState(false)
+  const [showExitConfirm,       setShowExitConfirm]       = useState(false)
+  const [lessonDirty,           setLessonDirty]           = useState(false)
   const [showLessonExitConfirm, setShowLessonExitConfirm] = useState(false)
 
   const handleConfirmActivity = async () => {
     if (!configuringType) return
     setAttemptedSave(true)
     const showsOptions = configuringType.type === "multiple" || configuringType.type === "image"
+    if (configuringType.type === "image" && !actImagePreview && !actExistingImageUrl) return
+    if (showsOptions && actOptions.some(o => !o.text.trim())) return
     if (showsOptions && !actOptions.some(o => o.isCorrect)) return
     if (configuringType.type === "sequence" && actSequenceSteps.filter(s => s.previewUrl || s.existingUrl).length < 3) return
     if (configuringType.type === "fill" && (!actFillEnunciado.trim() || !actFillEnunciado.includes("___") || !actCorrectAnswer.trim())) return
+    if (configuringType.type === "sound" && !actCorrectAnswer.trim()) return
+    if (configuringType.type === "short" && !actCorrectAnswer.trim()) return
+    if (configuringType.type === "wordsearch" && actPalabrasSopa.length === 0) return
+    const typeNeedsInstr = configuringType.type !== "sound" && configuringType.type !== "voice" && configuringType.type !== "fill" && configuringType.type !== "sequence" && configuringType.type !== "wordsearch"
+    if (typeNeedsInstr && !actInstrucciones.trim()) return
     setActSaving(true)
 
     let imagen_url: string | null | undefined = undefined
@@ -498,19 +511,30 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
     return (
       <div className="min-h-screen bg-background">
         <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
-          <div className="mx-auto flex h-16 max-w-3xl items-center gap-3 px-6">
-            <button type="button"
-              onClick={() => setShowExitConfirm(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
-              aria-label="Volver">
-              <ChevronLeft className="w-4 h-4" aria-hidden="true" />
-            </button>
-            <div>
-              <h1 className="text-base font-bold text-foreground leading-none">
-                {editingActivityId ? "Editar Actividad" : "Configurar Actividad"}
-              </h1>
-              <p className="text-xs text-muted-foreground mt-0.5">{configuringType.label}</p>
+          <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-6">
+            <div className="flex items-center gap-3">
+              <button type="button"
+                onClick={() => { if (activityDirty) { setShowExitConfirm(true) } else { setConfiguringType(null); setEditingActivityId(null) } }}
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
+                aria-label="Volver">
+                <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+              </button>
+              <div>
+                <h1 className="text-base font-bold text-foreground leading-none">
+                  {editingActivityId ? "Editar Actividad" : "Configurar Actividad"}
+                </h1>
+                <p className="text-xs text-muted-foreground mt-0.5">{configuringType.label}</p>
+              </div>
             </div>
+            {settings.voiceEnabled && (
+              <button type="button"
+                onClick={() => speak(getActivitySpeakText(configuringType.type, configuringType.label))}
+                aria-label="Escuchar instrucciones de la sección"
+                className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
+                <Volume2 className="w-4 h-4" aria-hidden="true" />
+                <span className="hidden sm:inline" aria-hidden="true">Escuchar</span>
+              </button>
+            )}
           </div>
         </header>
 
@@ -553,6 +577,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
             seqInputRefs={seqInputRefs}
             speak={speak}
             showValidation={attemptedSave}
+            onDirty={() => setActivityDirty(true)}
           />
 
           {/* Action buttons */}
@@ -618,7 +643,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
       <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-6">
           <div className="flex items-center gap-3">
-            <button type="button" onClick={() => setShowLessonExitConfirm(true)}
+            <button type="button" onClick={() => { if (lessonDirty) { setShowLessonExitConfirm(true) } else { onBack() } }}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Volver">
               <ArrowLeft className="w-4 h-4" aria-hidden="true" />
@@ -647,14 +672,18 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
             </h2>
             <div className="space-y-1.5">
               <label htmlFor="lesson-title" className="text-sm font-semibold text-foreground block">Título de la lección</label>
-              <Input id="lesson-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ej: Numeros del 1 al 10" className="border-border" required />
+              <Input id="lesson-title" type="text" value={title} onChange={(e) => { setTitle(e.target.value); setLessonDirty(true) }}
+                placeholder="Ej: Numeros del 1 al 10" className="border-border" required
+                onInvalid={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity("Por favor, completa este campo.")}
+                onInput={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity("")} />
             </div>
             <div className="space-y-1.5">
               <label htmlFor="lesson-instructions" className="text-sm font-semibold text-foreground block">Instrucciones para el estudiante</label>
-              <textarea id="lesson-instructions" value={instructions} onChange={(e) => setInstructions(e.target.value)}
+              <textarea id="lesson-instructions" value={instructions} onChange={(e) => { setInstructions(e.target.value); setLessonDirty(true) }}
                 placeholder="Escribe instrucciones claras y simples para los estudiantes"
-                className="w-full min-h-[90px] p-3 text-sm border border-input rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none" required />
+                className="w-full min-h-[90px] p-3 text-sm border border-input rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none" required
+                onInvalid={(e) => (e.currentTarget as HTMLTextAreaElement).setCustomValidity("Por favor, completa este campo.")}
+                onInput={(e) => (e.currentTarget as HTMLTextAreaElement).setCustomValidity("")} />
             </div>
           </div>
 
