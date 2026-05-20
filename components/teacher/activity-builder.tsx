@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Input } from "@/components/ui/input"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
@@ -15,19 +14,17 @@ import {
   CheckSquare,
   PenLine,
   Mic,
-  Plus,
-  Trash2,
   ChevronRight,
   Edit,
   BookOpen,
   FileText,
   List,
-  Upload,
   AlignLeft,
   Search,
 } from "lucide-react"
 import { parseActivityConfig, serializeActivityConfig } from "@/lib/activity-config"
 import { StudentActivity } from "@/components/student/student-activity"
+import { ActivityConfigForm } from "@/components/teacher/activity-config-form"
 
 interface ActivityBuilderProps {
   onBack: () => void
@@ -67,7 +64,7 @@ interface SequenceStep {
   previewUrl: string
   existingUrl: string
   description: string
-  preguntaId: string
+  preguntaId?: string
 }
 
 const activityTypes = [
@@ -79,12 +76,6 @@ const activityTypes = [
   { id: "voice" as const, label: "Respuesta por voz", icon: Mic, color: "bg-primary" },
   { id: "fill" as const, label: "Completar oracion", icon: AlignLeft, color: "bg-teal-500" },
   { id: "wordsearch" as const, label: "Sopa de letras", icon: Search, color: "bg-pink-500" },
-]
-
-const difficultyLevels = [
-  { id: "facil", label: "Facil", description: "Para comenzar" },
-  { id: "medio", label: "Medio", description: "Un poco mas dificil" },
-  { id: "dificil", label: "Dificil", description: "Para avanzados" },
 ]
 
 const dbToFormType: Record<string, ActivityType> = {
@@ -167,6 +158,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
   const [loadingData, setLoadingData] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState("")
+  const [attemptedSave, setAttemptedSave] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -286,6 +278,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
     setCorrectAnswer("")
     setSelectedLessonId(lessons[0]?.id ?? "")
     setSaveError("")
+    setAttemptedSave(false)
     if (imagePreviewUrl.startsWith("blob:")) URL.revokeObjectURL(imagePreviewUrl)
     setImageFile(null)
     setImagePreviewUrl("")
@@ -314,6 +307,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
     setSelectedType(activity.type)
     setDificultad(difficultyFromInt(activity.nivel_dificultad))
     setSaveError("")
+    setAttemptedSave(false)
     if (imagePreviewUrl.startsWith("blob:")) URL.revokeObjectURL(imagePreviewUrl)
     setImageFile(null)
     setImagePreviewUrl("")
@@ -400,6 +394,9 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
   // ── Save ─────────────────────────────────────────────────────
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+    setAttemptedSave(true)
+    const showsOptions = selectedType === "multiple" || selectedType === "image"
+    if (showsOptions && !options.some(o => o.isCorrect)) return
     setIsSaving(true)
     setSaveError("")
 
@@ -746,13 +743,10 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
   // ═══════════════════════════════════════════════════════════════
   if (view === "config") {
     const isEditing = editingActivity !== null
-    const showOptions = selectedType === "multiple" || selectedType === "image"
-    const showCorrectAnswer = selectedType === "short"
     const showSoundConfig = selectedType === "sound"
     const showVoiceConfig = selectedType === "voice"
     const showFillConfig = selectedType === "fill"
     const showSequenceConfig = selectedType === "sequence"
-    const showWordSearch = selectedType === "wordsearch"
 
     return (
       <div className="min-h-screen bg-background">
@@ -822,550 +816,51 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
               </div>
             )}
 
-            {/* Image upload — only for "Identificacion de imagenes" */}
-            {selectedType === "image" && (
-              <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-4">
-                <h2 className="text-sm font-semibold text-foreground mb-3">Imagen de la Actividad</h2>
-                {(imagePreviewUrl || existingImageUrl) ? (
-                  <div>
-                    <img
-                      src={imagePreviewUrl || existingImageUrl}
-                      alt="Vista previa de la imagen"
-                      className="w-full max-h-56 object-contain rounded-xl border border-border bg-muted"
-                    />
-                    <div className="flex gap-2 mt-3">
-                      <button type="button"
-                        className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted active:scale-[0.98] transition-all"
-                        onClick={() => imageInputRef.current?.click()}>
-                        <Upload className="w-4 h-4" aria-hidden="true" />
-                        Cambiar imagen
-                      </button>
-                      <button type="button"
-                        className="flex items-center justify-center rounded-xl border border-border bg-card px-3 py-2 text-destructive hover:bg-destructive/10 active:scale-[0.98] transition-all"
-                        onClick={handleImageDelete}
-                        aria-label="Eliminar imagen">
-                        <Trash2 className="w-4 h-4" aria-hidden="true" />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button type="button"
-                    onClick={() => imageInputRef.current?.click()}
-                    className="w-full h-40 border border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 hover:border-primary hover:bg-primary/5 transition-colors">
-                    <Image className="w-8 h-8 text-muted-foreground" aria-hidden="true" />
-                    <p className="text-sm font-medium text-muted-foreground">Haz clic para subir una imagen</p>
-                    <p className="text-xs text-muted-foreground">PNG, JPG, WEBP o GIF · Máx 5 MB</p>
-                  </button>
-                )}
-                <input
-                  ref={imageInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  className="hidden"
-                  onChange={handleImageSelect}
-                />
-              </div>
-            )}
-
-            {/* Sound config — sentence (Web Speech) + distractors */}
-            {showSoundConfig && (
-              <>
-                <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
-                  <h2 className="text-sm font-semibold text-foreground mb-3">Oración Correcta</h2>
-                  <div className="flex gap-2">
-                    <Input
-                      value={correctAnswer}
-                      onChange={(e) => setCorrectAnswer(e.target.value)}
-                      aria-label="Oración correcta"
-                      placeholder="Ej: Los gatos son bonitos"
-                      className="border-border flex-1"
-                    />
-                    <button type="button"
-                      className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted active:scale-[0.98] transition-all shrink-0 disabled:opacity-50"
-                      onClick={() => correctAnswer.trim() && speak(correctAnswer.trim())}
-                      aria-label="Escuchar oración"
-                      disabled={!correctAnswer.trim()}>
-                      <Volume2 className="w-4 h-4" aria-hidden="true" />
-                      Escuchar
-                    </button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    El sistema reproducirá esta oración en voz alta al alumno usando el sintetizador de voz del navegador.
-                  </p>
-                  {correctAnswer.trim() && (
-                    <div className="flex flex-wrap gap-2 p-3 bg-muted rounded-xl">
-                      {correctAnswer.trim().split(/\s+/).map((word, i) => (
-                        <span key={i} className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-xs font-medium">
-                          {word}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
-                  <h2 className="text-sm font-semibold text-foreground mb-3">
-                    Palabras Distractoras{" "}
-                    <span className="text-muted-foreground font-normal">(opcional)</span>
-                  </h2>
-                  <Input
-                    value={palabrasDistractoras}
-                    onChange={(e) => setPalabrasDistractoras(e.target.value)}
-                    aria-label="Palabras distractoras"
-                    placeholder="Ej: nube, famoso, mesa"
-                    className="border-border"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Separa las palabras con <strong>comas</strong>. Se mezclarán con la oración para aumentar la dificultad.
-                  </p>
-                  {palabrasDistractoras.trim() && (
-                    <div className="flex flex-wrap gap-2 p-3 bg-muted rounded-xl">
-                      {palabrasDistractoras.split(",").filter((w) => w.trim()).map((word, i) => (
-                        <span key={i} className="px-3 py-1 bg-destructive/10 text-destructive rounded-lg text-xs font-medium">
-                          {word.trim()}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* Voice config — question (enunciado) + correct answers (comma-separated) */}
-            {showVoiceConfig && (
-              <>
-                <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
-                  <h2 className="text-sm font-semibold text-foreground mb-3">Pregunta</h2>
-                  <div className="flex gap-2">
-                    <Input
-                      value={voiceEnunciado}
-                      onChange={(e) => setVoiceEnunciado(e.target.value)}
-                      aria-label="Pregunta"
-                      placeholder="Ej: ¿De qué color es el cielo?"
-                      className="border-border flex-1"
-                    />
-                    <button type="button"
-                      className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted active:scale-[0.98] transition-all shrink-0 disabled:opacity-50"
-                      onClick={() => voiceEnunciado.trim() && speak(voiceEnunciado.trim())}
-                      disabled={!voiceEnunciado.trim()}
-                      aria-label="Escuchar pregunta">
-                      <Volume2 className="w-4 h-4" aria-hidden="true" />
-                      Escuchar
-                    </button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Esta pregunta se mostrará y se leerá en voz alta al alumno.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
-                  <h2 className="text-sm font-semibold text-foreground mb-3">Respuesta Correcta</h2>
-                  <Input
-                    value={correctAnswer}
-                    onChange={(e) => setCorrectAnswer(e.target.value)}
-                    aria-label="Respuestas correctas"
-                    placeholder="Ej: azul, celeste, azul claro"
-                    className="border-border"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Separa con <strong>comas</strong> si hay varias respuestas válidas. Se acepta cualquiera.
-                  </p>
-                  {correctAnswer.trim() && (
-                    <div className="flex flex-wrap gap-2 p-3 bg-muted rounded-xl">
-                      {correctAnswer.split(",").filter((s) => s.trim()).map((ans, i) => (
-                        <span key={i} className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-xs font-medium">
-                          {ans.trim()}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* Sequence config — count selector + image slots */}
-            {showSequenceConfig && (
-              <>
-                <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
-                  <h2 id="seq-count-label" className="text-sm font-semibold text-foreground mb-3">¿Cuántas imágenes?</h2>
-                  <div role="group" aria-labelledby="seq-count-label" className="grid grid-cols-3 gap-3">
-                    {([3, 4, 5] as const).map((n) => (
-                      <button key={n} type="button"
-                        onClick={() => {
-                          setSequenceCount(n)
-                          const cur = [...sequenceSteps]
-                          while (cur.length < n) cur.push({ file: null, previewUrl: "", existingUrl: "", description: "", preguntaId: "" })
-                          setSequenceSteps(cur.slice(0, n))
-                        }}
-                        className={`rounded-xl border px-3 py-3 text-center transition-all active:scale-[0.98] ${sequenceCount === n
-                          ? "border-primary bg-primary/10 ring-2 ring-primary ring-offset-1"
-                          : "border-border hover:border-primary/40 hover:bg-muted"
-                          }`}
-                        aria-pressed={sequenceCount === n}>
-                        <span className={`text-2xl font-bold block ${sequenceCount === n ? "text-primary" : "text-foreground"}`}>{n}</span>
-                        <span className="text-xs text-muted-foreground">imágenes</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-4">
-                  <h2 className="text-sm font-semibold text-foreground mb-1">Imágenes de la secuencia</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Sube las imágenes <strong>en el orden correcto</strong>. El alumno deberá reordenarlas.
-                  </p>
-                  {sequenceSteps.map((step, idx) => (
-                    <div key={idx} className="rounded-xl border border-border p-4 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs shrink-0">
-                          {idx + 1}
-                        </span>
-                        <h3 className="text-sm font-semibold text-foreground">Paso {idx + 1}</h3>
-                      </div>
-
-                      {(step.previewUrl || step.existingUrl) ? (
-                        <div className="space-y-2">
-                          <img
-                            src={step.previewUrl || step.existingUrl}
-                            alt={`Paso ${idx + 1}`}
-                            className="w-full max-h-40 object-contain rounded-xl border border-border bg-muted"
-                          />
-                          <div className="flex gap-2">
-                            <button type="button"
-                              className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted active:scale-[0.98] transition-all"
-                              onClick={() => seqInputRefs.current[idx]?.click()}>
-                              <Upload className="w-3.5 h-3.5" aria-hidden="true" />
-                              Cambiar
-                            </button>
-                            <button type="button"
-                              className="flex items-center justify-center rounded-xl border border-border bg-card px-3 py-2 text-destructive hover:bg-destructive/10 active:scale-[0.98] transition-all"
-                              onClick={() => {
-                                const steps = [...sequenceSteps]
-                                if (steps[idx].previewUrl.startsWith("blob:")) URL.revokeObjectURL(steps[idx].previewUrl)
-                                steps[idx] = { ...steps[idx], file: null, previewUrl: "", existingUrl: "" }
-                                setSequenceSteps(steps)
-                              }}
-                              aria-label="Eliminar imagen">
-                              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button type="button"
-                          onClick={() => seqInputRefs.current[idx]?.click()}
-                          className="w-full h-32 border border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 hover:border-primary hover:bg-primary/5 transition-colors">
-                          <Image className="w-7 h-7 text-muted-foreground" aria-hidden="true" />
-                          <p className="text-xs text-muted-foreground font-medium">Subir imagen del paso {idx + 1}</p>
-                          <p className="text-xs text-muted-foreground">PNG, JPG, WEBP · Máx 5 MB</p>
-                        </button>
-                      )}
-
-                      <input
-                        ref={(el) => { seqInputRefs.current[idx] = el }}
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp,image/gif"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (!file) return
-                          const steps = [...sequenceSteps]
-                          if (steps[idx].previewUrl.startsWith("blob:")) URL.revokeObjectURL(steps[idx].previewUrl)
-                          steps[idx] = { ...steps[idx], file, previewUrl: URL.createObjectURL(file) }
-                          setSequenceSteps(steps)
-                          e.target.value = ""
-                        }}
-                      />
-
-                      <Input
-                        value={step.description}
-                        onChange={(e) => {
-                          const steps = [...sequenceSteps]
-                          steps[idx] = { ...steps[idx], description: e.target.value }
-                          setSequenceSteps(steps)
-                        }}
-                        aria-label={`Descripción del paso ${idx + 1}`}
-                        placeholder={`Descripción del paso ${idx + 1} (opcional)`}
-                        className="border-border"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Fill config — context sentences + target sentence + correct answer + distractors */}
-            {showFillConfig && (
-              <>
-                <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
-                  <h2 className="text-sm font-semibold text-foreground mb-3">
-                    Oraciones de Contexto{" "}
-                    <span className="text-muted-foreground font-normal">(opcional)</span>
-                  </h2>
-                  {fillContextSentences.map((sentence, idx) => (
-                    <div key={idx} className="flex gap-2">
-                      <Input
-                        value={sentence}
-                        onChange={(e) => {
-                          const next = [...fillContextSentences]
-                          next[idx] = e.target.value
-                          setFillContextSentences(next)
-                        }}
-                        aria-label={`Oración de contexto ${idx + 1}`}
-                        placeholder={`Ej: Yo tengo tres mascotas.`}
-                        className="border-border flex-1"
-                      />
-                      <button type="button"
-                        className="flex items-center justify-center rounded-xl border border-border bg-card px-3 py-2 text-destructive hover:bg-destructive/10 active:scale-[0.98] transition-all shrink-0 disabled:opacity-50"
-                        onClick={() => {
-                          if (fillContextSentences.length > 1) {
-                            setFillContextSentences(fillContextSentences.filter((_, i) => i !== idx))
-                          } else {
-                            setFillContextSentences([""])
-                          }
-                        }}
-                        aria-label="Eliminar oración"
-                        disabled={fillContextSentences.length === 1 && !sentence.trim()}>
-                        <Trash2 className="w-4 h-4" aria-hidden="true" />
-                      </button>
-                    </div>
-                  ))}
-                  <button type="button"
-                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:border-primary/40 hover:bg-muted active:scale-[0.98] transition-all"
-                    onClick={() => setFillContextSentences([...fillContextSentences, ""])}>
-                    <Plus className="w-4 h-4" aria-hidden="true" />
-                    Agregar oración de ejemplo
-                  </button>
-                  <p className="text-xs text-muted-foreground">
-                    Estas oraciones aparecen como ejemplos para que el alumno comprenda el patrón antes de completar.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
-                  <h2 className="text-sm font-semibold text-foreground mb-3">Oración a Completar</h2>
-                  <Input
-                    value={fillEnunciado}
-                    onChange={(e) => setFillEnunciado(e.target.value)}
-                    aria-label="Oración a completar"
-                    placeholder="Ej: Yo tengo tres ___."
-                    className="border-border"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Usa <strong>___</strong> (tres guiones bajos) para marcar el espacio en blanco.
-                  </p>
-                  {fillEnunciado.includes("___") && (
-                    <div className="p-3 bg-muted rounded-xl text-sm font-medium text-foreground">
-                      Vista previa:{" "}
-                      {fillEnunciado.split("___").map((part, i) => (
-                        <span key={i}>
-                          {part}
-                          {i < fillEnunciado.split("___").length - 1 && (
-                            <span className="inline-block min-w-[60px] mx-1 border-b-2 border-dashed border-primary text-primary">
-                              {correctAnswer.trim() || "___"}
-                            </span>
-                          )}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
-                  <h2 className="text-sm font-semibold text-foreground mb-3">Respuesta Correcta</h2>
-                  <Input
-                    value={correctAnswer}
-                    onChange={(e) => setCorrectAnswer(e.target.value)}
-                    aria-label="Respuesta correcta"
-                    placeholder="Ej: gatos"
-                    className="border-border"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    La palabra exacta que completa el espacio en blanco.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
-                  <h2 className="text-sm font-semibold text-foreground mb-3">
-                    Palabras Distractoras{" "}
-                    <span className="text-muted-foreground font-normal">(opciones incorrectas)</span>
-                  </h2>
-                  <Input
-                    value={palabrasDistractoras}
-                    onChange={(e) => setPalabrasDistractoras(e.target.value)}
-                    aria-label="Palabras distractoras"
-                    placeholder="Ej: gato, perros, pez"
-                    className="border-border"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Separa con <strong>comas</strong>. Se mezclarán con la respuesta correcta como opciones.
-                  </p>
-                  {palabrasDistractoras.trim() && (
-                    <div className="flex flex-wrap gap-2 p-3 bg-muted rounded-xl">
-                      {palabrasDistractoras.split(",").filter((w) => w.trim()).map((word, i) => (
-                        <span key={i} className="px-3 py-1 bg-destructive/10 text-destructive rounded-lg text-xs font-medium">
-                          {word.trim()}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* Wordsearch config — words to find */}
-            {showWordSearch && (
-              <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-4">
-                <h2 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
-                  <Search className="w-4 h-4 text-primary" aria-hidden="true" />
-                  Palabras a Encontrar
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                  Agrega las palabras que los estudiantes deben encontrar. Se convertirán a mayúsculas automáticamente. Máximo 10 palabras.
-                </p>
-                <div className="flex gap-2">
-                  <Input
-                    value={wsBuilderInput}
-                    onChange={(e) => setWsBuilderInput(e.target.value)}
-                    aria-label="Nueva palabra para la sopa de letras"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault()
-                        const word = wsBuilderInput.trim().toUpperCase()
-                        if (word && !wsBuilderWords.includes(word) && wsBuilderWords.length < 10) {
-                          setWsBuilderWords([...wsBuilderWords, word])
-                          setWsBuilderInput("")
-                        }
-                      }
-                    }}
-                    placeholder="Ej: GATO"
-                    className="border-border flex-1"
-                    maxLength={15}
-                  />
-                  <button type="button"
-                    onClick={() => {
-                      const word = wsBuilderInput.trim().toUpperCase()
-                      if (word && !wsBuilderWords.includes(word) && wsBuilderWords.length < 10) {
-                        setWsBuilderWords([...wsBuilderWords, word])
-                        setWsBuilderInput("")
-                      }
-                    }}
-                    aria-label="Agregar palabra"
-                    className="flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-primary-foreground hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
-                    disabled={wsBuilderWords.length >= 10 || !wsBuilderInput.trim()}>
-                    <Plus className="w-4 h-4" aria-hidden="true" />
-                  </button>
-                </div>
-                {wsBuilderWords.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {wsBuilderWords.map(word => (
-                      <span key={word} className="inline-flex items-center gap-2 bg-primary/10 text-primary font-bold px-3 py-1.5 rounded-lg border border-primary/30 text-sm">
-                        {word}
-                        <button type="button"
-                          onClick={() => setWsBuilderWords(wsBuilderWords.filter(w => w !== word))}
-                          className="text-primary hover:text-destructive transition-colors"
-                          aria-label={`Eliminar ${word}`}>
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Instructions */}
-            <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
-              <h2 className="text-sm font-semibold text-foreground mb-3">Instrucciones de la Actividad</h2>
-              <textarea
-                value={instrucciones}
-                onChange={(e) => setInstrucciones(e.target.value)}
-                aria-label="Instrucciones de la actividad"
-                placeholder="Escribe instrucciones claras y simples. Ejemplo: Mira la imagen y selecciona el animal que ves."
-                className="w-full min-h-[90px] p-3 text-sm border border-input rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                required={!showSoundConfig && !showVoiceConfig && !showFillConfig && !showSequenceConfig && !showWordSearch}
-              />
-            </div>
-
-            {/* Options — for multiple choice types */}
-            {showOptions && (
-              <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
-                <h2 className="text-sm font-semibold text-foreground mb-3">Opciones de Respuesta</h2>
-                {options.map((option, index) => (
-                  <div key={option.id} className="flex items-center gap-3">
-                    <button type="button"
-                      onClick={() => handleSetCorrect(option.id)}
-                      className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 transition-all text-sm font-bold ${option.isCorrect
-                        ? "bg-success border-success text-success-foreground"
-                        : "border-border hover:border-primary"
-                        }`}
-                      aria-label={option.isCorrect ? "Respuesta correcta" : "Marcar como correcta"}>
-                      {option.isCorrect ? "✓" : String.fromCharCode(65 + index)}
-                    </button>
-                    <Input
-                      value={option.text}
-                      onChange={(e) => handleOptionChange(option.id, e.target.value)}
-                      aria-label={`Opción ${index + 1}`}
-                      placeholder={`Opcion ${index + 1}`}
-                      className="border-border flex-1"
-                    />
-                    {options.length > 2 && (
-                      <button type="button"
-                        onClick={() => handleRemoveOption(option.id)}
-                        className="flex items-center justify-center rounded-xl border border-border bg-card p-2 text-destructive hover:bg-destructive/10 active:scale-[0.98] transition-all"
-                        aria-label="Eliminar opcion">
-                        <Trash2 className="w-4 h-4" aria-hidden="true" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button type="button"
-                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:border-primary/40 hover:bg-muted active:scale-[0.98] transition-all"
-                  onClick={handleAddOption}>
-                  <Plus className="w-4 h-4" aria-hidden="true" />
-                  Agregar Opcion
-                </button>
-                <p className="text-xs text-muted-foreground">
-                  Haz clic en la letra para marcar la respuesta correcta
-                </p>
-              </div>
-            )}
-
-            {/* Correct Answer — for short answer */}
-            {showCorrectAnswer && (
-              <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
-                <h2 className="text-sm font-semibold text-foreground mb-3">Respuesta Correcta</h2>
-                <Input
-                  value={correctAnswer}
-                  onChange={(e) => setCorrectAnswer(e.target.value)}
-                  aria-label="Respuesta correcta"
-                  placeholder="Escribe la respuesta esperada"
-                  className="border-border"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  El sistema comparara la respuesta del estudiante con esta
-                </p>
-              </div>
-            )}
-
-            {/* Difficulty */}
-            <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
-              <h2 id="dificultad-label" className="text-sm font-semibold text-foreground mb-3">Nivel de Dificultad</h2>
-              <div role="group" aria-labelledby="dificultad-label" className="grid grid-cols-3 gap-3">
-                {difficultyLevels.map((level) => (
-                  <button key={level.id} type="button"
-                    onClick={() => setDificultad(level.id)}
-                    className={`rounded-xl border px-3 py-3 text-center transition-all active:scale-[0.98] ${dificultad === level.id
-                      ? "border-primary bg-primary/10 ring-2 ring-primary ring-offset-1"
-                      : "border-border hover:border-primary/40 hover:bg-muted"
-                      }`}
-                    aria-pressed={dificultad === level.id}>
-                    <p className={`text-sm font-bold ${dificultad === level.id ? "text-primary" : "text-foreground"}`}>
-                      {level.label}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{level.description}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <ActivityConfigForm
+              type={selectedType ?? ""}
+              imagePreviewUrl={imagePreviewUrl}
+              existingImageUrl={existingImageUrl}
+              imageInputRef={imageInputRef}
+              onImageSelect={handleImageSelect}
+              onImageDelete={handleImageDelete}
+              instrucciones={instrucciones}
+              onInstruccionesChange={setInstrucciones}
+              options={options}
+              onOptionTextChange={handleOptionChange}
+              onSetCorrect={handleSetCorrect}
+              onAddOption={handleAddOption}
+              onRemoveOption={handleRemoveOption}
+              correctAnswer={correctAnswer}
+              onCorrectAnswerChange={setCorrectAnswer}
+              dificultad={dificultad}
+              onDificultadChange={setDificultad}
+              palabrasDistractoras={palabrasDistractoras}
+              onPalabrasDistractorasChange={setPalabrasDistractoras}
+              voiceEnunciado={voiceEnunciado}
+              onVoiceEnunciadoChange={setVoiceEnunciado}
+              fillEnunciado={fillEnunciado}
+              onFillEnunciadoChange={setFillEnunciado}
+              fillContextSentences={fillContextSentences}
+              onFillContextSentencesChange={setFillContextSentences}
+              wsWords={wsBuilderWords}
+              wsInput={wsBuilderInput}
+              onWsInputChange={setWsBuilderInput}
+              onAddWsWord={() => {
+                const word = wsBuilderInput.trim().toUpperCase()
+                if (word && !wsBuilderWords.includes(word) && wsBuilderWords.length < 10) {
+                  setWsBuilderWords([...wsBuilderWords, word])
+                  setWsBuilderInput("")
+                }
+              }}
+              onRemoveWsWord={(word) => setWsBuilderWords(wsBuilderWords.filter(w => w !== word))}
+              sequenceCount={sequenceCount}
+              onSequenceCountChange={setSequenceCount}
+              sequenceSteps={sequenceSteps}
+              onSequenceStepsChange={setSequenceSteps}
+              seqInputRefs={seqInputRefs}
+              speak={speak}
+              showValidation={attemptedSave}
+            />
 
             {saveError && (
               <p className="text-destructive text-sm font-medium" role="alert">{saveError}</p>

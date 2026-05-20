@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import {
   ArrowLeft, ChevronRight, CheckCircle2,
-  Mic, Image as ImageIcon, List, HelpCircle, PencilLine, Volume2,
+  Mic, Image as ImageIcon, ListOrdered, HelpCircle, PencilLine, Volume2,
   BookOpen, Youtube, Search, Paperclip, ExternalLink, FileText, RotateCcw, PlayCircle, AlignLeft,
   ChevronDown, ChevronUp,
 } from "lucide-react"
@@ -38,7 +38,7 @@ interface StudentLessonProps {
 const TIPO_META: Record<string, { label: string; Icon: React.ElementType; gradient: string; iconColor: string }> = {
   identificacion:         { label: "Identificación",    Icon: ImageIcon,   gradient: "from-blue-400 to-blue-600",    iconColor: "text-white" },
   reconocimiento_sonidos: { label: "Sonidos",           Icon: Volume2,     gradient: "from-violet-400 to-violet-600", iconColor: "text-white" },
-  secuenciacion:          { label: "Secuenciación",     Icon: List,        gradient: "from-amber-400 to-orange-500",  iconColor: "text-white" },
+  secuenciacion:          { label: "Secuenciación",     Icon: ListOrdered, gradient: "from-amber-400 to-orange-500",  iconColor: "text-white" },
   seleccion_guiada:       { label: "Opción múltiple",   Icon: HelpCircle,  gradient: "from-primary to-primary/80",   iconColor: "text-primary-foreground" },
   respuesta_corta:        { label: "Respuesta corta",   Icon: PencilLine,  gradient: "from-emerald-400 to-teal-500", iconColor: "text-white" },
   respuesta_oral:         { label: "Oral / Voz",        Icon: Mic,         gradient: "from-rose-400 to-rose-600",    iconColor: "text-white" },
