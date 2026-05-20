@@ -126,9 +126,10 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
           </div>
           {settings.voiceEnabled && (
             <button type="button" onClick={handleReadInstructions}
+              aria-label="Escuchar resumen de estudiantes"
               className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
               <Volume2 className="w-4 h-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Escuchar</span>
+              <span className="hidden sm:inline" aria-hidden="true">Escuchar</span>
             </button>
           )}
         </div>
@@ -238,9 +239,13 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
                     }`}>
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
-                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-base font-bold text-primary-foreground ${
-                          student.needsSupport ? "bg-amber-500" : "bg-primary"
-                        }`} aria-hidden="true">
+                        <div
+                          style={student.colorPerfil ? { backgroundColor: student.colorPerfil } : undefined}
+                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-base font-bold text-primary-foreground ${
+                            student.colorPerfil ? "" : student.needsSupport ? "bg-amber-500" : "bg-primary"
+                          }`}
+                          aria-hidden="true"
+                        >
                           {student.name.charAt(0)}
                         </div>
                         <div className="min-w-0">

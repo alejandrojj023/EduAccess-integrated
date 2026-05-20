@@ -27,7 +27,6 @@ import { InitialTest } from "@/components/student/initial-test"
 import { StudentProgress } from "@/components/student/student-progress"
 import { StudentCalendar } from "@/components/student/student-calendar"
 import { AccessibilitySettings } from "@/components/accessibility-settings"
-import { GroupManagement } from "@/components/teacher/group-management"
 import { JoinGroup } from "@/components/student/join-group"
 import { StudentCourse } from "@/components/student/student-course"
 import { StudentLesson } from "@/components/student/student-lesson"
@@ -56,7 +55,6 @@ type Screen =
   | "student-progress"
   | "student-calendar"
   | "join-group"
-  | "group-management"
   | "student-course"
   | "student-lesson"
   | "accessibility"
@@ -150,9 +148,6 @@ function AppContent() {
         return
       case "analytics":
         router.push("/maestro/analiticas")
-        return
-      case "group-management":
-        router.push("/maestro/grupos")
         return
       case "student-dashboard":
         router.push("/estudiante")
@@ -376,10 +371,6 @@ function AppContent() {
 
     if (pathname === "/maestro/analiticas") {
       return <TeacherAnalytics onBack={() => router.push("/maestro")} />
-    }
-
-    if (pathname === "/maestro/grupos") {
-      return <GroupManagement onNavigate={goToRoute} />
     }
 
     if (pathname === "/estudiante") {

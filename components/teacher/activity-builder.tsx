@@ -600,7 +600,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
             <button type="button" onClick={() => setView("grid")}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Volver">
-              <ArrowLeft className="w-4 h-4" />
+                      <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             </button>
             <div>
               <h1 className="text-base font-bold text-foreground leading-none">Actividades Existentes</h1>
@@ -643,7 +643,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
           ) : existingActivities.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card py-16 text-center shadow-sm">
               <FileText className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" aria-hidden="true" />
-              <h3 className="text-base font-bold text-foreground mb-1">No hay actividades</h3>
+              <h2 className="text-base font-bold text-foreground mb-1">No hay actividades</h2>
               <p className="text-sm text-muted-foreground">
                 Crea lecciones con actividades para verlas aquí y configurarlas.
               </p>
@@ -763,7 +763,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                 onClick={() => setView(isEditing ? "existing" : "grid")}
                 className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
                 aria-label="Volver">
-                <ArrowLeft className="w-4 h-4" />
+                <ArrowLeft className="w-4 h-4" aria-hidden="true" />
               </button>
               <div>
                 <h1 className="text-base font-bold text-foreground leading-none">
@@ -797,7 +797,10 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                 {lessons.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No tienes lecciones creadas. Crea una lección primero.</p>
                 ) : (
+                  <>
+                  <label htmlFor="lesson-select" className="sr-only">Lección de destino</label>
                   <select
+                    id="lesson-select"
                     value={selectedLessonId}
                     onChange={(e) => setSelectedLessonId(e.target.value)}
                     className="w-full px-3 py-2.5 text-sm border border-input rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-ring"
@@ -814,6 +817,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                       </optgroup>
                     ))}
                   </select>
+                  </>
                 )}
               </div>
             )}
@@ -840,7 +844,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                         className="flex items-center justify-center rounded-xl border border-border bg-card px-3 py-2 text-destructive hover:bg-destructive/10 active:scale-[0.98] transition-all"
                         onClick={handleImageDelete}
                         aria-label="Eliminar imagen">
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </button>
                     </div>
                   </div>
@@ -872,6 +876,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                     <Input
                       value={correctAnswer}
                       onChange={(e) => setCorrectAnswer(e.target.value)}
+                      aria-label="Oración correcta"
                       placeholder="Ej: Los gatos son bonitos"
                       className="border-border flex-1"
                     />
@@ -906,6 +911,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                   <Input
                     value={palabrasDistractoras}
                     onChange={(e) => setPalabrasDistractoras(e.target.value)}
+                    aria-label="Palabras distractoras"
                     placeholder="Ej: nube, famoso, mesa"
                     className="border-border"
                   />
@@ -934,6 +940,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                     <Input
                       value={voiceEnunciado}
                       onChange={(e) => setVoiceEnunciado(e.target.value)}
+                      aria-label="Pregunta"
                       placeholder="Ej: ¿De qué color es el cielo?"
                       className="border-border flex-1"
                     />
@@ -956,6 +963,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                   <Input
                     value={correctAnswer}
                     onChange={(e) => setCorrectAnswer(e.target.value)}
+                    aria-label="Respuestas correctas"
                     placeholder="Ej: azul, celeste, azul claro"
                     className="border-border"
                   />
@@ -979,8 +987,8 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
             {showSequenceConfig && (
               <>
                 <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
-                  <h2 className="text-sm font-semibold text-foreground mb-3">¿Cuántas imágenes?</h2>
-                  <div className="grid grid-cols-3 gap-3">
+                  <h2 id="seq-count-label" className="text-sm font-semibold text-foreground mb-3">¿Cuántas imágenes?</h2>
+                  <div role="group" aria-labelledby="seq-count-label" className="grid grid-cols-3 gap-3">
                     {([3, 4, 5] as const).map((n) => (
                       <button key={n} type="button"
                         onClick={() => {
@@ -1012,7 +1020,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                         <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs shrink-0">
                           {idx + 1}
                         </span>
-                        <h4 className="text-sm font-semibold text-foreground">Paso {idx + 1}</h4>
+                        <h3 className="text-sm font-semibold text-foreground">Paso {idx + 1}</h3>
                       </div>
 
                       {(step.previewUrl || step.existingUrl) ? (
@@ -1038,7 +1046,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                                 setSequenceSteps(steps)
                               }}
                               aria-label="Eliminar imagen">
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                             </button>
                           </div>
                         </div>
@@ -1075,6 +1083,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                           steps[idx] = { ...steps[idx], description: e.target.value }
                           setSequenceSteps(steps)
                         }}
+                        aria-label={`Descripción del paso ${idx + 1}`}
                         placeholder={`Descripción del paso ${idx + 1} (opcional)`}
                         className="border-border"
                       />
@@ -1101,6 +1110,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                           next[idx] = e.target.value
                           setFillContextSentences(next)
                         }}
+                        aria-label={`Oración de contexto ${idx + 1}`}
                         placeholder={`Ej: Yo tengo tres mascotas.`}
                         className="border-border flex-1"
                       />
@@ -1115,7 +1125,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                         }}
                         aria-label="Eliminar oración"
                         disabled={fillContextSentences.length === 1 && !sentence.trim()}>
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </button>
                     </div>
                   ))}
@@ -1135,6 +1145,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                   <Input
                     value={fillEnunciado}
                     onChange={(e) => setFillEnunciado(e.target.value)}
+                    aria-label="Oración a completar"
                     placeholder="Ej: Yo tengo tres ___."
                     className="border-border"
                   />
@@ -1163,6 +1174,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                   <Input
                     value={correctAnswer}
                     onChange={(e) => setCorrectAnswer(e.target.value)}
+                    aria-label="Respuesta correcta"
                     placeholder="Ej: gatos"
                     className="border-border"
                   />
@@ -1179,6 +1191,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                   <Input
                     value={palabrasDistractoras}
                     onChange={(e) => setPalabrasDistractoras(e.target.value)}
+                    aria-label="Palabras distractoras"
                     placeholder="Ej: gato, perros, pez"
                     className="border-border"
                   />
@@ -1212,6 +1225,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                   <Input
                     value={wsBuilderInput}
                     onChange={(e) => setWsBuilderInput(e.target.value)}
+                    aria-label="Nueva palabra para la sopa de letras"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault()
@@ -1234,9 +1248,10 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                         setWsBuilderInput("")
                       }
                     }}
+                    aria-label="Agregar palabra"
                     className="flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-primary-foreground hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
                     disabled={wsBuilderWords.length >= 10 || !wsBuilderInput.trim()}>
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-4 h-4" aria-hidden="true" />
                   </button>
                 </div>
                 {wsBuilderWords.length > 0 && (
@@ -1263,6 +1278,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
               <textarea
                 value={instrucciones}
                 onChange={(e) => setInstrucciones(e.target.value)}
+                aria-label="Instrucciones de la actividad"
                 placeholder="Escribe instrucciones claras y simples. Ejemplo: Mira la imagen y selecciona el animal que ves."
                 className="w-full min-h-[90px] p-3 text-sm border border-input rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                 required={!showSoundConfig && !showVoiceConfig && !showFillConfig && !showSequenceConfig && !showWordSearch}
@@ -1287,6 +1303,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                     <Input
                       value={option.text}
                       onChange={(e) => handleOptionChange(option.id, e.target.value)}
+                      aria-label={`Opción ${index + 1}`}
                       placeholder={`Opcion ${index + 1}`}
                       className="border-border flex-1"
                     />
@@ -1295,7 +1312,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                         onClick={() => handleRemoveOption(option.id)}
                         className="flex items-center justify-center rounded-xl border border-border bg-card p-2 text-destructive hover:bg-destructive/10 active:scale-[0.98] transition-all"
                         aria-label="Eliminar opcion">
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </button>
                     )}
                   </div>
@@ -1319,6 +1336,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                 <Input
                   value={correctAnswer}
                   onChange={(e) => setCorrectAnswer(e.target.value)}
+                  aria-label="Respuesta correcta"
                   placeholder="Escribe la respuesta esperada"
                   className="border-border"
                 />
@@ -1330,8 +1348,8 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
 
             {/* Difficulty */}
             <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
-              <h2 className="text-sm font-semibold text-foreground mb-3">Nivel de Dificultad</h2>
-              <div className="grid grid-cols-3 gap-3">
+              <h2 id="dificultad-label" className="text-sm font-semibold text-foreground mb-3">Nivel de Dificultad</h2>
+              <div role="group" aria-labelledby="dificultad-label" className="grid grid-cols-3 gap-3">
                 {difficultyLevels.map((level) => (
                   <button key={level.id} type="button"
                     onClick={() => setDificultad(level.id)}
@@ -1384,7 +1402,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
             <button type="button" onClick={onBack}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Volver">
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             </button>
             <div>
               <h1 className="text-base font-bold text-foreground leading-none">Constructor de Actividades</h1>
@@ -1423,7 +1441,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
               <div className={`w-12 h-12 ${type.color} rounded-xl flex items-center justify-center mb-4 transition-transform duration-200 group-hover:scale-105`}>
                 <type.icon className="w-5 h-5 text-primary-foreground" aria-hidden="true" />
               </div>
-              <h3 className="text-sm font-bold text-foreground mb-1">{type.label}</h3>
+              <h2 className="text-sm font-bold text-foreground mb-1">{type.label}</h2>
               <div className="flex items-center text-primary text-xs font-medium mt-3">
                 Crear actividad
                 <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-0.5 transition-transform" aria-hidden="true" />

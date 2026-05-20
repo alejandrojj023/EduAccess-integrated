@@ -77,7 +77,7 @@ export function EditCourse({ courseId, onBack, onSave }: EditCourseProps) {
             </div>
           </div>
         </header>
-        <main className="mx-auto max-w-3xl px-6 py-8">
+        <main className="mx-auto max-w-3xl px-6 py-8" aria-busy="true" aria-label="Cargando curso">
           <div className="rounded-2xl border border-border bg-card shadow-sm p-6 space-y-5 animate-pulse">
             <div className="h-4 w-40 rounded-md bg-muted" />
             <div className="h-10 w-full rounded-xl bg-muted" />
@@ -108,9 +108,10 @@ export function EditCourse({ courseId, onBack, onSave }: EditCourseProps) {
           {settings.voiceEnabled && (
             <button type="button"
               onClick={() => speak("Editar curso. Modifica el título, descripción y materia. Luego presiona Guardar cambios.")}
+              aria-label="Escuchar instrucciones de la sección"
               className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
               <Volume2 className="w-4 h-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Escuchar</span>
+              <span className="hidden sm:inline" aria-hidden="true">Escuchar</span>
             </button>
           )}
         </div>

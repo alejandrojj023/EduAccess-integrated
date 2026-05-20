@@ -76,7 +76,7 @@ function ConfigBtn({ children }: { children: React.ReactNode }) {
   return (
     <PopoverTrigger asChild>
       <button type="button" className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98] shrink-0">
-        <SlidersHorizontal className="w-3.5 h-3.5" />
+        <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" />
         Configurar
       </button>
     </PopoverTrigger>
@@ -324,7 +324,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
             <button type="button" onClick={onBack}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Regresar al panel principal">
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             </button>
             <div>
               <h1 className="text-sm font-black text-foreground leading-none">Analíticas</h1>
@@ -352,10 +352,13 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
               {/* Cabecera siempre visible */}
               <div className="flex items-center justify-between px-4 py-3">
                 <button
+                  type="button"
                   onClick={() => setShowFilters((v) => !v)}
+                  aria-expanded={showFilters}
+                  aria-label={showFilters ? "Cerrar panel de filtros" : "Abrir panel de filtros"}
                   className="flex items-center gap-2 hover:opacity-70 transition-opacity"
                 >
-                  <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+                  <SlidersHorizontal className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
                   <span className="text-sm font-semibold text-foreground">
                     {activeCount > 0 ? `${activeCount} filtro${activeCount > 1 ? "s" : ""} activo${activeCount > 1 ? "s" : ""}` : "Filtros"}
                   </span>
@@ -539,7 +542,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                 <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
                   <BarChart3 className="w-4 h-4 text-primary" aria-hidden="true" />
                 </div>
-                <h3 className="text-sm font-black text-foreground">Rendimiento por Lección</h3>
+                <h2 className="text-sm font-black text-foreground">Rendimiento por Lección</h2>
               </div>
               <Popover>
                 <ConfigBtn><span /></ConfigBtn>
@@ -624,9 +627,9 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                 <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
                   <TrendingUp className="w-4 h-4 text-primary" aria-hidden="true" />
                 </div>
-                <h3 className="text-sm font-black text-foreground">
+                <h2 className="text-sm font-black text-foreground">
                   Progreso{progCfg.agrupar === "mes" ? " Mensual" : progCfg.agrupar === "dia" ? " Diario" : " Semanal"}
-                </h3>
+                </h2>
               </div>
               <Popover>
                 <ConfigBtn><span /></ConfigBtn>
@@ -695,7 +698,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
           {/* Tipos de Actividad */}
           <div className="rounded-3xl border-2 border-border bg-card shadow-sm overflow-hidden">
             <div className="flex flex-row items-center justify-between px-5 py-4 border-b border-border">
-              <h3 className="text-sm font-black text-foreground">Tipos de Actividad</h3>
+              <h2 className="text-sm font-black text-foreground">Tipos de Actividad</h2>
               <Popover>
                 <ConfigBtn><span /></ConfigBtn>
                 <PopoverContent className="w-72" align="end">
@@ -783,7 +786,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
           {/* Desempeño Individual */}
           <div className="rounded-3xl border-2 border-border bg-card shadow-sm overflow-hidden lg:col-span-2">
             <div className="flex flex-row items-center justify-between px-5 py-4 border-b border-border">
-              <h3 className="text-sm font-black text-foreground">Desempeño Individual</h3>
+              <h2 className="text-sm font-black text-foreground">Desempeño Individual</h2>
               <Popover>
                 <ConfigBtn><span /></ConfigBtn>
                 <PopoverContent className="w-72" align="end">
@@ -821,14 +824,14 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
             </div>
             <div className="p-5">
               <div className="overflow-x-auto">
-                <table className="w-full" role="table">
+                <table className="w-full">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Estudiante</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Correctas</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Intentos</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Tiempo Prom.</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Progreso</th>
+                      <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Estudiante</th>
+                      <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Correctas</th>
+                      <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Intentos</th>
+                      <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Tiempo Prom.</th>
+                      <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Progreso</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -856,6 +859,11 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                           <td className="py-3 px-3 w-28">
                             <div className="h-2 rounded-full bg-muted overflow-hidden">
                               <div
+                                role="progressbar"
+                                aria-valuenow={student.correctas}
+                                aria-valuemin={0}
+                                aria-valuemax={100}
+                                aria-label={`Progreso de ${student.name}: ${student.correctas}%`}
                                 className="h-full rounded-full bg-primary transition-all"
                                 style={{ width: `${student.correctas}%` }}
                               />

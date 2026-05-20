@@ -65,14 +65,17 @@ export async function POST(request: NextRequest) {
   } else if (errorFull) {
     // Fallback: insertar solo los campos mínimos
     console.error("[complete-lesson] insert completo falló, intentando mínimo:", errorFull.message)
+    const fallbackData: Record<string, any> = {
+      id_alumno: user.id,
+      id_leccion: lessonId,
+      numero_intento: numeroIntento,
+      estrellas: stars,
+    }
+    if (duracionSegundos != null) fallbackData.duracion_segundos = duracionSegundos
+
     const { data: intentoMin, error: errorMin } = await supabaseAdmin
       .from("intento_leccion")
-      .insert({
-        id_alumno: user.id,
-        id_leccion: lessonId,
-        numero_intento: numeroIntento,
-        estrellas: stars,
-      })
+      .insert(fallbackData)
       .select("id_intento_leccion")
       .single()
 

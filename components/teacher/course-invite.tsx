@@ -199,6 +199,7 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
             { id: "list",  label: "Mis alumnos", Icon: Users },
           ] as const).map(({ id, label, Icon }) => (
             <button key={id}
+              type="button"
               id={`tab-${id}`}
               role="tab"
               aria-selected={tab === id}
@@ -275,7 +276,7 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
                             : "border-border hover:border-primary/40 hover:bg-muted"
                         }`}
                         aria-pressed={selected.has(a.id_perfil)}>
-                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        <div aria-hidden="true" className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                           selected.has(a.id_perfil) ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
                         }`}>
                           {a.nombre.charAt(0).toUpperCase()}
@@ -336,7 +337,8 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
                 const IconComp = cfg.icon
                 return (
                   <li key={inv.id_invitacion}>
-                    <div className="rounded-2xl border border-border bg-card px-4 py-3 flex items-center justify-between gap-4 flex-wrap shadow-sm">
+                    <article aria-label={`Invitación a ${inv.alumno?.nombre ?? "alumno"}, estado: ${cfg.label}`}
+                      className="rounded-2xl border border-border bg-card px-4 py-3 flex items-center justify-between gap-4 flex-wrap shadow-sm">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-foreground truncate">{inv.alumno?.nombre ?? "—"}</p>
                         <p className="text-xs text-muted-foreground truncate">{inv.alumno?.correo ?? ""}</p>
@@ -356,7 +358,7 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
                           </button>
                         )}
                       </div>
-                    </div>
+                    </article>
                   </li>
                 )
               })}

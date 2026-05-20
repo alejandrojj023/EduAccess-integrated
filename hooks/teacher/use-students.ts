@@ -19,6 +19,7 @@ interface Student {
   totalActivities: number
   lastActive: string
   needsSupport: boolean
+  colorPerfil: string | null
 }
 
 interface UseStudentsReturn {
@@ -78,7 +79,17 @@ export function useStudents(): UseStudentsReturn {
         }
       })
 
-      // 3. Total de actividades publicadas en los cursos del docente
+      // 3. Color de perfil (avatar) de cada alumno
+      const alumnoIdsList = Array.from(alumnosMap.keys())
+      const { data: gamificaciones } = await supabase
+        .from("gamificacion")
+        .select("id_alumno, color_perfil")
+        .in("id_alumno", alumnoIdsList)
+      const gamiMap = new Map<string, string | null>(
+        gamificaciones?.map((g: any) => [g.id_alumno, g.color_perfil ?? null]) ?? []
+      )
+
+      // 4. Total de actividades publicadas en los cursos del docente
       const { count: totalActividades } = await supabase
         .from("actividad")
         .select("id_actividad, leccion:id_leccion ( curso:id_curso ( id_grupo ) )", {
@@ -144,6 +155,7 @@ export function useStudents(): UseStudentsReturn {
             totalActivities: total,
             lastActive,
             needsSupport: avgProgress < SUPPORT_THRESHOLD,
+            colorPerfil: gamiMap.get(alumnoId) ?? null,
           }
         })
       )

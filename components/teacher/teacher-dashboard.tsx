@@ -85,7 +85,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
   }, [speak, user?.name, dashboardStats])
 
   const navItems = [
-    { label: "Cursos",      sub: loading ? null : `${dashboardStats.cursos} activos`,  Icon: FolderOpen,  screen: "courses",    hover: hoverCursos,      color: "bg-blue-100 group-hover:bg-blue-200",       icon: "text-blue-600"    },
+    { label: "Cursos",      sub: "Ver y gestionar",                                     Icon: FolderOpen,  screen: "courses",    hover: hoverCursos,      color: "bg-blue-100 group-hover:bg-blue-200",       icon: "text-blue-600"    },
     { label: "Lecciones",   sub: "Por curso",                                           Icon: BookOpen,    screen: "courses",    hover: hoverLecciones,   color: "bg-amber-100 group-hover:bg-amber-200",    icon: "text-amber-600"   },
     { label: "Actividades", sub: "Crear y editar",                                      Icon: CheckCircle, screen: "activities", hover: hoverActividades, color: "bg-violet-100 group-hover:bg-violet-200",  icon: "text-violet-600"  },
     { label: "Analíticas",  sub: "Ver estadísticas",                                    Icon: BarChart3,   screen: "analytics",  hover: hoverAnaliticas,  color: "bg-emerald-100 group-hover:bg-emerald-200", icon: "text-emerald-600" },
@@ -135,7 +135,8 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
               <button
                 type="button"
                 onClick={onLogout}
-                className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
+                aria-label="Cerrar sesión"
+              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
               >
                 <LogOut className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline text-xs">Salir</span>
@@ -150,9 +151,9 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
         {/* ── WELCOME HERO ── */}
         <section aria-label="Bienvenida">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 p-6 shadow-xl">
-            <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-primary/20 blur-3xl" aria-hidden />
-            <div className="absolute -bottom-8 left-1/4 w-32 h-32 rounded-full bg-blue-500/15 blur-2xl" aria-hidden />
-            <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "24px 24px" }} aria-hidden />
+            <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-primary/20 blur-3xl" aria-hidden="true" />
+            <div className="absolute -bottom-8 left-1/4 w-32 h-32 rounded-full bg-blue-500/15 blur-2xl" aria-hidden="true" />
+            <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "24px 24px" }} aria-hidden="true" />
 
             <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
@@ -181,7 +182,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
                   {...hoverCrearCurso}
                   className="flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 hover:shadow-lg active:scale-[0.97]"
                 >
-                  <Plus className="h-4 w-4" aria-hidden />
+                  <Plus className="h-4 w-4" aria-hidden="true" />
                   Crear curso
                 </button>
                 <button
@@ -190,7 +191,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
                   {...hoverEstudiantes}
                   className="flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition-all hover:bg-white/20 active:scale-[0.97]"
                 >
-                  <Users className="h-4 w-4" aria-hidden />
+                  <Users className="h-4 w-4" aria-hidden="true" />
                   Estudiantes
                 </button>
               </div>
@@ -207,10 +208,10 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
                   className={`relative overflow-hidden rounded-3xl border-2 ${s.border} bg-gradient-to-br ${s.gradient} p-5 shadow-lg shadow-primary/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl`}
                   {...s.hover}
                 >
-                  <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/15 blur-xl" aria-hidden />
+                  <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/15 blur-xl" aria-hidden="true" />
                   <div className="relative flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-white/25 flex items-center justify-center shrink-0 shadow-inner">
-                      <s.icon className="h-6 w-6 text-white" aria-hidden />
+                      <s.icon className="h-6 w-6 text-white" aria-hidden="true" />
                     </div>
                     <div>
                       <p className="text-3xl font-black text-white leading-none">{s.value}</p>
@@ -226,7 +227,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
 
         {/* ── NAV CARDS ── */}
         <nav aria-label="Menú principal del docente">
-          <h3 className="mb-4 text-xs font-black uppercase tracking-widest text-muted-foreground">Gestionar</h3>
+          <h2 className="mb-4 text-xs font-black uppercase tracking-widest text-muted-foreground">Gestionar</h2>
           <ul className="grid list-none grid-cols-2 gap-3 p-0 lg:grid-cols-4">
             {navItems.map(({ label, sub, Icon, screen, hover, color, icon }) => (
               <li key={label}>
@@ -261,9 +262,9 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
             >
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Clock className="h-4 w-4 text-primary" aria-hidden />
+                  <Clock className="h-4 w-4 text-primary" aria-hidden="true" />
                 </div>
-                <h3 className="text-sm font-black text-foreground">Actividad reciente</h3>
+                <h2 className="text-sm font-black text-foreground">Actividad reciente</h2>
               </div>
               <button
                 type="button"
@@ -271,7 +272,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
                 aria-label="Actualizar actividad reciente"
                 className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
-                <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
                 Actualizar
               </button>
             </div>
@@ -280,7 +281,7 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
               {recentActivity.length === 0 ? (
                 <div className="space-y-3">
                   <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/20 py-10 text-center px-4">
-                    <History className="mb-3 h-10 w-10 text-muted-foreground/30" aria-hidden />
+                    <History className="mb-3 h-10 w-10 text-muted-foreground/30" aria-hidden="true" />
                     <p className="text-sm font-bold text-foreground">Sin actividad reciente</p>
                     <p className="mt-1 max-w-xs text-xs text-muted-foreground">
                       Aquí aparecerán los avances de tus alumnos cuando completen actividades.

@@ -59,7 +59,7 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
             <button type="button" onClick={onBack}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Volver al panel">
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             </button>
             <div>
               <h1 className="text-sm font-black text-foreground leading-none">Mis Cursos</h1>
@@ -69,9 +69,10 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
           <div className="flex items-center gap-2">
             {settings.voiceEnabled && (
               <button type="button" onClick={handleReadInstructions}
+                aria-label="Escuchar descripción de la sección"
                 className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
                 <Volume2 className="w-4 h-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Escuchar</span>
+                <span className="hidden sm:inline" aria-hidden="true">Escuchar</span>
               </button>
             )}
             <button type="button" onClick={() => onNavigate("create-course")}
@@ -110,7 +111,7 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
               <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
                 <FolderOpen className="w-7 h-7 text-muted-foreground/50" aria-hidden="true" />
               </div>
-              <h3 className="text-base font-bold text-foreground mb-1">No hay cursos</h3>
+              <h2 className="text-base font-bold text-foreground mb-1">No hay cursos</h2>
               <p className="text-sm text-muted-foreground mb-5">Crea tu primer curso para comenzar</p>
               <button type="button" onClick={() => onNavigate("create-course")}
                 className="flex items-center gap-2 rounded-2xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground hover:opacity-90 active:scale-[0.98]">
@@ -149,11 +150,15 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
                               <span className={`inline-flex items-center text-xs font-bold px-2.5 py-0.5 rounded-full border ${mc.bg} ${mc.text} ${mc.border}`}>
                                 {course.materiaLabel}
                               </span>
-                              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                                <Users className="w-3 h-3" aria-hidden="true" /> {course.students}
+                              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+                                aria-label={`${course.students} estudiantes`}>
+                                <Users className="w-3 h-3" aria-hidden="true" />
+                                <span aria-hidden="true">{course.students}</span>
                               </span>
-                              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                                <BookOpen className="w-3 h-3" aria-hidden="true" /> {course.lessons} lec.
+                              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+                                aria-label={`${course.lessons} lecciones`}>
+                                <BookOpen className="w-3 h-3" aria-hidden="true" />
+                                <span aria-hidden="true">{course.lessons} lec.</span>
                               </span>
                             </div>
 

@@ -526,6 +526,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
                       <Upload className="w-4 h-4" aria-hidden="true" />Cambiar imagen
                     </button>
                     <button type="button" onClick={handleImageDelete}
+                      aria-label="Eliminar imagen"
                       className="flex items-center justify-center rounded-xl border border-destructive/30 bg-card px-3 py-2 text-sm text-destructive hover:bg-destructive/10 active:scale-[0.98]">
                       <Trash2 className="w-4 h-4" aria-hidden="true" />
                     </button>
@@ -534,7 +535,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
               ) : (
                 <button type="button" onClick={() => imageInputRef.current?.click()}
                   className="w-full h-36 border border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 hover:border-primary hover:bg-primary/5 transition-all">
-                  <Upload className="w-8 h-8 text-muted-foreground" />
+                  <Upload className="w-8 h-8 text-muted-foreground" aria-hidden="true" />
                   <span className="text-sm font-medium text-muted-foreground">Haz clic para subir una imagen</span>
                   <span className="text-xs text-muted-foreground">PNG, JPG, WEBP o GIF</span>
                 </button>
@@ -797,6 +798,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
                   aria-label="Palabra para agregar a la sopa de letras" />
                 <button type="button" onClick={handleAddPalabraSopa}
                   disabled={actPalabrasSopa.length >= 10 || !actPalabraInput.trim()}
+                  aria-label="Agregar palabra"
                   className="flex items-center justify-center rounded-xl bg-primary px-3 py-2 text-primary-foreground hover:opacity-90 active:scale-[0.98] disabled:opacity-50">
                   <Plus className="w-4 h-4" aria-hidden="true" />
                 </button>
@@ -925,9 +927,10 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
           {settings.voiceEnabled && (
             <button type="button"
               onClick={() => speak("Editar leccion. Modifica el titulo, las instrucciones y las actividades. Luego presiona Guardar Cambios.")}
+              aria-label="Escuchar instrucciones de la sección"
               className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
               <Volume2 className="w-4 h-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Escuchar</span>
+              <span className="hidden sm:inline" aria-hidden="true">Escuchar</span>
             </button>
           )}
         </div>
@@ -976,10 +979,10 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
             <p className="text-xs text-muted-foreground mb-3">Las palabras del glosario aparecerán resaltadas en el material de lectura. Los estudiantes podrán ver su definición al hacer clic.</p>
             <div className="flex gap-2 flex-wrap sm:flex-nowrap mb-3">
               <Input value={glosarioPalabra} onChange={(e) => setGlosarioPalabra(e.target.value)}
-                placeholder="Palabra" className="border-border flex-1 min-w-[120px]"
+                placeholder="Palabra" aria-label="Palabra del glosario" className="border-border flex-1 min-w-[120px]"
                 onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddGlosario())} />
               <Input value={glosarioDefin} onChange={(e) => setGlosarioDefin(e.target.value)}
-                placeholder="Definición" className="border-border flex-[2] min-w-[160px]"
+                placeholder="Definición" aria-label="Definición de la palabra" className="border-border flex-[2] min-w-[160px]"
                 onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddGlosario())} />
               <button type="button" onClick={handleAddGlosario}
                 className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted active:scale-[0.98] shrink-0">

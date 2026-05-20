@@ -1,18 +1,13 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,8 +35,17 @@ import {
   ChevronUp,
   CheckCircle2,
   XCircle,
+  Flame,
+  Trophy,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+
+/* ─── Nivel nombres ─────────────────────────────────────────────────────── */
+const NIVEL_NOMBRES: Record<number, string> = {
+  1: "Semilla Dormida", 2: "Semilla Saltarina", 3: "Brote Brillante",
+  4: "Trébol de la Suerte", 5: "Girasol Sonriente", 6: "Cactus Valiente",
+  7: "Árbol Alegre", 8: "Flor Guardiana", 9: "Gran Roble", 10: "Bosque Mágico",
+}
 
 /* ─── Colores por actividad ─────────────────────────────────────────────── */
 const COLORES_HEX = [
@@ -58,6 +62,7 @@ interface CourseStudent {
   estrellasCurso: number
   leccionesCompletadas: number
   totalLecciones: number
+  colorPerfil: string | null
 }
 
 /**
@@ -76,6 +81,7 @@ interface SesionLeccion {
   correctasPrimerIntento: number
   totalActividades: number
   totalReintentos: number
+  duracionSegundos: number | null
 }
 
 interface LeccionData {
@@ -99,6 +105,7 @@ interface ReporteData {
   lecciones: LeccionData[]
   progresion: ProgresionData[]
   sesiones: SesionLeccion[]
+  gamificacion: { streaks_dias: number; nivel: number } | null
 }
 
 interface CourseStudentsProps {
@@ -108,94 +115,6 @@ interface CourseStudentsProps {
   onInvite: () => void
   /** Si se pasa, abre automáticamente el reporte de ese alumno al cargar la lista */
   openStudentId?: string | null
-}
-
-/* ─── Barra de intento con segmentos y tooltip ───────────────────────────── */
-function BarraIntento({
-  sesion,
-  numero,
-  onExpandedChange,
-}: {
-  sesion: SesionLeccion
-  numero: number
-  onExpandedChange?: (expanded: boolean) => void
-}) {
-  const [expandido, setExpandido] = useState(false)
-  const [tooltip, setTooltip] = useState<string | null>(null)
-
-  // Agrupar por título (misma actividad hecha varias veces en el día)
-  const agrupadas: Record<string, { titulo: string; puntaje: number; count: number }> = {}
-  for (const act of sesion.actividades) {
-    if (!agrupadas[act.titulo]) agrupadas[act.titulo] = { titulo: act.titulo, puntaje: 0, count: 0 }
-    agrupadas[act.titulo].puntaje += act.puntaje
-    agrupadas[act.titulo].count++
-  }
-  const actividades = Object.values(agrupadas)
-  const total = actividades.length || 1
-
-  const alturaTotal = 120
-  const alturaEstrella = (sesion.estrellas / 5) * alturaTotal
-
-  const handleClick = () => {
-    const next = !expandido
-    setExpandido(next)
-    setTooltip(null)
-    onExpandedChange?.(next)
-  }
-
-  return (
-    <div className="flex flex-col items-center gap-2 relative">
-      <div
-        className="w-12 bg-muted rounded-t-lg overflow-hidden relative cursor-pointer"
-        style={{ height: `${alturaTotal}px` }}
-        onClick={handleClick}
-        title={expandido ? "Clic para colapsar" : "Clic para ver actividades"}
-      >
-        <div
-          className="absolute bottom-0 w-full rounded-t-lg overflow-hidden flex flex-col-reverse transition-all duration-700"
-          style={{ height: `${alturaEstrella}px` }}
-        >
-          {/* Colapsado: barra sólida primaria */}
-          {!expandido && (
-            <div className="w-full h-full bg-primary rounded-t-lg" />
-          )}
-
-          {/* Expandido: segmentos multicolor por actividad */}
-          {expandido && (
-            actividades.length > 0
-              ? actividades.map((act, idx) => (
-                  <div
-                    key={act.titulo}
-                    className="w-full transition-opacity hover:opacity-75"
-                    style={{
-                      height: `${100 / total}%`,
-                      backgroundColor: COLORES_HEX[idx % COLORES_HEX.length],
-                    }}
-                    onMouseEnter={() => setTooltip(act.titulo)}
-                    onMouseLeave={() => setTooltip(null)}
-                  />
-                ))
-              : <div className="w-full h-full bg-primary rounded-t-lg" />
-          )}
-        </div>
-
-        {/* Tooltip hover sobre segmento */}
-        {expandido && tooltip && agrupadas[tooltip] && (
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 bg-foreground text-background text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg pointer-events-none">
-            <p className="font-semibold">{tooltip}</p>
-            <p className="opacity-70">
-              {agrupadas[tooltip].count > 1
-                ? `${agrupadas[tooltip].count} intentos`
-                : `${Math.round(agrupadas[tooltip].puntaje)}%`}
-            </p>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-foreground" />
-          </div>
-        )}
-      </div>
-      <span className="text-sm font-bold text-amber-500">{sesion.estrellas.toFixed(1)}⭐</span>
-      <span className="text-xs text-muted-foreground">#{numero}</span>
-    </div>
-  )
 }
 
 /* ─── Helpers compartidos ───────────────────────────────────────────────── */
@@ -224,6 +143,16 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })
 }
 
+function formatTiempo(seg: number): string | null {
+  if (seg <= 0) return null
+  const h = Math.floor(seg / 3600)
+  const m = Math.floor((seg % 3600) / 60)
+  const s = seg % 60
+  if (h > 0) return `${h}h ${m}m`
+  if (m > 0) return `${m}m${s > 0 ? ` ${s}s` : ""}`
+  return `${s}s`
+}
+
 /* ─── Componente principal ───────────────────────────────────────────────── */
 export function CourseStudents({ courseId, courseName, onBack, onInvite, openStudentId }: CourseStudentsProps) {
   const [students, setStudents] = useState<CourseStudent[]>([])
@@ -233,10 +162,12 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
   const [animado, setAnimado] = useState(false)
   const [reporte, setReporte] = useState<ReporteData | null>(null)
   const [loadingReporte, setLoadingReporte] = useState(false)
-  const [barrasExpandidas, setBarrasExpandidas] = useState<Record<string, boolean>>({})
   const [autoOpenedId, setAutoOpenedId] = useState<string | null>(null)
   const [expandedDetailLessonId, setExpandedDetailLessonId] = useState<string | null>(null)
   const [expandedDetailAttemptId, setExpandedDetailAttemptId] = useState<string | null>(null)
+  const [selectedLeccionId, setSelectedLeccionId] = useState<string | null>(null)
+  const [selectedSesionId, setSelectedSesionId] = useState<string | null>(null)
+  const barraRef = useRef<HTMLElement>(null)
 
   const fetchStudents = useCallback(async () => {
     setLoading(true)
@@ -267,6 +198,14 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
     const leccionIds = (leccionesData ?? []).map((l: any) => l.id_leccion)
     const alumnoIds = inscripciones.map((i: any) => i.id_alumno)
 
+    const { data: gamificaciones } = await supabase
+      .from("gamificacion")
+      .select("id_alumno, color_perfil")
+      .in("id_alumno", alumnoIds)
+    const gamiMap = new Map<string, string | null>(
+      gamificaciones?.map((g: any) => [g.id_alumno, g.color_perfil ?? null]) ?? []
+    )
+
     const { data: progresiones } = leccionIds.length > 0
       ? await supabase
           .from("progresion_alumno")
@@ -292,6 +231,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
         estrellasCurso: estrellas,
         leccionesCompletadas: completadas,
         totalLecciones: total,
+        colorPerfil: gamiMap.get(perfil.id_perfil) ?? null,
       }
     })
 
@@ -323,10 +263,11 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
 
   const openReporte = async (student: CourseStudent) => {
     setLoadingReporte(true)
-    setBarrasExpandidas({})
+    setSelectedLeccionId(null)
+    setSelectedSesionId(null)
     setExpandedDetailLessonId(null)
     setExpandedDetailAttemptId(null)
-    setReporte({ student, lecciones: [], progresion: [], sesiones: [] })
+    setReporte({ student, lecciones: [], progresion: [], sesiones: [], gamificacion: null })
 
     // 1. Lecciones del curso
     const { data: leccionesData } = await supabase
@@ -341,7 +282,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
     // 2. Progresión consolidada + historial de intento_leccion (en paralelo)
     //    intento_leccion se obtiene vía API (supabaseAdmin) porque RLS no permite al docente leerlo directamente.
     const { data: { session: authSession } } = await supabase.auth.getSession()
-    const [{ data: progresionData }, attemptsRes] = await Promise.all([
+    const [{ data: progresionData }, attemptsRes, { data: gamiData }] = await Promise.all([
       leccionIds.length > 0
         ? supabase
             .from("progresion_alumno")
@@ -354,6 +295,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
             headers: { Authorization: `Bearer ${authSession?.access_token}` },
           }).then(r => r.json())
         : Promise.resolve({ intentosLeccion: [], intentosAct: [], actividades: [] }),
+      supabase.from("gamificacion").select("streaks_dias, nivel").eq("id_alumno", student.id).maybeSingle(),
     ])
 
     const intentosLeccionData: any[] = attemptsRes.intentosLeccion ?? []
@@ -390,10 +332,18 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
         correctasPrimerIntento: il.correctas_primer_intento ?? 0,
         totalActividades: il.total_actividades ?? 0,
         totalReintentos: il.total_reintentos ?? 0,
+        duracionSegundos: il.duracion_segundos ?? null,
       }
     })
 
-    setReporte({ student, lecciones, progresion: progresionData ?? [], sesiones })
+    setReporte({
+      student,
+      lecciones,
+      progresion: progresionData ?? [],
+      sesiones,
+      gamificacion: gamiData ? { streaks_dias: gamiData.streaks_dias ?? 0, nivel: gamiData.nivel ?? 1 } : null,
+    })
+    if (lecciones.length > 0) setSelectedLeccionId(lecciones[0].id_leccion)
     setLoadingReporte(false)
   }
 
@@ -411,6 +361,465 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
     if (pct >= 80) return "text-green-600"
     if (pct >= 40) return "text-amber-600"
     return "text-red-500"
+  }
+
+  /* ── Pantalla completa del reporte ─────────────────────────────────────── */
+  if (reporte !== null) {
+    const leccionesConColor = reporte.lecciones.map((l, i) => ({ ...l, color: COLORES_HEX[i % COLORES_HEX.length] }))
+
+    // Datos filtrados según la lección seleccionada en el sidebar
+    const leccionesVisibles = selectedLeccionId
+      ? reporte.lecciones.filter(l => l.id_leccion === selectedLeccionId)
+      : reporte.lecciones
+    const sesionesVisibles = selectedLeccionId
+      ? reporte.sesiones.filter(s => s.id_leccion === selectedLeccionId)
+      : reporte.sesiones
+    const progresionesVisibles = selectedLeccionId
+      ? reporte.progresion.filter(p => p.id_leccion === selectedLeccionId)
+      : reporte.progresion
+
+    const totalEstrellas = progresionesVisibles.reduce((acc, p) => acc + (p.estrellas ?? 0), 0)
+    const totalSesiones  = sesionesVisibles.length
+    const leccionesCompletadasVisible = progresionesVisibles.filter(p => (p.pct_completado ?? 0) >= 100).length
+    const progresoStat = selectedLeccionId
+      ? `${progresionesVisibles[0]?.pct_completado ?? 0}%`
+      : `${reporte.student.progreso}%`
+
+    const chartData = [...sesionesVisibles]
+      .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
+      .map((s, i) => ({
+        name:      `#${i + 1}`,
+        puntaje:   s.puntaje_promedio,
+        estrellas: s.estrellas,
+        leccion:   reporte.lecciones.find(l => l.id_leccion === s.id_leccion)?.titulo ?? "Lección",
+        fecha:     formatDate(s.fecha),
+        colorIdx:  reporte.lecciones.findIndex(l => l.id_leccion === s.id_leccion),
+        sesionId:  s.id,
+        numeroIntento: s.numero_intento,
+        leccionId: s.id_leccion,
+      }))
+
+    const sesionSeleccionada = selectedSesionId
+      ? sesionesVisibles.find(s => s.id === selectedSesionId) ?? null
+      : null
+
+    // Tendencia: peor vs mejor intento
+    const sesionesOrdenadas = [...sesionesVisibles].sort((a, b) => a.numero_intento - b.numero_intento)
+    const peorIntento  = sesionesVisibles.length >= 2 ? Math.min(...sesionesVisibles.map(s => s.puntaje_promedio)) : null
+    const mejorIntento = sesionesVisibles.length >= 2 ? Math.max(...sesionesVisibles.map(s => s.puntaje_promedio)) : null
+    const tendenciaDelta = peorIntento !== null && mejorIntento !== null ? mejorIntento - peorIntento : null
+    const promedioGeneral = sesionesVisibles.length >= 2
+      ? Math.round(sesionesVisibles.reduce((acc, s) => acc + s.puntaje_promedio, 0) / sesionesVisibles.length)
+      : null
+
+    // Actividad con mayor dificultad (menor promedio entre todas las sesiones)
+    const actScores: Record<string, { total: number; count: number }> = {}
+    sesionesVisibles.forEach(s => s.actividades.forEach(act => {
+      if (!actScores[act.titulo]) actScores[act.titulo] = { total: 0, count: 0 }
+      actScores[act.titulo].total += act.puntaje
+      actScores[act.titulo].count++
+    }))
+    const actMasDificil = Object.entries(actScores)
+      .map(([titulo, { total, count }]) => ({ titulo, promedio: Math.round(total / count) }))
+      .sort((a, b) => a.promedio - b.promedio)[0] ?? null
+
+    // Tiempo total acumulado en la lección
+    const tiempoTotalSeg = sesionesVisibles.reduce((acc, s) => acc + (s.duracionSegundos ?? 0), 0)
+    const tiempoFormateado = formatTiempo(tiempoTotalSeg)
+
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
+          <div className="mx-auto flex h-16 max-w-4xl items-center gap-3 px-6">
+            <button type="button" onClick={() => setReporte(null)}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
+              aria-label="Volver a la lista de estudiantes">
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+            </button>
+            <div className="flex items-center gap-3 min-w-0">
+              <div
+                style={reporte.student.colorPerfil ? { backgroundColor: reporte.student.colorPerfil } : undefined}
+                className={`w-8 h-8 rounded-full ${reporte.student.colorPerfil ? "" : "bg-primary"} flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0`}
+                aria-hidden="true"
+              >
+                {getInitials(reporte.student.nombre)}
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-sm font-bold text-foreground leading-none truncate">{reporte.student.nombre}</h1>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">{courseName ?? "Curso"}</p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="mx-auto max-w-5xl px-6 py-6">
+          {loadingReporte ? (
+            <div className="flex items-center justify-center py-24" aria-busy="true" aria-label="Cargando reporte">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" aria-hidden="true" />
+              <span className="sr-only">Cargando reporte del estudiante...</span>
+            </div>
+          ) : (
+            <div className="flex flex-col md:flex-row gap-6 items-start">
+
+              {/* ── Sidebar de lecciones ── */}
+              <aside
+                className="md:sticky md:top-[72px] w-full md:w-52 shrink-0 rounded-2xl border border-border bg-card shadow-sm overflow-hidden"
+                aria-label="Filtrar por lección"
+              >
+                <div className="px-4 py-3 border-b border-border">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Lecciones</p>
+                </div>
+                <ul className="divide-y divide-border list-none p-0 max-h-[70vh] overflow-y-auto">
+                  {leccionesConColor.map(l => {
+                    const prog = reporte.progresion.find(p => p.id_leccion === l.id_leccion)
+                    const completada = (prog?.pct_completado ?? 0) >= 100
+                    const isActive = selectedLeccionId === l.id_leccion
+                    return (
+                      <li key={l.id_leccion}>
+                        <button type="button"
+                          onClick={() => { setSelectedLeccionId(l.id_leccion); setSelectedSesionId(null); setExpandedDetailAttemptId(null) }}
+                          className={`w-full px-4 py-3 text-left text-sm transition-colors hover:bg-muted/50 flex items-start gap-2.5 ${isActive ? "bg-primary/5 font-semibold text-primary" : "text-foreground"}`}
+                          aria-pressed={isActive}>
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-1" style={{ backgroundColor: l.color }} aria-hidden="true" />
+                          <span className="flex-1 leading-snug">{l.titulo}</span>
+                          {completada && <CheckCircle className="w-3.5 h-3.5 text-success shrink-0 mt-0.5" aria-hidden="true" />}
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </aside>
+
+              {/* ── Contenido principal ── */}
+              <div className="flex-1 min-w-0 space-y-6">
+
+              {/* ── Lección activa ── */}
+              {selectedLeccionId && (() => {
+                const leccionActiva = leccionesConColor.find(l => l.id_leccion === selectedLeccionId)
+                if (!leccionActiva) return null
+                return (
+                  <div className="flex items-center gap-2 px-1">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: leccionActiva.color }} aria-hidden="true" />
+                    <p className="text-sm font-semibold text-foreground truncate">{leccionActiva.titulo}</p>
+                  </div>
+                )
+              })()}
+
+              {/* ── Tarjetas de métricas ── */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4" role="list" aria-label="Métricas del alumno">
+                {[
+                  { label: "Progreso",    value: progresoStat,                                                                                     color: "text-primary",    bg: "bg-primary/10" },
+                  { label: "Estrellas",   value: `⭐ ${totalEstrellas.toFixed(1)}`,                                                                color: "text-amber-500",  bg: "bg-amber-50"   },
+                  { label: "Lecciones",   value: `${leccionesCompletadasVisible}/${leccionesVisibles.length}`,                                       color: "text-purple-600", bg: "bg-purple-50"  },
+                  { label: "Sesiones",    value: String(totalSesiones),                                                                            color: "text-teal-600",   bg: "bg-teal-50"    },
+                ].map(({ label, value, color, bg }) => (
+                  <div key={label} role="listitem" className="rounded-2xl border border-border bg-card p-4 shadow-sm text-center">
+                    <p className={`text-2xl font-black ${color}`}>{value}</p>
+                    <p className="text-xs text-muted-foreground mt-1 font-medium">{label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── Gráfica de evolución ── */}
+              {chartData.length > 0 && (
+                <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+                  <h2 className="text-sm font-bold text-foreground mb-4">Evolución de Aprendizaje</h2>
+                  <div className="overflow-x-auto overflow-y-hidden">
+                    <div style={{ minWidth: Math.max(chartData.length * 52 + 48, 400) }}>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                          <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                            tickFormatter={(v) => `${v}%`} />
+                          <Tooltip
+                            content={({ active, payload }) => {
+                              if (!active || !payload?.length) return null
+                              const d = payload[0].payload
+                              return (
+                                <div className="rounded-xl border border-border bg-card shadow-lg px-3 py-2 text-xs">
+                                  <p className="font-bold text-foreground mb-1">{d.leccion}</p>
+                                  <p className="text-muted-foreground">{d.fecha}</p>
+                                  <p className="text-foreground mt-1">Puntaje: <strong>{d.puntaje}%</strong></p>
+                                  <p className="text-amber-500">Estrellas: <strong>{d.estrellas.toFixed(1)} ⭐</strong></p>
+                                </div>
+                              )
+                            }}
+                          />
+                          <Bar
+                            dataKey="puntaje"
+                            radius={[6, 6, 0, 0]}
+                            barSize={36}
+                            style={{ cursor: "pointer" }}
+                            onClick={(data: any) => {
+                              const id = data?.sesionId as string | undefined
+                              if (!id) return
+                              const isSame = selectedSesionId === id
+                              setSelectedSesionId(isSame ? null : id)
+                              setExpandedDetailAttemptId(isSame ? null : id)
+                              if (!isSame) {
+                                setTimeout(() => barraRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 60)
+                              }
+                            }}
+                          >
+                            {chartData.map((entry, idx) => (
+                              <Cell
+                                key={idx}
+                                fill={COLORES_HEX[entry.colorIdx % COLORES_HEX.length]}
+                                opacity={selectedSesionId === null || selectedSesionId === entry.sesionId ? 1 : 0.3}
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  {/* Leyenda — solo lecciones con sesiones visibles */}
+                  <div className="flex flex-wrap gap-3 mt-4 pt-3 border-t border-border">
+                    {leccionesConColor
+                      .filter(l => leccionesVisibles.some(lv => lv.id_leccion === l.id_leccion))
+                      .map(l => (
+                        <div key={l.id_leccion} className="flex items-center gap-1.5">
+                          <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: l.color }} />
+                          <span className="text-xs text-muted-foreground">{l.titulo}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+
+              {/* ── Cards: Tendencia  |  Actividad más difícil ── */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                {/* Card 1 — Rango de desempeño */}
+                {promedioGeneral !== null && peorIntento !== null && mejorIntento !== null && (
+                  <section aria-label="Rango de desempeño" className="rounded-2xl border border-border bg-card p-5 shadow-sm flex flex-col items-center text-center gap-3">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide w-full text-center">Rango de desempeño</h3>
+                    <div>
+                      <p className={`text-2xl font-black ${promedioGeneral >= 90 ? "text-success" : promedioGeneral >= 70 ? "text-amber-500" : "text-destructive"}`}>
+                        {promedioGeneral}%
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">promedio general</p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Peor <strong>{peorIntento}%</strong> · Mejor <strong>{mejorIntento}%</strong>
+                      </p>
+                    </div>
+                  </section>
+                )}
+
+                {/* Card 2 — Actividad más difícil */}
+                {actMasDificil && (
+                  <section aria-label="Actividad más difícil" className="rounded-2xl border border-border bg-card p-5 shadow-sm flex flex-col items-center text-center gap-3">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide w-full text-center">Actividad más difícil</h3>
+                    <div>
+                      <p className="text-sm font-bold text-foreground leading-snug">{actMasDificil.titulo}</p>
+                      <p className={`text-lg font-black mt-1 ${actMasDificil.promedio >= 70 ? "text-amber-500" : "text-destructive"}`}>
+                        {actMasDificil.promedio}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">promedio en todos los intentos</p>
+                    </div>
+                  </section>
+                )}
+
+              </div>
+
+              {/* ── Sección: Detalle de intentos ── */}
+              <section ref={barraRef} aria-label="Detalle de intentos" className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-border">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Historial de intentos</h3>
+                </div>
+                <ul className="divide-y divide-border list-none p-0">
+                  {leccionesVisibles.map((leccion, index) => {
+                    const prog = progresionesVisibles.find(p => p.id_leccion === leccion.id_leccion)
+                    const completada = (prog?.pct_completado ?? 0) >= 100
+                    const score = Math.round((prog?.estrellas ?? 0) * 20)
+                    const estrellas = prog?.estrellas ?? null
+                    const sesionesLeccion = sesionesVisibles
+                      .filter(s => s.id_leccion === leccion.id_leccion && (!selectedSesionId || s.id === selectedSesionId))
+                      .sort((a, b) => a.numero_intento - b.numero_intento)
+                    const isExpanded = expandedDetailLessonId === leccion.id_leccion
+                    // Con sesión seleccionada: mostrar solo el intento, sin encabezado ni acordeón
+                    if (selectedSesionId && sesionesLeccion.length > 0) {
+                      return sesionesLeccion.map(sesion => (
+                        <li key={sesion.id} className="px-4 py-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                                {sesion.numero_intento}
+                              </span>
+                              <div>
+                                <p className="text-sm font-medium text-foreground">Intento {sesion.numero_intento}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatDate(sesion.fecha)}
+                                  {sesion.duracionSegundos ? ` · ${formatTiempo(sesion.duracionSegundos)}` : ""}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-primary">{sesion.puntaje_promedio}%</p>
+                              <StarRow stars={sesion.estrellas} size="w-3 h-3" />
+                            </div>
+                          </div>
+                          <div className="rounded-lg border border-border bg-muted/20 px-4 py-3">
+                            {sesion.actividades.length > 0 ? (
+                              <ul className="space-y-2 list-none p-0">
+                                {sesion.actividades.map((act, ai) => (
+                                  <li key={ai} className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      {act.puntaje >= 70
+                                        ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" aria-hidden="true" />
+                                        : <XCircle className="w-4 h-4 text-destructive shrink-0" aria-hidden="true" />}
+                                      <span className="text-sm text-foreground truncate">{act.titulo}</span>
+                                    </div>
+                                    <span className={`text-sm font-semibold shrink-0 ${act.puntaje >= 90 ? "text-success" : act.puntaje >= 70 ? "text-amber-600" : "text-destructive"}`}>
+                                      {act.puntaje}%
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-xs text-muted-foreground py-1">Sin detalle de actividades disponible.</p>
+                            )}
+                            {sesion.totalActividades > 0 && (
+                              <div className="mt-3 pt-2 border-t border-border/50 flex gap-4 text-xs text-muted-foreground">
+                                <span>✓ Correctas al 1er intento: <strong>{sesion.correctasPrimerIntento}/{sesion.totalActividades}</strong></span>
+                                {sesion.totalReintentos > 0 && <span>↺ Reintentos: <strong>{sesion.totalReintentos}</strong></span>}
+                              </div>
+                            )}
+                          </div>
+                        </li>
+                      ))
+                    }
+
+                    // Sin sesión seleccionada: acordeón normal
+                    return (
+                      <li key={leccion.id_leccion}>
+                        <div className="p-4 hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${completada ? "bg-success/10" : "bg-muted"}`} aria-hidden="true">
+                                {completada
+                                  ? <CheckCircle className="w-5 h-5 text-success" />
+                                  : <span className="text-sm font-bold text-muted-foreground">{index + 1}</span>}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-foreground truncate">{leccion.titulo}</p>
+                                {completada
+                                  ? <p className="text-xs text-muted-foreground">Completada en {sesionesLeccion.length} {sesionesLeccion.length === 1 ? "intento" : "intentos"}</p>
+                                  : <p className="text-xs text-muted-foreground">Pendiente</p>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                              {completada && (
+                                <div className="text-right">
+                                  <p className="text-lg font-bold text-primary">{score}%</p>
+                                  <StarRow stars={estrellas} size="w-3.5 h-3.5" />
+                                </div>
+                              )}
+                              {sesionesLeccion.length > 0 && (
+                                <button type="button"
+                                  onClick={() => { setExpandedDetailLessonId(isExpanded ? null : leccion.id_leccion); setExpandedDetailAttemptId(null) }}
+                                  className="flex flex-col items-center gap-0.5 text-primary hover:text-primary/80 transition-colors px-2"
+                                  aria-expanded={isExpanded}
+                                  aria-label={isExpanded ? `Colapsar intentos de ${leccion.titulo}` : `Ver intentos de ${leccion.titulo}`}>
+                                  <span className="text-xs font-medium">{sesionesLeccion.length} intentos</span>
+                                  {isExpanded ? <ChevronUp className="w-4 h-4" aria-hidden="true" /> : <ChevronDown className="w-4 h-4" aria-hidden="true" />}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {isExpanded && sesionesLeccion.length > 0 && (
+                          <div className="border-t border-border bg-muted/30 px-4 py-3 space-y-2">
+                            {sesionesLeccion.map((sesion) => {
+                              const isAttemptExpanded = expandedDetailAttemptId === sesion.id
+                              return (
+                                <div key={sesion.id} className="rounded-lg border border-border bg-background overflow-hidden">
+                                  <button type="button"
+                                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors text-left"
+                                    onClick={() => setExpandedDetailAttemptId(isAttemptExpanded ? null : sesion.id)}
+                                    aria-expanded={isAttemptExpanded}
+                                    aria-label={isAttemptExpanded ? `Colapsar intento ${sesion.numero_intento}` : `Ver detalle del intento ${sesion.numero_intento}`}>
+                                    <div className="flex items-center gap-3">
+                                      <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                                        {sesion.numero_intento}
+                                      </span>
+                                      <div>
+                                        <p className="text-sm font-medium text-foreground">Intento {sesion.numero_intento}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {formatDate(sesion.fecha)}
+                                          {sesion.duracionSegundos ? ` · ${formatTiempo(sesion.duracionSegundos)}` : ""}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <div className="text-right">
+                                        <p className="text-sm font-bold text-primary">{sesion.puntaje_promedio}%</p>
+                                        <StarRow stars={sesion.estrellas} size="w-3 h-3" />
+                                      </div>
+                                      {isAttemptExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />}
+                                    </div>
+                                  </button>
+                                  {isAttemptExpanded && (
+                                    <div className="border-t border-border px-4 py-3 bg-muted/20">
+                                      {sesion.actividades.length > 0 ? (
+                                        <ul className="space-y-2 list-none p-0">
+                                          {sesion.actividades.map((act, ai) => (
+                                            <li key={ai} className="flex items-center justify-between gap-2">
+                                              <div className="flex items-center gap-2 min-w-0">
+                                                {act.puntaje >= 70
+                                                  ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" aria-hidden="true" />
+                                                  : <XCircle className="w-4 h-4 text-destructive shrink-0" aria-hidden="true" />}
+                                                <span className="text-sm text-foreground truncate">{act.titulo}</span>
+                                              </div>
+                                              <span className={`text-sm font-semibold shrink-0 ${act.puntaje >= 90 ? "text-success" : act.puntaje >= 70 ? "text-amber-600" : "text-destructive"}`}>
+                                                {act.puntaje}%
+                                              </span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      ) : (
+                                        <p className="text-xs text-muted-foreground py-1">Sin detalle de actividades disponible.</p>
+                                      )}
+                                      {sesion.totalActividades > 0 && (
+                                        <div className="mt-3 pt-2 border-t border-border/50 flex gap-4 text-xs text-muted-foreground">
+                                          <span>✓ Correctas al 1er intento: <strong>{sesion.correctasPrimerIntento}/{sesion.totalActividades}</strong></span>
+                                          {sesion.totalReintentos > 0 && <span>↺ Reintentos: <strong>{sesion.totalReintentos}</strong></span>}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </section>
+
+              {/* ── Sección: Material educativo ── */}
+              {leccionesVisibles.map(leccion => (
+                <section key={leccion.id_leccion} aria-label={`Material de ${leccion.titulo}`} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Material educativo</h3>
+                  <div className="flex gap-2 flex-wrap">
+                    {leccion.material_lectura && <span className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full flex items-center gap-1.5"><BookOpen className="w-3 h-3" aria-hidden="true" />Lectura</span>}
+                    {leccion.material_audiovisual && <span className="text-xs bg-accent/10 text-accent px-3 py-1 rounded-full flex items-center gap-1.5"><Video className="w-3 h-3" aria-hidden="true" />Video</span>}
+                    {leccion.material_pdf_url && <span className="text-xs bg-red-100 text-red-600 px-3 py-1 rounded-full flex items-center gap-1.5"><FilePdf className="w-3 h-3" aria-hidden="true" />PDF</span>}
+                    {!leccion.material_lectura && !leccion.material_audiovisual && !leccion.material_pdf_url && <span className="text-xs text-muted-foreground">Sin material disponible</span>}
+                  </div>
+                </section>
+              ))}
+
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+    )
   }
 
   return (
@@ -469,7 +878,11 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                     className="rounded-2xl border border-border bg-card px-5 py-4 shadow-sm transition-all hover:shadow-md hover:border-primary/20">
                     {/* Una sola fila: avatar + nombre + estrellas + barra + % + menú */}
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0" aria-hidden="true">
+                      <div
+                        style={student.colorPerfil ? { backgroundColor: student.colorPerfil } : undefined}
+                        className={`w-10 h-10 rounded-xl ${student.colorPerfil ? "" : "bg-primary"} flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0`}
+                        aria-hidden="true"
+                      >
                         {getInitials(student.nombre)}
                       </div>
                       <span className="font-bold text-foreground text-sm shrink-0">{student.nombre}</span>
@@ -537,305 +950,6 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ── Sheet de Reporte ──────────────────────────────────────────────── */}
-      <Sheet open={reporte !== null} onOpenChange={(open) => { if (!open) setReporte(null) }}>
-        <SheetContent side="right" className="w-full max-w-full sm:max-w-[700px] h-full p-0 overflow-y-auto">
-          <SheetHeader className="sr-only">
-            <SheetTitle>Reporte del estudiante</SheetTitle>
-          </SheetHeader>
-
-          {loadingReporte || !reporte ? (
-            <div className="flex items-center justify-center h-full">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="p-6">
-              {/* Header del reporte */}
-              <div className="flex flex-wrap items-center gap-4 mb-8 pb-6 border-b border-border">
-                <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl shrink-0">
-                  {getInitials(reporte.student.nombre)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-xl font-bold text-foreground">{reporte.student.nombre}</h2>
-                  <p className="text-sm text-muted-foreground truncate">{reporte.student.correo}</p>
-                </div>
-                <div className="flex gap-5 text-center shrink-0">
-                  <div>
-                    <p className="text-2xl font-bold text-primary">{reporte.student.progreso}%</p>
-                    <p className="text-xs text-muted-foreground">Progreso</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-amber-500">
-                      ⭐ {reporte.progresion.reduce((acc, p) => acc + (p.estrellas ?? 0), 0).toFixed(1)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Estrellas</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-purple-500">
-                      {reporte.student.leccionesCompletadas}
-                      <span className="text-base font-medium text-muted-foreground">/{reporte.student.totalLecciones}</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground">Completadas</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Progreso por lección */}
-              <h3 className="font-bold text-foreground text-base mb-4">Progreso por Lección</h3>
-              <div className="flex flex-col gap-4 mb-8">
-                {reporte.lecciones.map(leccion => {
-                  const prog = reporte.progresion.find(p => p.id_leccion === leccion.id_leccion)
-                  const sesionesLeccion = reporte.sesiones
-                    .filter(s => s.id_leccion === leccion.id_leccion)
-                    .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
-                  // Estrellas: siempre desde progresion_alumno (valor canónico de fn_calcular_estrellas)
-                  const estrellasActuales = prog?.estrellas ?? 0
-                  const completada = (prog?.pct_completado ?? 0) >= 100
-
-                  return (
-                    <div key={leccion.id_leccion} className="bg-muted/40 rounded-xl p-4 border border-border">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="font-semibold text-foreground">{leccion.titulo}</p>
-                        {completada
-                          ? <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">Completada ✓</span>
-                          : <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">En progreso</span>
-                        }
-                      </div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="flex-1 h-2 bg-border rounded-full overflow-hidden">
-                          <div className="h-full bg-primary rounded-full transition-all duration-700" style={{ width: `${prog?.pct_completado ?? 0}%` }} />
-                        </div>
-                        <span className="text-sm font-semibold text-foreground w-10 text-right">{prog?.pct_completado ?? 0}%</span>
-                      </div>
-                      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                        <span>⭐ {estrellasActuales.toFixed(1)} estrellas</span>
-                        <span>🔄 {sesionesLeccion.length} {sesionesLeccion.length === 1 ? "intento" : "intentos"}</span>
-                        <span>↩️ {prog?.total_reintentos ?? 0} reintentos de actividades</span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Evolución de Aprendizaje */}
-              <h3 className="font-bold text-foreground text-base mb-4">Evolución de Aprendizaje</h3>
-              <div className="flex flex-col gap-4 mb-8">
-                {reporte.lecciones.map(leccion => {
-                  const prog = reporte.progresion.find(p => p.id_leccion === leccion.id_leccion)
-                  const sesionesLeccion = reporte.sesiones
-                    .filter(s => s.id_leccion === leccion.id_leccion)
-                    .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
-
-                  // Sin datos → no mostrar bloque
-                  if (!prog && sesionesLeccion.length === 0) return null
-
-                  // Fallback: sesión virtual desde progresion_alumno (sin historial de intento_leccion)
-                  const sesionesRender: SesionLeccion[] = sesionesLeccion.length > 0
-                    ? sesionesLeccion
-                    : [{
-                        id: `virtual-${leccion.id_leccion}`,
-                        id_leccion: leccion.id_leccion,
-                        numero_intento: 1,
-                        fecha: new Date().toISOString(),
-                        puntaje_promedio: Math.round((prog?.estrellas ?? 0) * 20),
-                        estrellas: prog?.estrellas ?? 0,
-                        actividades: [],
-                      }]
-
-                  // Títulos únicos de la primera sesión (para leyenda)
-                  const titulosUnicos = [...new Set(sesionesRender[0].actividades.map(a => a.titulo))]
-
-                  return (
-                    <div key={leccion.id_leccion} className="bg-muted/40 rounded-xl p-5 border border-border">
-                      <p className="font-semibold text-foreground mb-4">{leccion.titulo}</p>
-                      <div className="flex items-end gap-6 flex-wrap">
-                        {sesionesRender.map((sesion, idx) => (
-                          <BarraIntento
-                            key={sesion.id}
-                            sesion={sesion}
-                            numero={idx + 1}
-                            onExpandedChange={(exp) =>
-                              setBarrasExpandidas(prev => ({ ...prev, [sesion.id]: exp }))
-                            }
-                          />
-                        ))}
-                        {sesionesRender.length > 1 && (
-                          <div className="ml-auto self-center text-sm font-medium">
-                            {sesionesRender[sesionesRender.length - 1].estrellas > sesionesRender[0].estrellas
-                              ? <span className="text-primary">📈 Mejoró</span>
-                              : sesionesRender[sesionesRender.length - 1].estrellas === sesionesRender[0].estrellas
-                              ? <span className="text-muted-foreground">➡️ Estable</span>
-                              : <span className="text-destructive">📉 Bajó</span>}
-                          </div>
-                        )}
-                      </div>
-                      {/* Leyenda — solo cuando alguna barra está expandida */}
-                      {titulosUnicos.length > 0 && sesionesRender.some(s => barrasExpandidas[s.id]) && (
-                        <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-border">
-                          {titulosUnicos.map((titulo, idx) => (
-                            <div key={titulo} className="flex items-center gap-1.5">
-                              <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: COLORES_HEX[idx % COLORES_HEX.length] }} />
-                              <span className="text-xs text-muted-foreground">{titulo}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Material Educativo */}
-              <h3 className="font-bold text-foreground text-base mb-4">Material Educativo Disponible</h3>
-              <div className="flex flex-col gap-2 mb-8">
-                {reporte.lecciones.map(leccion => (
-                  <div key={leccion.id_leccion} className="flex items-center justify-between bg-muted/40 rounded-lg px-4 py-3 border border-border">
-                    <p className="text-sm font-medium text-foreground">{leccion.titulo}</p>
-                    <div className="flex gap-2 flex-wrap justify-end">
-                      {leccion.material_lectura && <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-1"><BookOpen className="w-3 h-3" aria-hidden="true" />Lectura</span>}
-                      {leccion.material_audiovisual && <span className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full flex items-center gap-1"><Video className="w-3 h-3" aria-hidden="true" />Video</span>}
-                      {leccion.material_pdf_url && <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full flex items-center gap-1"><FilePdf className="w-3 h-3" aria-hidden="true" />PDF</span>}
-                      {!leccion.material_lectura && !leccion.material_audiovisual && !leccion.material_pdf_url && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Sin material</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Detalle por Lección */}
-              <h3 className="font-bold text-foreground text-base mb-4">Detalle por Lección</h3>
-              <div className="rounded-xl border border-border overflow-hidden">
-                <ul className="divide-y divide-border list-none p-0">
-                  {reporte.lecciones.map((leccion, index) => {
-                    const prog = reporte.progresion.find(p => p.id_leccion === leccion.id_leccion)
-                    const completada = (prog?.pct_completado ?? 0) >= 100
-                    const score = Math.round((prog?.estrellas ?? 0) * 20)
-                    const estrellas = prog?.estrellas ?? null
-                    const sesionesLeccion = reporte.sesiones
-                      .filter(s => s.id_leccion === leccion.id_leccion)
-                      .sort((a, b) => a.numero_intento - b.numero_intento)
-                    const isExpanded = expandedDetailLessonId === leccion.id_leccion
-
-                    return (
-                      <li key={leccion.id_leccion}>
-                        {/* Fila principal */}
-                        <div className="p-4 hover:bg-muted/50 transition-colors">
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${completada ? "bg-success/10" : "bg-muted"}`} aria-hidden="true">
-                                {completada
-                                  ? <CheckCircle className="w-5 h-5 text-success" />
-                                  : <span className="text-sm font-bold text-muted-foreground">{index + 1}</span>}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-semibold text-foreground truncate">{leccion.titulo}</p>
-                                {completada
-                                  ? <p className="text-xs text-muted-foreground">Completada en {sesionesLeccion.length} {sesionesLeccion.length === 1 ? "intento" : "intentos"}</p>
-                                  : <p className="text-xs text-muted-foreground">Pendiente</p>}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                              {completada && (
-                                <div className="text-right">
-                                  <p className="text-lg font-bold text-primary">
-                                    {score}%
-                                  </p>
-                                  <StarRow stars={estrellas} size="w-3.5 h-3.5" />
-                                </div>
-                              )}
-                              {sesionesLeccion.length > 0 && (
-                                <button
-                                  onClick={() => {
-                                    setExpandedDetailLessonId(isExpanded ? null : leccion.id_leccion)
-                                    setExpandedDetailAttemptId(null)
-                                  }}
-                                  className="flex flex-col items-center gap-0.5 text-primary hover:text-primary/80 transition-colors px-2"
-                                  aria-expanded={isExpanded}
-                                >
-                                  <span className="text-xs font-medium">{sesionesLeccion.length} intentos</span>
-                                  {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Historial expandido */}
-                        {isExpanded && sesionesLeccion.length > 0 && (
-                          <div className="border-t border-border bg-muted/30 px-4 py-3 space-y-2">
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Historial de intentos</p>
-                            {sesionesLeccion.map((sesion) => {
-                              const isAttemptExpanded = expandedDetailAttemptId === sesion.id
-                              return (
-                                <div key={sesion.id} className="rounded-lg border border-border bg-background overflow-hidden">
-                                  <button
-                                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors text-left"
-                                    onClick={() => setExpandedDetailAttemptId(isAttemptExpanded ? null : sesion.id)}
-                                    aria-expanded={isAttemptExpanded}
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                                        {sesion.numero_intento}
-                                      </span>
-                                      <div>
-                                        <p className="text-sm font-medium text-foreground">Intento {sesion.numero_intento}</p>
-                                        <p className="text-xs text-muted-foreground">{formatDate(sesion.fecha)}</p>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      <div className="text-right">
-                                        <p className="text-sm font-bold text-primary">
-                                          {sesion.puntaje_promedio}%
-                                        </p>
-                                        <StarRow stars={sesion.estrellas} size="w-3 h-3" />
-                                      </div>
-                                      {isAttemptExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
-                                    </div>
-                                  </button>
-                                  {isAttemptExpanded && (
-                                    <div className="border-t border-border px-4 py-3 bg-muted/20">
-                                      {sesion.actividades.length > 0 ? (
-                                        <ul className="space-y-2 list-none p-0">
-                                          {sesion.actividades.map((act, ai) => (
-                                            <li key={ai} className="flex items-center justify-between gap-2">
-                                              <div className="flex items-center gap-2 min-w-0">
-                                                {act.puntaje >= 70
-                                                  ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
-                                                  : <XCircle className="w-4 h-4 text-destructive shrink-0" />}
-                                                <span className="text-sm text-foreground truncate">{act.titulo}</span>
-                                              </div>
-                                              <span className={`text-sm font-semibold shrink-0 ${act.puntaje >= 90 ? "text-success" : act.puntaje >= 70 ? "text-amber-600" : "text-destructive"}`}>
-                                                {act.puntaje}%
-                                              </span>
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      ) : (
-                                        <p className="text-xs text-muted-foreground py-1">Sin detalle de actividades disponible.</p>
-                                      )}
-                                      {sesion.totalActividades > 0 && (
-                                        <div className="mt-3 pt-2 border-t border-border/50 flex gap-4 text-xs text-muted-foreground">
-                                          <span>✓ Correctas al 1er intento: <strong>{sesion.correctasPrimerIntento}/{sesion.totalActividades}</strong></span>
-                                          {sesion.totalReintentos > 0 && (
-                                            <span>↺ Reintentos: <strong>{sesion.totalReintentos}</strong></span>
-                                          )}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
     </div>
   )
 }

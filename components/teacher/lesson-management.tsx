@@ -46,7 +46,7 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
             <button type="button" onClick={onBack}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Volver">
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             </button>
             <div>
               <h1 className="text-sm font-black text-foreground leading-none">Lecciones</h1>
@@ -58,9 +58,10 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
           <div className="flex items-center gap-2">
             {settings.voiceEnabled && (
               <button type="button" onClick={handleReadInstructions}
+                aria-label="Escuchar descripción de lecciones"
                 className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
                 <Volume2 className="w-4 h-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Escuchar</span>
+                <span className="hidden sm:inline" aria-hidden="true">Escuchar</span>
               </button>
             )}
             <button type="button" onClick={() => onNavigate("create-lesson")}
@@ -98,7 +99,7 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
               <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
                 <FileText className="w-7 h-7 text-muted-foreground/50" aria-hidden="true" />
               </div>
-              <h3 className="text-base font-bold text-foreground mb-1">No hay lecciones</h3>
+              <h2 className="text-base font-bold text-foreground mb-1">No hay lecciones</h2>
               <p className="text-sm text-muted-foreground mb-5">Crea tu primera lección para este curso</p>
               <button type="button" onClick={() => onNavigate("create-lesson")}
                 className="flex items-center gap-2 rounded-2xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground hover:opacity-90 active:scale-[0.98]">
@@ -118,7 +119,7 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
                           {/* Number badge */}
                           <div className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center font-black text-lg shadow-sm ${
                             published ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                          }`} aria-hidden>
+                          }`} aria-hidden="true">
                             {index + 1}
                           </div>
 
@@ -131,8 +132,8 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
                                   : "bg-muted text-muted-foreground"
                               }`}>
                                 {published
-                                  ? <><CheckCircle className="w-3 h-3" /> Publicada</>
-                                  : <><FileText className="w-3 h-3" /> Borrador</>}
+                                  ? <><CheckCircle className="w-3 h-3" aria-hidden="true" /> Publicada</>
+                                  : <><FileText className="w-3 h-3" aria-hidden="true" /> Borrador</>}
                               </span>
                             </div>
                             {lesson.instructions && (
@@ -151,8 +152,9 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
                         <div className="flex items-center gap-2 shrink-0">
                           <button type="button"
                             onClick={() => onNavigate(`edit-lesson-${lesson.id}`)}
+                            aria-label={`Editar lección ${lesson.title}`}
                             className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground transition-all hover:bg-muted active:scale-[0.98]">
-                            <Edit className="w-3.5 h-3.5" aria-hidden="true" /> Editar
+                            <Edit className="w-3.5 h-3.5" aria-hidden="true" /><span aria-hidden="true">Editar</span>
                           </button>
                           <button type="button"
                             onClick={() => setLessonToDelete({ id: lesson.id, title: lesson.title })}
