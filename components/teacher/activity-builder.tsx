@@ -159,6 +159,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState("")
   const [attemptedSave, setAttemptedSave] = useState(false)
+  const [showExitConfirm, setShowExitConfirm] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -397,6 +398,8 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
     setAttemptedSave(true)
     const showsOptions = selectedType === "multiple" || selectedType === "image"
     if (showsOptions && !options.some(o => o.isCorrect)) return
+    if (selectedType === "sequence" && sequenceSteps.filter(s => s.previewUrl || s.existingUrl).length < 3) return
+    if (selectedType === "fill" && (!fillEnunciado.trim() || !fillEnunciado.includes("___") || !correctAnswer.trim())) return
     setIsSaving(true)
     setSaveError("")
 
@@ -754,7 +757,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
           <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-6">
             <div className="flex items-center gap-3">
               <button type="button"
-                onClick={() => setView(isEditing ? "existing" : "grid")}
+                onClick={() => setShowExitConfirm(true)}
                 className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
                 aria-label="Volver">
                 <ArrowLeft className="w-4 h-4" aria-hidden="true" />
@@ -882,6 +885,43 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
             </div>
           </form>
         </main>
+
+        {/* Modal confirmación al salir sin guardar */}
+        {showExitConfirm && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="exit-confirm-title"
+          >
+            <div className="w-full max-w-sm rounded-2xl bg-background border border-border shadow-2xl p-6 space-y-4">
+              <div className="space-y-1">
+                <h2 id="exit-confirm-title" className="text-base font-bold text-foreground">
+                  ¿Salir sin guardar?
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Los cambios que hiciste se perderán si sales ahora.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowExitConfirm(false)}
+                  className="w-full h-11 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 active:scale-[0.98] transition-all"
+                >
+                  Seguir editando
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowExitConfirm(false); setView(isEditing ? "existing" : "grid") }}
+                  className="w-full h-11 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground active:scale-[0.98] transition-all"
+                >
+                  Salir sin guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }

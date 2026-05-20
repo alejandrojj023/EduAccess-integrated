@@ -205,6 +205,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
     setEditingActivityId(null)
     setConfiguringType({ type, label })
     setAttemptedSave(false)
+    setShowExitConfirm(false)
     setActInstrucciones(""); setActDificultad("facil")
     setActOptions([{ id: "1", text: "", isCorrect: false }, { id: "2", text: "", isCorrect: false }])
     setActCorrectAnswer(""); setActPalabrasSopa([]); setActPalabraInput("")
@@ -222,6 +223,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
     setEditingActivityId(activity.id)
     setConfiguringType({ type: activity.type, label: typeInfo?.label ?? activity.title })
     setAttemptedSave(false)
+    setShowExitConfirm(false)
     setActDificultad(activity.nivel_dificultad)
     if (actImagePreview.startsWith("blob:")) URL.revokeObjectURL(actImagePreview)
     setActImageFile(null); setActImagePreview("")
@@ -293,12 +295,16 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
   const [actSaving,          setActSaving]          = useState(false)
   const [activityToRemove,   setActivityToRemove]   = useState<string | null>(null)
   const [attemptedSave,      setAttemptedSave]      = useState(false)
+  const [showExitConfirm,    setShowExitConfirm]    = useState(false)
+  const [showLessonExitConfirm, setShowLessonExitConfirm] = useState(false)
 
   const handleConfirmActivity = async () => {
     if (!configuringType) return
     setAttemptedSave(true)
     const showsOptions = configuringType.type === "multiple" || configuringType.type === "image"
     if (showsOptions && !actOptions.some(o => o.isCorrect)) return
+    if (configuringType.type === "sequence" && actSequenceSteps.filter(s => s.previewUrl || s.existingUrl).length < 3) return
+    if (configuringType.type === "fill" && (!actFillEnunciado.trim() || !actFillEnunciado.includes("___") || !actCorrectAnswer.trim())) return
     setActSaving(true)
 
     let imagen_url: string | null | undefined = undefined
@@ -494,7 +500,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
         <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
           <div className="mx-auto flex h-16 max-w-3xl items-center gap-3 px-6">
             <button type="button"
-              onClick={() => { setConfiguringType(null); setEditingActivityId(null) }}
+              onClick={() => setShowExitConfirm(true)}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Volver">
               <ChevronLeft className="w-4 h-4" aria-hidden="true" />
@@ -565,6 +571,43 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
             </button>
           </div>
         </main>
+
+        {/* Modal confirmación al salir sin guardar */}
+        {showExitConfirm && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="exit-confirm-act-title"
+          >
+            <div className="w-full max-w-sm rounded-2xl bg-background border border-border shadow-2xl p-6 space-y-4">
+              <div className="space-y-1">
+                <h2 id="exit-confirm-act-title" className="text-base font-bold text-foreground">
+                  ¿Salir sin guardar?
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Los cambios que hiciste se perderán si sales ahora.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowExitConfirm(false)}
+                  className="w-full h-11 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 active:scale-[0.98] transition-all"
+                >
+                  Seguir editando
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowExitConfirm(false); setConfiguringType(null); setEditingActivityId(null) }}
+                  className="w-full h-11 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground active:scale-[0.98] transition-all"
+                >
+                  Salir sin guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -575,7 +618,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
       <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-6">
           <div className="flex items-center gap-3">
-            <button type="button" onClick={onBack}
+            <button type="button" onClick={() => setShowLessonExitConfirm(true)}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Volver">
               <ArrowLeft className="w-4 h-4" aria-hidden="true" />
@@ -804,6 +847,43 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
           </div>
         </form>
       </main>
+
+      {/* Modal confirmación al salir de Editar Lección */}
+      {showLessonExitConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="exit-lesson-title"
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-background border border-border shadow-2xl p-6 space-y-4">
+            <div className="space-y-1">
+              <h2 id="exit-lesson-title" className="text-base font-bold text-foreground">
+                ¿Salir sin guardar?
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Los cambios que hiciste se perderán si sales ahora.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowLessonExitConfirm(false)}
+                className="w-full h-11 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 active:scale-[0.98] transition-all"
+              >
+                Seguir editando
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowLessonExitConfirm(false); onBack() }}
+                className="w-full h-11 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground active:scale-[0.98] transition-all"
+              >
+                Salir sin guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

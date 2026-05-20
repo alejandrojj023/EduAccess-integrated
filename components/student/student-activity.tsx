@@ -1469,22 +1469,13 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
               </div>
             )}
             {/* Image — only for tipo identificacion */}
-            {activity?.tipo === "identificacion" && (
+            {activity?.tipo === "identificacion" && activity.imagen_url && (
               <figure className="mb-4">
-                {activity.imagen_url ? (
-                  <img
-                    src={activity.imagen_url}
-                    alt="Imagen de la actividad"
-                    className="w-full max-h-72 object-contain rounded-2xl border-2 border-border bg-muted"
-                  />
-                ) : (
-                  <div
-                    className="w-full h-48 rounded-2xl border-2 border-dashed border-border bg-muted flex items-center justify-center"
-                    aria-label="Sin imagen"
-                  >
-                    <p className="text-muted-foreground text-sm">Sin imagen</p>
-                  </div>
-                )}
+                <img
+                  src={activity.imagen_url}
+                  alt="Imagen de la actividad"
+                  className="w-full max-h-72 object-contain rounded-2xl border-2 border-border bg-muted"
+                />
                 <figcaption className="sr-only">Imagen para identificar</figcaption>
               </figure>
             )}
@@ -1493,7 +1484,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
             {hasOptions && (
               <fieldset className="border-0 p-0 m-0">
                 <legend className="sr-only">Opciones de respuesta</legend>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {opciones.map((op, i) => (
                     <button
                       key={i}
@@ -1503,15 +1494,27 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                           speak(`Opción: ${op.texto}`)
                         }
                       }}
-                      className="group relative p-6 rounded-3xl border border-border/70 bg-card shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      onKeyDown={(e) => {
+                        const total = opciones.length
+                        if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+                          e.preventDefault()
+                          const next = (i + 1) % total
+                          ;(e.currentTarget.parentElement?.children[next] as HTMLElement)?.focus()
+                        } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+                          e.preventDefault()
+                          const prev = (i - 1 + total) % total
+                          ;(e.currentTarget.parentElement?.children[prev] as HTMLElement)?.focus()
+                        }
+                      }}
+                      className="group relative rounded-3xl border border-border/70 bg-card shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring p-6"
                       aria-label={`Opción ${i + 1}: ${op.texto}`}
                     >
                       <span className="absolute inset-x-0 top-0 h-1 rounded-t-3xl bg-gradient-to-r from-primary/25 via-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <div className="flex items-start gap-3">
-                        <span className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border-2 border-border bg-muted text-foreground text-sm font-black shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-xl border-2 border-border bg-muted text-foreground text-sm font-black shadow-sm">
                           {String.fromCharCode(65 + i)}
                         </span>
-                        <span className="text-[17px] sm:text-lg font-extrabold tracking-tight text-foreground leading-snug">
+                        <span className="font-extrabold tracking-tight text-foreground leading-snug text-[17px] sm:text-lg">
                           {op.texto}
                         </span>
                       </div>

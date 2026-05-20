@@ -1,9 +1,9 @@
 "use client"
 
-import { useRef } from "react"
+import { useRef, useState } from "react"
 import { Input } from "@/components/ui/input"
 import {
-  Volume2, ImageIcon, Plus, Trash2, Upload, AlignLeft, Search,
+  Volume2, ImageIcon, Plus, Trash2, Upload, AlignLeft, Search, GripVertical, X,
 } from "lucide-react"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -92,6 +92,200 @@ const difficultyLevels = [
   { id: "dificil", label: "Difícil", description: "Para avanzados" },
 ]
 
+// ─── SeqStepsGrid — sub-componente con drag & drop ───────────────────────────
+
+interface SeqStepsGridProps {
+  sequenceSteps: SequenceStep[]
+  onSequenceStepsChange: (steps: SequenceStep[]) => void
+  seqInputRefs: React.MutableRefObject<(HTMLInputElement | null)[]>
+  showValidation?: boolean
+}
+
+function SeqStepsGrid({ sequenceSteps, onSequenceStepsChange, seqInputRefs, showValidation }: SeqStepsGridProps) {
+  const dragIdxRef = useRef<number | null>(null)
+  const [draggingIdx, setDraggingIdx] = useState<number | null>(null)
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+
+  function handleDrop(targetIdx: number) {
+    const from = dragIdxRef.current
+    if (from === null || from === targetIdx) { setDragOverIdx(null); return }
+    const steps = [...sequenceSteps]
+    ;[steps[from], steps[targetIdx]] = [steps[targetIdx], steps[from]]
+    onSequenceStepsChange(steps)
+    dragIdxRef.current = null
+    setDraggingIdx(null)
+    setDragOverIdx(null)
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
+      <div>
+        <h2 className="text-sm font-semibold text-foreground">Imágenes de la secuencia</h2>
+        <p className="text-xs text-muted-foreground mt-1">
+          Sube las imágenes <strong>en el orden correcto</strong>. Arrastra una tarjeta para reordenar.
+        </p>
+      </div>
+
+      {showValidation && sequenceSteps.filter(s => s.previewUrl || s.existingUrl).length < 3 && (
+        <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2" role="alert">
+          Sube al menos 3 imágenes antes de guardar.
+        </p>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        {sequenceSteps.map((step, idx) => (
+          <div
+            key={idx}
+            draggable
+            onDragStart={() => { dragIdxRef.current = idx; setDraggingIdx(idx) }}
+            onDragOver={(e) => { e.preventDefault(); if (dragOverIdx !== idx) setDragOverIdx(idx) }}
+            onDragLeave={() => setDragOverIdx(null)}
+            onDrop={() => handleDrop(idx)}
+            onDragEnd={() => { dragIdxRef.current = null; setDraggingIdx(null); setDragOverIdx(null) }}
+            className={`rounded-xl overflow-hidden border transition-all select-none cursor-grab active:cursor-grabbing
+              ${draggingIdx === idx ? "opacity-40 scale-95" : "opacity-100"}
+              ${dragOverIdx === idx && draggingIdx !== idx
+                ? "border-primary ring-2 ring-primary ring-offset-1"
+                : "border-border"
+              }`}
+          >
+            {/* Área de imagen con overlays */}
+            <div className="relative h-36">
+              {(step.previewUrl || step.existingUrl) ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setLightboxUrl(step.previewUrl || step.existingUrl)}
+                    aria-label={`Ver imagen del paso ${idx + 1} en pantalla completa`}
+                    className="w-full h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <img
+                      src={step.previewUrl || step.existingUrl}
+                      alt={`Paso ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                      draggable={false}
+                    />
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => seqInputRefs.current[idx]?.click()}
+                  aria-label={`Subir imagen del paso ${idx + 1}`}
+                  className="w-full h-full bg-muted flex flex-col items-center justify-center gap-1.5 hover:bg-muted/80 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <ImageIcon className="w-7 h-7 text-muted-foreground" aria-hidden="true" />
+                  <p className="text-xs text-muted-foreground font-medium">Agregar imagen</p>
+                </button>
+              )}
+
+              {/* Número — overlay top-left */}
+              <span className="absolute top-2 left-2 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs shadow-md pointer-events-none">
+                {idx + 1}
+              </span>
+
+              {/* X eliminar paso — overlay top-right */}
+              <button
+                type="button"
+                aria-label={`Eliminar paso ${idx + 1}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const steps = [...sequenceSteps]
+                  if (steps[idx].previewUrl.startsWith("blob:")) URL.revokeObjectURL(steps[idx].previewUrl)
+                  onSequenceStepsChange(steps.filter((_, i) => i !== idx))
+                }}
+                className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-destructive transition-colors shadow-md"
+              >
+                <X className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+
+              {/* Grip — overlay bottom-left */}
+              <span className="absolute bottom-2 left-2 pointer-events-none opacity-70">
+                <GripVertical className="w-4 h-4 text-white drop-shadow" aria-hidden="true" />
+              </span>
+            </div>
+
+            {/* Hidden file input */}
+            <input
+              ref={(el) => { seqInputRefs.current[idx] = el }}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                const steps = [...sequenceSteps]
+                if (steps[idx].previewUrl.startsWith("blob:")) URL.revokeObjectURL(steps[idx].previewUrl)
+                steps[idx] = { ...steps[idx], file, previewUrl: URL.createObjectURL(file) }
+                onSequenceStepsChange(steps)
+                e.target.value = ""
+              }}
+            />
+
+            {/* Descripción */}
+            <div className="px-2 py-1.5 bg-card">
+              <Input
+                value={step.description}
+                onChange={(e) => {
+                  const steps = [...sequenceSteps]
+                  steps[idx] = { ...steps[idx], description: e.target.value }
+                  onSequenceStepsChange(steps)
+                }}
+                aria-label={`Descripción del paso ${idx + 1}`}
+                placeholder="Descripción (opcional)"
+                className="border-border text-xs h-7 px-2"
+              />
+            </div>
+          </div>
+        ))}
+
+        {/* Tarjeta "+" para agregar paso */}
+        {sequenceSteps.length < 5 && (
+          <button
+            type="button"
+            onClick={() => onSequenceStepsChange([...sequenceSteps, { file: null, previewUrl: "", existingUrl: "", description: "" }])}
+            aria-label="Agregar paso"
+            className="rounded-xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 flex flex-col items-center justify-center gap-2 h-36 transition-colors active:scale-[0.98]"
+          >
+            <span className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
+              <Plus className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
+            </span>
+            <p className="text-xs font-medium text-muted-foreground">Agregar paso</p>
+          </button>
+        )}
+      </div>
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={() => setLightboxUrl(null)}
+          role="dialog"
+          aria-label="Vista de imagen completa"
+          aria-modal="true"
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxUrl(null)}
+            aria-label="Cerrar vista completa"
+            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/40 transition-colors"
+          >
+            <X className="w-5 h-5" aria-hidden="true" />
+          </button>
+          <img
+            src={lightboxUrl}
+            alt="Imagen completa"
+            className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+            draggable={false}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function ActivityConfigForm({
@@ -111,6 +305,8 @@ export function ActivityConfigForm({
   showValidation = false,
 }: ActivityConfigFormProps) {
 
+  const [distInput, setDistInput] = useState("")
+
   const showImage    = type === "image"
   const showOptions  = type === "image" || type === "multiple"
   const showSound    = type === "sound"
@@ -121,6 +317,21 @@ export function ActivityConfigForm({
   const showWs       = type === "wordsearch"
 
   const instrRequired = !showSound && !showVoice && !showFill && !showSequence && !showWs
+
+  const distractors = palabrasDistractoras.split(",").filter(w => w.trim())
+
+  function addDistractor() {
+    const word = distInput.trim()
+    if (!word || distractors.includes(word)) return
+    onPalabrasDistractorasChange([...distractors, word].join(","))
+    setDistInput("")
+  }
+
+  function removeDistractor(word: string) {
+    onPalabrasDistractorasChange(distractors.filter(w => w !== word).join(","))
+  }
+
+  const fillMissingBlank = showFill && fillEnunciado.trim() !== "" && !fillEnunciado.includes("___")
 
   return (
     <div className="space-y-5">
@@ -290,118 +501,38 @@ export function ActivityConfigForm({
 
       {/* ── Ordenar Secuencias ─────────────────────────────────────── */}
       {showSequence && (
-        <>
-          <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
-            <h2 id="seq-count-label" className="text-sm font-semibold text-foreground mb-3">¿Cuántas imágenes?</h2>
-            <div role="group" aria-labelledby="seq-count-label" className="grid grid-cols-3 gap-3">
-              {([3, 4, 5] as const).map((n) => (
-                <button key={n} type="button"
-                  onClick={() => {
-                    onSequenceCountChange(n)
-                    const cur = [...sequenceSteps]
-                    while (cur.length < n) cur.push({ file: null, previewUrl: "", existingUrl: "", description: "" })
-                    onSequenceStepsChange(cur.slice(0, n))
-                  }}
-                  aria-pressed={sequenceCount === n}
-                  className={`rounded-xl border py-3 text-center transition-all active:scale-[0.98] ${sequenceCount === n
-                    ? "border-primary bg-primary/10 ring-2 ring-primary ring-offset-1"
-                    : "border-border hover:border-primary/40 hover:bg-muted"}`}>
-                  <span className={`text-2xl font-bold block ${sequenceCount === n ? "text-primary" : "text-foreground"}`}>{n}</span>
-                  <span className="text-xs text-muted-foreground">imágenes</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-4">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">Imágenes de la secuencia</h2>
-              <p className="text-xs text-muted-foreground mt-1">
-                Sube las imágenes <strong>en el orden correcto</strong>. El alumno deberá reordenarlas.
-              </p>
-            </div>
-            {sequenceSteps.map((step, idx) => (
-              <div key={idx} className="rounded-xl border border-border p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs shrink-0">
-                    {idx + 1}
-                  </span>
-                  <h3 className="text-sm font-semibold text-foreground">Paso {idx + 1}</h3>
-                </div>
-
-                {(step.previewUrl || step.existingUrl) ? (
-                  <div className="space-y-2">
-                    <img
-                      src={step.previewUrl || step.existingUrl}
-                      alt={`Paso ${idx + 1}`}
-                      className="w-full max-h-40 object-contain rounded-xl border border-border bg-muted"
-                    />
-                    <div className="flex gap-2">
-                      <button type="button"
-                        onClick={() => seqInputRefs.current[idx]?.click()}
-                        className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted active:scale-[0.98] transition-all">
-                        <Upload className="w-3.5 h-3.5" aria-hidden="true" />
-                        Cambiar
-                      </button>
-                      <button type="button"
-                        aria-label={`Eliminar imagen del paso ${idx + 1}`}
-                        onClick={() => {
-                          const steps = [...sequenceSteps]
-                          if (steps[idx].previewUrl.startsWith("blob:")) URL.revokeObjectURL(steps[idx].previewUrl)
-                          steps[idx] = { ...steps[idx], file: null, previewUrl: "", existingUrl: "" }
-                          onSequenceStepsChange(steps)
-                        }}
-                        className="flex items-center justify-center rounded-xl border border-border bg-card px-3 py-2 text-destructive hover:bg-destructive/10 active:scale-[0.98] transition-all">
-                        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button type="button"
-                    onClick={() => seqInputRefs.current[idx]?.click()}
-                    className="w-full h-32 border border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 hover:border-primary hover:bg-primary/5 transition-colors">
-                    <ImageIcon className="w-7 h-7 text-muted-foreground" aria-hidden="true" />
-                    <p className="text-xs text-muted-foreground font-medium">Subir imagen del paso {idx + 1}</p>
-                    <p className="text-xs text-muted-foreground">JPG, PNG, WebP · Máx 5 MB</p>
-                  </button>
-                )}
-
-                <input
-                  ref={(el) => { seqInputRefs.current[idx] = el }}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (!file) return
-                    const steps = [...sequenceSteps]
-                    if (steps[idx].previewUrl.startsWith("blob:")) URL.revokeObjectURL(steps[idx].previewUrl)
-                    steps[idx] = { ...steps[idx], file, previewUrl: URL.createObjectURL(file) }
-                    onSequenceStepsChange(steps)
-                    e.target.value = ""
-                  }}
-                />
-
-                <Input
-                  value={step.description}
-                  onChange={(e) => {
-                    const steps = [...sequenceSteps]
-                    steps[idx] = { ...steps[idx], description: e.target.value }
-                    onSequenceStepsChange(steps)
-                  }}
-                  aria-label={`Descripción del paso ${idx + 1}`}
-                  placeholder={`Descripción del paso ${idx + 1} (opcional)`}
-                  className="border-border"
-                />
-              </div>
-            ))}
-          </div>
-        </>
+        <SeqStepsGrid
+          sequenceSteps={sequenceSteps}
+          onSequenceStepsChange={onSequenceStepsChange}
+          seqInputRefs={seqInputRefs}
+          showValidation={showValidation}
+        />
       )}
 
       {/* ── Completar Oración ──────────────────────────────────────── */}
       {showFill && (
         <>
+          {/* Validation block — shown after save attempt */}
+          {showValidation && (
+            <div className="space-y-2" role="alert" aria-live="polite">
+              {!fillEnunciado.trim() && (
+                <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">
+                  Escribe la oración a completar antes de guardar.
+                </p>
+              )}
+              {fillEnunciado.trim() && !fillEnunciado.includes("___") && (
+                <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">
+                  La oración debe incluir <strong>___</strong> para marcar el espacio en blanco.
+                </p>
+              )}
+              {!correctAnswer.trim() && (
+                <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">
+                  Escribe la respuesta correcta antes de guardar.
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
             <h2 className="text-sm font-semibold text-foreground">
               Oraciones de Contexto{" "}
@@ -458,6 +589,17 @@ export function ActivityConfigForm({
             <p className="text-xs text-muted-foreground">
               Usa <strong>___</strong> (tres guiones bajos) para marcar el espacio en blanco.
             </p>
+            {/* Aviso inmediato si falta ___ mientras escribe */}
+            {fillMissingBlank && (
+              <p
+                className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-1.5"
+                role="alert"
+                aria-live="polite"
+              >
+                <span aria-hidden="true">⚠</span>
+                Recuerda incluir <strong>___</strong> para marcar el espacio en blanco.
+              </p>
+            )}
             {fillEnunciado.includes("___") && (
               <div className="p-3 bg-muted rounded-xl text-sm font-medium text-foreground">
                 Vista previa:{" "}
@@ -492,23 +634,51 @@ export function ActivityConfigForm({
               Palabras Distractoras{" "}
               <span className="text-muted-foreground font-normal">(opciones incorrectas)</span>
             </h2>
-            <Input
-              value={palabrasDistractoras}
-              onChange={(e) => onPalabrasDistractorasChange(e.target.value)}
-              aria-label="Palabras distractoras separadas por comas"
-              placeholder="Ej: gato, perros, pez"
-              className="border-border"
-            />
-            <p className="text-xs text-muted-foreground">
-              Separa con <strong>comas</strong>. Se mezclarán con la respuesta correcta como opciones.
-            </p>
-            {palabrasDistractoras.trim() && (
+            <div className="flex gap-2">
+              <Input
+                value={distInput}
+                onChange={(e) => setDistInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); addDistractor() }
+                }}
+                aria-label="Agregar palabra distractora"
+                placeholder="Ej: perros"
+                className="border-border flex-1"
+              />
+              <button
+                type="button"
+                onClick={addDistractor}
+                disabled={!distInput.trim()}
+                aria-label="Agregar palabra distractora"
+                className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all shrink-0"
+              >
+                <Plus className="w-4 h-4" aria-hidden="true" />
+                Agregar
+              </button>
+            </div>
+            {distractors.length > 0 && (
               <div className="flex flex-wrap gap-2 p-3 bg-muted rounded-xl">
-                {palabrasDistractoras.split(",").filter(w => w.trim()).map((word, i) => (
-                  <span key={i} className="px-3 py-1 bg-destructive/10 text-destructive rounded-lg text-xs font-medium">{word.trim()}</span>
+                {distractors.map((word, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1.5 bg-destructive/10 text-destructive border border-destructive/30 px-3 py-1 rounded-lg text-xs font-medium"
+                  >
+                    {word}
+                    <button
+                      type="button"
+                      onClick={() => removeDistractor(word)}
+                      aria-label={`Eliminar ${word}`}
+                      className="text-destructive hover:opacity-70 transition-opacity"
+                    >
+                      <X className="w-3 h-3" aria-hidden="true" />
+                    </button>
+                  </span>
                 ))}
               </div>
             )}
+            <p className="text-xs text-muted-foreground">
+              Escribe una palabra y presiona <strong>Agregar</strong>. Se mezclarán con la respuesta correcta como opciones.
+            </p>
           </div>
         </>
       )}
