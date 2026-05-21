@@ -174,7 +174,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
 
     const { data: inscripciones } = await supabase
       .from("alumno_curso")
-      .select("id_alumno, perfil:id_alumno(id_perfil, nombre, correo)")
+      .select("id_alumno, perfil:id_alumno(id_perfil, nombre, correo, color_perfil)")
       .eq("id_curso", courseId)
 
     if (!inscripciones || inscripciones.length === 0) {
@@ -198,14 +198,6 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
     const leccionIds = (leccionesData ?? []).map((l: any) => l.id_leccion)
     const alumnoIds = inscripciones.map((i: any) => i.id_alumno)
 
-    const { data: gamificaciones } = await supabase
-      .from("gamificacion")
-      .select("id_alumno, color_perfil")
-      .in("id_alumno", alumnoIds)
-    const gamiMap = new Map<string, string | null>(
-      gamificaciones?.map((g: any) => [g.id_alumno, g.color_perfil ?? null]) ?? []
-    )
-
     const { data: progresiones } = leccionIds.length > 0
       ? await supabase
           .from("progresion_alumno")
@@ -215,7 +207,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
       : { data: [] }
 
     const lista: CourseStudent[] = inscripciones.map((ins: any) => {
-      const perfil = ins.perfil as { id_perfil: string; nombre: string; correo: string }
+      const perfil = ins.perfil as { id_perfil: string; nombre: string; correo: string; color_perfil: string | null }
       const progsAlumno = (progresiones ?? []).filter((p: any) => p.id_alumno === perfil.id_perfil)
       const completadas = progsAlumno.filter((p: any) => p.pct_completado >= 100).length
       const promedio = total > 0
@@ -231,7 +223,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
         estrellasCurso: estrellas,
         leccionesCompletadas: completadas,
         totalLecciones: total,
-        colorPerfil: gamiMap.get(perfil.id_perfil) ?? null,
+        colorPerfil: perfil.color_perfil ?? null,
       }
     })
 

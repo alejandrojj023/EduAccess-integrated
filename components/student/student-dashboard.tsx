@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useStudentDashboard } from "@/hooks/student/use-student-dashboard"
+import { supabase } from "@/lib/supabase"
 import { AccessibleTooltip, SpeakableText, useSpeakOnHover } from "@/components/ui/accessible-tooltip"
 
 import { StarsCard } from "@/components/student/stars-card"
@@ -38,6 +39,18 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
     typeof window !== "undefined" ? localStorage.getItem("ea_avatar_color") : null
   )
   const colorPerfil = gamification.colorPerfil ?? avatarColor
+
+  const [pendingInvitations, setPendingInvitations] = useState(0)
+
+  useEffect(() => {
+    if (!user) return
+    supabase
+      .from("invitacion_curso")
+      .select("id_invitacion", { count: "exact", head: true })
+      .eq("id_alumno", user.id)
+      .eq("estado", "pendiente")
+      .then(({ count }) => setPendingInvitations(count ?? 0))
+  }, [user])
 
   const [highlightOption, setHighlightOption] = useState<1 | 2 | 3 | 4 | 5 | 6 | null>(null)
   const [highlightCourseIdx, setHighlightCourseIdx] = useState<number | null>(null)
@@ -378,14 +391,23 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
               type="button"
               onClick={() => onNavigate("join-group")}
               {...hoverUnirse}
+              aria-label={pendingInvitations > 0 ? `Unirme a un curso — ${pendingInvitations > 1 ? pendingInvitations + " invitaciones pendientes" : "tienes una invitación pendiente"}` : undefined}
               className={`group col-span-2 flex items-center gap-3 rounded-2xl border-2 border-dashed border-border bg-card px-4 py-4 text-left transition-all hover:border-primary/50 hover:bg-primary/5 active:scale-[0.98] ${ringClass(5)}`}
             >
               <div className="w-9 h-9 rounded-xl bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors shrink-0">
                 <BookOpen className="h-4 w-4 text-primary" aria-hidden="true" />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <span className="text-sm font-bold text-foreground">Unirme a un curso</span>
                 <p className="text-xs text-muted-foreground">Ingresar código del docente</p>
+                {pendingInvitations > 0 && (
+                  <p className="mt-1 flex items-center gap-1.5 animate-pulse" aria-hidden="true">
+                    <span className="h-2 w-2 rounded-full bg-red-500 shrink-0" />
+                    <span className="text-xs font-semibold text-red-500">
+                      {pendingInvitations > 1 ? `¡Tienes ${pendingInvitations} invitaciones a cursos!` : "¡Tienes una invitación a un curso!"}
+                    </span>
+                  </p>
+                )}
               </div>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 group-hover:text-primary transition-transform" aria-hidden="true" />
             </button>

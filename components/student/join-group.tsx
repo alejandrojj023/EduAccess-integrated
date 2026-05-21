@@ -13,11 +13,30 @@ interface CourseInvitation {
   estado: string
   fecha_creacion: string
   curso: { titulo: string; codigo_curso: string; materia: string } | null
-  docente: { nombre: string } | null
+  docente: { nombre: string | null; color_perfil: string | null } | null
 }
 
 interface JoinGroupProps {
   onNavigate: (screen: string) => void
+}
+
+const AVATAR_COLORS = [
+  "#0d9488", "#6366f1", "#f59e0b", "#ec4899",
+  "#14b8a6", "#8b5cf6", "#f97316", "#06b6d4",
+]
+
+function getAvatarColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase()
+  return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase()
 }
 
 export function JoinGroup({ onNavigate }: JoinGroupProps) {
@@ -33,17 +52,14 @@ export function JoinGroup({ onNavigate }: JoinGroupProps) {
 
   async function loadCourseInvitations() {
     setLoadingCourseInv(true)
-    const { data } = await supabase
-      .from("invitacion_curso")
-      .select(`
-        id_invitacion,
-        estado,
-        fecha_creacion,
-        curso:id_curso ( titulo, codigo_curso, materia ),
-        docente:id_docente ( nombre )
-      `)
-      .eq("estado", "pendiente")
-    setCourseInvitations((data as any[]) ?? [])
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch("/api/course-invitations", {
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+    })
+    if (res.ok) {
+      const json = await res.json()
+      setCourseInvitations(json.data ?? [])
+    }
     setLoadingCourseInv(false)
   }
 
@@ -87,7 +103,7 @@ export function JoinGroup({ onNavigate }: JoinGroupProps) {
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Regresar al panel del estudiante"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             </button>
             <div>
               <h1 className="text-sm font-black text-foreground leading-none">Unirse a un Curso</h1>
@@ -100,16 +116,16 @@ export function JoinGroup({ onNavigate }: JoinGroupProps) {
       <main className="mx-auto max-w-4xl px-5 py-7 space-y-6">
 
         {/* Hero */}
-        <section aria-label="Unirse a un curso">
+        <section aria-labelledby="hero-titulo">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary/80 p-6 shadow-xl shadow-primary/20">
-            <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" aria-hidden />
-            <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5 blur-xl" aria-hidden />
+            <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" aria-hidden="true" />
+            <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5 blur-xl" aria-hidden="true" />
             <div className="relative flex items-center gap-4">
-              <div className="w-14 h-14 shrink-0 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center shadow-lg">
-                <BookOpen className="w-7 h-7 text-white" aria-hidden />
+              <div className="w-14 h-14 shrink-0 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center shadow-lg" aria-hidden="true">
+                <BookOpen className="w-7 h-7 text-white" aria-hidden="true" />
               </div>
               <div>
-                <h2 className="text-lg font-black text-white leading-tight">Ingresa el código de tu docente</h2>
+                <h2 id="hero-titulo" className="text-lg font-black text-white leading-tight">Ingresa el código de tu docente</h2>
                 <p className="text-sm text-white/80 mt-0.5">Código de 6 caracteres o acepta una invitación pendiente</p>
               </div>
             </div>
@@ -134,7 +150,7 @@ export function JoinGroup({ onNavigate }: JoinGroupProps) {
                   }
                   placeholder="ABC123"
                   maxLength={6}
-                  className="h-14 text-2xl font-mono tracking-[0.4em] text-center uppercase flex-1"
+                  className="h-14 text-4xl font-mono tracking-[0.4em] text-center uppercase flex-1"
                   aria-label="Código de curso de 6 caracteres"
                   onKeyDown={e => e.key === "Enter" && handleJoinByCourseCode()}
                 />
@@ -191,46 +207,64 @@ export function JoinGroup({ onNavigate }: JoinGroupProps) {
             </Card>
           ) : (
             <ul className="space-y-3 list-none p-0">
-              {courseInvitations.map(inv => (
-                <li key={inv.id_invitacion}>
-                  <article>
-                    <Card className="border-2">
-                      <CardContent className="py-4 flex items-start justify-between gap-4 flex-wrap">
-                        <div>
-                          <p className="font-semibold text-foreground">
-                            {inv.curso?.titulo ?? "—"}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Invitación de {inv.docente?.nombre ?? "tu docente"}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleCourseInvitation(inv.id_invitacion, true)}
-                            disabled={actionCourseId === inv.id_invitacion}
-                            className="bg-success hover:bg-success/80 text-white"
-                            aria-label={`Aceptar invitación al curso ${inv.curso?.titulo}`}
-                          >
-                            <CheckCircle2 className="w-4 h-4 mr-1" aria-hidden="true" />
-                            Aceptar
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleCourseInvitation(inv.id_invitacion, false)}
-                            disabled={actionCourseId === inv.id_invitacion}
-                            aria-label={`Rechazar invitación al curso ${inv.curso?.titulo}`}
-                          >
-                            <XCircle className="w-4 h-4 mr-1" aria-hidden="true" />
-                            Rechazar
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </article>
-                </li>
-              ))}
+              {courseInvitations.map(inv => {
+                const titleId       = `inv-titulo-${inv.id_invitacion}`
+                const docenteNombre = inv.docente?.nombre ?? "Tu docente"
+                const avatarColor   = inv.docente?.color_perfil ?? getAvatarColor(docenteNombre)
+                return (
+                  <li key={inv.id_invitacion}>
+                    <article aria-labelledby={titleId}>
+                      <Card className="border-2">
+                        <CardContent className="py-4 space-y-3">
+                          {/* Docente + mensaje */}
+                          <div className="flex items-center gap-3">
+                            <div
+                              aria-hidden="true"
+                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                              style={{ backgroundColor: avatarColor }}
+                            >
+                              {getInitials(docenteNombre)}
+                            </div>
+                            <p className="text-sm text-foreground leading-snug">
+                              Tu docente{" "}
+                              <span className="font-semibold">{docenteNombre}</span>{" "}
+                              te invitó a ser parte del curso{" "}
+                              <span id={titleId} className="font-semibold">
+                                {inv.curso?.titulo ?? "—"}
+                              </span>
+                            </p>
+                          </div>
+
+                          {/* Botones */}
+                          <div className="flex gap-2 pt-1">
+                            <Button
+                              size="sm"
+                              onClick={() => handleCourseInvitation(inv.id_invitacion, true)}
+                              disabled={actionCourseId === inv.id_invitacion}
+                              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                              aria-label={`Aceptar invitación al curso ${inv.curso?.titulo}`}
+                            >
+                              <CheckCircle2 className="w-4 h-4 mr-1.5" aria-hidden="true" />
+                              Aceptar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleCourseInvitation(inv.id_invitacion, false)}
+                              disabled={actionCourseId === inv.id_invitacion}
+                              className="flex-1 border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/5"
+                              aria-label={`Rechazar invitación al curso ${inv.curso?.titulo}`}
+                            >
+                              <XCircle className="w-4 h-4 mr-1.5" aria-hidden="true" />
+                              Rechazar
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </article>
+                  </li>
+                )
+              })}
             </ul>
           )}
         </section>

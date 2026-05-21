@@ -85,16 +85,21 @@ export function useStudentDashboard(): UseStudentDashboardReturn {
 
     const fetchData = async () => {
       // Level 1 (parallel): gamificación + cursos inscritos
-      const [gamiResult, inscripcionesResult] = await Promise.all([
+      const [gamiResult, inscripcionesResult, perfilResult] = await Promise.all([
         supabase
           .from("gamificacion")
-          .select("puntos_totales, estrellas_totales, nivel, streaks_dias, ultimo_acceso, color_perfil")
+          .select("puntos_totales, estrellas_totales, nivel, streaks_dias, ultimo_acceso")
           .eq("id_alumno", user.id)
           .single(),
         supabase
           .from("alumno_curso")
           .select("id_curso, curso:id_curso(id_curso, titulo)")
           .eq("id_alumno", user.id),
+        supabase
+          .from("perfil")
+          .select("color_perfil")
+          .eq("id_perfil", user.id)
+          .single(),
       ])
 
       if (!isMounted.current) return
@@ -113,7 +118,7 @@ export function useStudentDashboard(): UseStudentDashboardReturn {
           if (diff >= 2) rachaVisible = 0
         }
 
-        const colorPerfil = gamiResult.data.color_perfil ?? null
+        const colorPerfil = perfilResult.data?.color_perfil ?? null
         if (colorPerfil && typeof window !== "undefined") {
           localStorage.setItem("ea_avatar_color", colorPerfil)
         }

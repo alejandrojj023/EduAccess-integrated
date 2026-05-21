@@ -18,6 +18,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  UserPlus,
 } from "lucide-react"
 
 interface CourseInviteProps {
@@ -37,6 +38,7 @@ interface Alumno {
   id_perfil: string
   nombre: string
   correo: string
+  colorPerfil: string | null
 }
 
 const ESTADO_CONFIG = {
@@ -50,15 +52,16 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
 
   const [tab, setTab] = useState<"email" | "list">("email")
 
-  const [email,     setEmail]     = useState("")
-  const [searching, setSearching] = useState(false)
-  const [emailMsg,  setEmailMsg]  = useState<{ ok: boolean; text: string } | null>(null)
+  const [email,       setEmail]       = useState("")
+  const [searching,   setSearching]   = useState(false)
+  const [foundAlumno, setFoundAlumno] = useState<(Alumno & { alreadyInvited?: boolean; alreadyEnrolled?: boolean }) | null>(null)
+  const [inviting,    setInviting]    = useState(false)
+  const [emailMsg,    setEmailMsg]    = useState<{ ok: boolean; text: string } | null>(null)
 
-  const [disponibles, setDisponibles] = useState<Alumno[]>([])
-  const [loadingList, setLoadingList] = useState(false)
-  const [selected,    setSelected]    = useState<Set<string>>(new Set())
-  const [sending,     setSending]     = useState(false)
-  const [listMsg,     setListMsg]     = useState<{ ok: boolean; text: string } | null>(null)
+  const [disponibles,   setDisponibles]   = useState<Alumno[]>([])
+  const [loadingList,   setLoadingList]   = useState(false)
+  const [invitingListId, setInvitingListId] = useState<string | null>(null)
+  const [listMsg,       setListMsg]       = useState<{ ok: boolean; text: string } | null>(null)
 
   const [invitaciones, setInvitaciones] = useState<Invitation[]>([])
   const [loadingInv,   setLoadingInv]   = useState(true)
@@ -90,7 +93,7 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
 
     const { data: enGrupos } = await supabase
       .from("alumno_grupo")
-      .select("id_alumno, perfil:id_alumno ( id_perfil, nombre, correo )")
+      .select("id_alumno, perfil:id_alumno ( id_perfil, nombre, correo, color_perfil )")
       .in("id_grupo", grupoIds)
 
     const { data: yaInscritos } = await supabase.from("alumno_curso").select("id_alumno").eq("id_curso", courseId)
@@ -107,54 +110,77 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
       const p = row.perfil
       if (!p || excluidos.has(p.id_perfil) || vistos.has(p.id_perfil)) continue
       vistos.add(p.id_perfil)
-      lista.push({ id_perfil: p.id_perfil, nombre: p.nombre, correo: p.correo })
+      lista.push({ id_perfil: p.id_perfil, nombre: p.nombre, correo: p.correo, colorPerfil: p.color_perfil ?? null })
     }
 
     setDisponibles(lista)
     setLoadingList(false)
   }
 
-  async function handleInviteByEmail() {
+  async function handleSearchByEmail() {
     const correo = email.trim().toLowerCase()
     if (!correo || !user) return
-    setSearching(true); setEmailMsg(null)
+    setSearching(true); setEmailMsg(null); setFoundAlumno(null)
 
-    const { data: alumno } = await supabase.from("perfil").select("id_perfil, nombre, correo")
+    const { data: alumno } = await supabase.from("perfil").select("id_perfil, nombre, correo, color_perfil")
       .eq("correo", correo).eq("rol", "alumno").maybeSingle()
 
-    if (!alumno) { setEmailMsg({ ok: false, text: "No se encontró un alumno con ese correo." }); setSearching(false); return }
+    if (!alumno) {
+      setEmailMsg({ ok: false, text: "No se encontró un alumno con ese correo." })
+      setSearching(false)
+      return
+    }
 
-    const { data: yaInscrito } = await supabase.from("alumno_curso").select("id_alumno")
-      .eq("id_curso", courseId).eq("id_alumno", alumno.id_perfil).maybeSingle()
+    const [{ data: yaInscrito }, { data: yaInvitado }] = await Promise.all([
+      supabase.from("alumno_curso").select("id_alumno").eq("id_curso", courseId).eq("id_alumno", alumno.id_perfil).maybeSingle(),
+      supabase.from("invitacion_curso").select("id_alumno").eq("id_curso", courseId).eq("id_alumno", alumno.id_perfil).eq("estado", "pendiente").maybeSingle(),
+    ])
 
-    if (yaInscrito) { setEmailMsg({ ok: false, text: `${alumno.nombre} ya está inscrito en este curso.` }); setSearching(false); return }
-
-    const { error } = await supabase.from("invitacion_curso").insert({ id_curso: courseId, id_docente: user.id, id_alumno: alumno.id_perfil })
-
+    setFoundAlumno({
+      id_perfil: alumno.id_perfil,
+      nombre: alumno.nombre,
+      correo: alumno.correo,
+      colorPerfil: (alumno as any).color_perfil ?? null,
+      alreadyEnrolled: !!yaInscrito,
+      alreadyInvited: !!yaInvitado,
+    })
+    setEmail("")
     setSearching(false)
+  }
+
+  async function handleConfirmInvite() {
+    if (!foundAlumno || !user) return
+    setInviting(true); setEmailMsg(null)
+
+    const { error } = await supabase.from("invitacion_curso").insert({
+      id_curso: courseId, id_docente: user.id, id_alumno: foundAlumno.id_perfil,
+    })
+
+    setInviting(false)
     if (error) {
-      setEmailMsg({ ok: false, text: error.code === "23505" ? `Ya enviaste una invitación a ${alumno.nombre}.` : error.message })
+      setEmailMsg({ ok: false, text: error.code === "23505" ? `Ya enviaste una invitación a ${foundAlumno.nombre}.` : error.message })
     } else {
-      setEmailMsg({ ok: true, text: `Invitación enviada a ${alumno.nombre}.` })
-      setEmail("")
+      setEmailMsg({ ok: true, text: `Invitación enviada a ${foundAlumno.nombre}.` })
+      setEmail(""); setFoundAlumno(null)
       loadInvitaciones()
     }
     setTimeout(() => setEmailMsg(null), 5000)
   }
 
-  async function handleInviteSelected() {
-    if (!user || selected.size === 0) return
-    setSending(true); setListMsg(null)
+  async function handleInviteOne(alumno: Alumno) {
+    if (!user) return
+    setInvitingListId(alumno.id_perfil); setListMsg(null)
 
-    const rows = Array.from(selected).map((id) => ({ id_curso: courseId, id_docente: user.id, id_alumno: id }))
-    const { error } = await supabase.from("invitacion_curso").insert(rows)
-    setSending(false)
+    const { error } = await supabase.from("invitacion_curso").insert({
+      id_curso: courseId, id_docente: user.id, id_alumno: alumno.id_perfil,
+    })
 
+    setInvitingListId(null)
     if (error) {
-      setListMsg({ ok: false, text: "Error al enviar algunas invitaciones." })
+      setListMsg({ ok: false, text: error.code === "23505" ? `Ya enviaste una invitación a ${alumno.nombre}.` : error.message })
     } else {
-      setListMsg({ ok: true, text: `${selected.size} invitación${selected.size > 1 ? "es" : ""} enviada${selected.size > 1 ? "s" : ""}.` })
-      setSelected(new Set()); loadInvitaciones(); loadDisponibles()
+      setListMsg({ ok: true, text: `Invitación enviada a ${alumno.nombre}.` })
+      loadInvitaciones(); loadDisponibles()
     }
     setTimeout(() => setListMsg(null), 5000)
   }
@@ -164,14 +190,6 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
     await supabase.from("invitacion_curso").delete().eq("id_invitacion", id)
     setInvitaciones((prev) => prev.filter((i) => i.id_invitacion !== id))
     setDeletingId(null); loadDisponibles()
-  }
-
-  const toggleSelect = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
   }
 
   return (
@@ -218,18 +236,65 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
           <section id="panel-email" role="tabpanel" aria-labelledby="tab-email" aria-label="Invitar por correo electrónico">
             <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-4">
               <p className="text-xs text-muted-foreground">Escribe el correo del alumno que quieres invitar a este curso.</p>
-              <div className="flex gap-2">
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                  placeholder="alumno@correo.com" className="border-border flex-1"
-                  onKeyDown={(e) => e.key === "Enter" && handleInviteByEmail()}
-                  aria-label="Correo del alumno" />
-                <button type="button" onClick={handleInviteByEmail}
+              <div className="relative">
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setFoundAlumno(null); setEmailMsg(null) }}
+                  placeholder="alumno@correo.com"
+                  className="border-border pr-10"
+                  onKeyDown={(e) => e.key === "Enter" && handleSearchByEmail()}
+                  aria-label="Correo del alumno"
+                />
+                <button
+                  type="button"
+                  onClick={handleSearchByEmail}
                   disabled={searching || !email.trim()}
-                  className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 active:scale-[0.98] disabled:opacity-50">
+                  aria-label="Buscar alumno"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-lg p-1.5 text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
+                >
                   <Search className="w-4 h-4" aria-hidden="true" />
-                  {searching ? "Buscando…" : "Invitar"}
                 </button>
               </div>
+
+              {/* Resultado de búsqueda */}
+              {foundAlumno && (
+                <div className="rounded-xl border border-border bg-muted/40 px-3 py-2.5 flex items-center gap-3">
+                  <div
+                    aria-hidden="true"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                    style={{ backgroundColor: foundAlumno.colorPerfil ?? "#94a3b8" }}
+                  >
+                    {foundAlumno.nombre.charAt(0).toUpperCase()}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-foreground truncate">{foundAlumno.nombre}</p>
+                    <p className="text-xs text-muted-foreground truncate">{foundAlumno.correo}</p>
+                  </div>
+
+                  {foundAlumno.alreadyEnrolled ? (
+                    <span className="shrink-0 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1">
+                      Inscrito
+                    </span>
+                  ) : foundAlumno.alreadyInvited ? (
+                    <span className="shrink-0 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1">
+                      Invitado
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleConfirmInvite}
+                      disabled={inviting}
+                      aria-label={`Invitar a ${foundAlumno.nombre}`}
+                      className="shrink-0 flex items-center justify-center rounded-xl p-2 text-primary hover:bg-primary/10 transition-colors active:scale-[0.97] disabled:opacity-50"
+                    >
+                      <UserPlus className="w-5 h-5" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+              )}
+
               {emailMsg && (
                 <p className={`text-sm rounded-xl px-3 py-2 border ${
                   emailMsg.ok
@@ -264,31 +329,8 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
                 <p className="text-xs text-muted-foreground mt-1">Ya están inscritos o tienen invitación pendiente.</p>
               </div>
             ) : (
-              <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-4">
-                <p className="text-xs text-muted-foreground">Selecciona uno o varios alumnos para invitar.</p>
-                <ul className="space-y-1.5 list-none p-0 max-h-72 overflow-y-auto">
-                  {disponibles.map((a) => (
-                    <li key={a.id_perfil}>
-                      <button type="button" onClick={() => toggleSelect(a.id_perfil)}
-                        className={`w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-all active:scale-[0.98] ${
-                          selected.has(a.id_perfil)
-                            ? "border-primary bg-primary/10"
-                            : "border-border hover:border-primary/40 hover:bg-muted"
-                        }`}
-                        aria-pressed={selected.has(a.id_perfil)}>
-                        <div aria-hidden="true" className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                          selected.has(a.id_perfil) ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
-                        }`}>
-                          {a.nombre.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-foreground truncate">{a.nombre}</p>
-                          <p className="text-xs text-muted-foreground truncate">{a.correo}</p>
-                        </div>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+              <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
+                <p className="text-xs text-muted-foreground">Toca el ícono para invitar a un alumno.</p>
 
                 {listMsg && (
                   <p className={`text-sm rounded-xl px-3 py-2 border ${
@@ -298,12 +340,34 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
                   }`} role="alert">{listMsg.text}</p>
                 )}
 
-                <button type="button" onClick={handleInviteSelected}
-                  disabled={sending || selected.size === 0}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
-                  <Send className="w-4 h-4" aria-hidden="true" />
-                  {sending ? "Enviando…" : `Invitar${selected.size > 0 ? ` (${selected.size})` : ""}`}
-                </button>
+                <ul className="space-y-1.5 list-none p-0 max-h-72 overflow-y-auto">
+                  {disponibles.map((a) => (
+                    <li key={a.id_perfil}>
+                      <div className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5">
+                        <div
+                          aria-hidden="true"
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                          style={{ backgroundColor: a.colorPerfil ?? "#94a3b8" }}
+                        >
+                          {a.nombre.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-foreground truncate">{a.nombre}</p>
+                          <p className="text-xs text-muted-foreground truncate">{a.correo}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleInviteOne(a)}
+                          disabled={invitingListId === a.id_perfil}
+                          aria-label={`Invitar a ${a.nombre}`}
+                          className="shrink-0 flex items-center justify-center rounded-xl p-2 text-primary hover:bg-primary/10 transition-colors active:scale-[0.97] disabled:opacity-50"
+                        >
+                          <UserPlus className="w-5 h-5" aria-hidden="true" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </section>

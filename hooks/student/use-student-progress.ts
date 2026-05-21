@@ -68,16 +68,21 @@ export function useStudentProgress(): UseStudentProgressReturn {
       setLoading(true)
 
       // Level 1 (parallel): gamificación + cursos inscritos
-      const [gamiResult, inscripcionesResult] = await Promise.all([
+      const [gamiResult, inscripcionesResult, perfilResult] = await Promise.all([
         supabase
           .from("gamificacion")
-          .select("estrellas_totales, streaks_dias, nivel, color_perfil")
+          .select("estrellas_totales, streaks_dias, nivel")
           .eq("id_alumno", user.id)
           .single(),
         supabase
           .from("alumno_curso")
           .select("id_curso")
           .eq("id_alumno", user.id),
+        supabase
+          .from("perfil")
+          .select("color_perfil")
+          .eq("id_perfil", user.id)
+          .single(),
       ])
 
       const gami = gamiResult.data
@@ -174,7 +179,7 @@ export function useStudentProgress(): UseStudentProgressReturn {
         totalStars: gami?.estrellas_totales ?? 0,
         nivelNombre: (NIVELES[gami?.nivel ?? 1] ?? NIVELES[1]).nombre,
         nivelEmoji:  (NIVELES[gami?.nivel ?? 1] ?? NIVELES[1]).emoji,
-        colorPerfil: gami?.color_perfil ?? null,
+        colorPerfil: perfilResult.data?.color_perfil ?? null,
       })
 
       setLoading(false)
