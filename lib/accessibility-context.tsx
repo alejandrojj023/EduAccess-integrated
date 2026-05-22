@@ -26,6 +26,7 @@ interface AccessibilityContextType {
   settings: AccessibilitySettings
   updateSettings: (newSettings: Partial<AccessibilitySettings>) => void
   speak: (text: string) => void
+  stopSpeak: () => void
   loading: boolean
 }
 
@@ -248,6 +249,11 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     [settings.voiceEnabled, settings.voiceRate]
   )
 
+  const stopSpeak = useCallback(() => {
+    if (achernarAbortRef.current) { achernarAbortRef.current.abort(); achernarAbortRef.current = null }
+    if (achernarCtxRef.current) { achernarCtxRef.current.close(); achernarCtxRef.current = null }
+  }, [])
+
   // ── Listener global hover-to-speak ────────────────────────
   // Ref para acceder al settings más reciente sin re-crear el listener
   const settingsRef = useRef(settings)
@@ -305,7 +311,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
   }, [speak]) // speak es estable (useCallback), el resto usa settingsRef
 
   return (
-    <AccessibilityContext.Provider value={{ settings, updateSettings, speak, loading }}>
+    <AccessibilityContext.Provider value={{ settings, updateSettings, speak, stopSpeak, loading }}>
       {children}
     </AccessibilityContext.Provider>
   )

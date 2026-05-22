@@ -15,7 +15,7 @@ import {
 interface VoiceActivityProps {
   activityId: string | null
   onBack: () => void
-  onComplete: () => void
+  onComplete: (result?: { correct: boolean; attempts: number }) => void
   /** Contexto de lección — si se pasan, el header muestra "Actividad X de Y" en lugar del contador de estrellas */
   lessonIndex?: number
   lessonTotal?: number
@@ -83,12 +83,17 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const activityStartRef = useRef<number>(Date.now())
   const speakTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const questionTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const attemptsRef = useRef(0)
 
   // ── Load activity + pregunta ─────────────────────────────────
   useEffect(() => {
     if (!activityId) { setError("No se encontró la actividad."); return }
     loadData()
-    return () => clearTimeout(speakTimerRef.current)
+    return () => {
+      clearTimeout(speakTimerRef.current)
+      clearTimeout(questionTimerRef.current)
+    }
   }, [activityId])
 
   async function loadData() {
@@ -117,13 +122,31 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
     setPregunta(pq)
     setPhase("question")
 
-    if (settings.voiceEnabled) speakTimerRef.current = setTimeout(() => speakQuestion(pq.enunciado), 600)
+    if (settings.voiceEnabled) {
+      const instrucciones = act.instrucciones?.trim()
+      if (instrucciones) {
+        speakTimerRef.current = setTimeout(() => {
+          speak(instrucciones)
+          const delay = Math.max(2000, instrucciones.length * 60)
+          questionTimerRef.current = setTimeout(() => {
+            if (pq.enunciado?.trim()) speakQuestion(pq.enunciado)
+          }, delay)
+        }, 600)
+      } else {
+        speakTimerRef.current = setTimeout(() => {
+          if (pq.enunciado?.trim()) speakQuestion(pq.enunciado)
+        }, 600)
+      }
+    }
   }
 
   // ── Speech synthesis ─────────────────────────────────────────
   const speakQuestion = useCallback((text: string) => {
     speak(text)
   }, [speak])
+
+  // Mantener ref sincronizado con el estado de intentos para evitar closures obsoletas
+  useEffect(() => { attemptsRef.current = attempts }, [attempts])
 
   // ── Speech recognition ───────────────────────────────────────
   useEffect(() => {
@@ -158,7 +181,8 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
         processTimer = setTimeout(() => {
           if (!pregunta) return
           const correct = checkAnswer(finalText, pregunta.respuesta_esperada)
-          const newAttempts = attempts + 1
+          const newAttempts = attemptsRef.current + 1
+          attemptsRef.current = newAttempts
           setAttempts(newAttempts)
           setIsCorrect(correct)
           setScore(correct ? 100 : 0)
@@ -190,7 +214,7 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
 
     recognitionRef.current = rec
     return () => { rec.abort(); clearTimeout(processTimer) }
-  }, [pregunta, attempts])
+  }, [pregunta])
 
   function handleMic() {
     if (isRecording) {
@@ -214,6 +238,18 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
     if (pregunta) setTimeout(() => speakQuestion(pregunta.enunciado), 300)
   }
 
+  async function handleSkip() {
+    if (!previewMode && user && activityId) {
+      const { data: { session } } = await supabase.auth.getSession()
+      await fetch("/api/attempts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ activityId, puntaje: 0, tiempoSegundos: Math.round((Date.now() - activityStartRef.current) / 1000) }),
+      })
+    }
+    onComplete({ correct: false, attempts: MAX_ATTEMPTS })
+  }
+
   async function handleFinish() {
     if (!previewMode) {
       if (user && activityId) {
@@ -228,7 +264,7 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
         })
       }
     }
-    onComplete()
+    onComplete({ correct: isCorrect, attempts })
   }
 
   // ── Render: loading ──────────────────────────────────────────
@@ -336,6 +372,18 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
           />
         </div>
       </header>
+
+      {phase === "question" && !isRecording && !isProcessing && (
+        <div className="fixed bottom-6 left-6 z-20">
+          <button
+            onClick={handleSkip}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground border border-border/50 bg-background/80 backdrop-blur hover:bg-muted transition-colors"
+            aria-label="Saltar actividad de voz"
+          >
+            Saltar actividad
+          </button>
+        </div>
+      )}
 
       <main className="max-w-3xl mx-auto px-4 py-10 space-y-8">
 

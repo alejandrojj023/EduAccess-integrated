@@ -304,7 +304,10 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
       const actsDeEsteIntento = intentosActData.filter(
         (ia: any) => ia.id_intento_leccion === il.id_intento_leccion
       )
-      const actividades = actsDeEsteIntento.map((ia: any) => ({
+      // Deduplicar por id_actividad — quedarse con el último intento por actividad
+      const seenActs = new Map<string, any>()
+      for (const ia of actsDeEsteIntento) seenActs.set(ia.id_actividad, ia)
+      const actividades = Array.from(seenActs.values()).map((ia: any) => ({
         titulo: actTitulo[ia.id_actividad] ?? "Actividad",
         puntaje: ia.puntaje_total ?? 0,
       }))

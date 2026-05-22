@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/lib/auth-context"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { supabase } from "@/lib/supabase"
+import { fechaTijuana } from "@/lib/utils"
 import {
   ArrowLeft,
   ChevronLeft,
@@ -45,7 +46,7 @@ export function StudentCalendar({ onBack }: StudentCalendarProps) {
   const { speak, settings } = useAccessibility()
 
   const today    = useMemo(() => new Date(), [])
-  const todayStr = useMemo(() => today.toISOString().slice(0, 10), [today])
+  const todayStr = useMemo(() => fechaTijuana(today), [today])
 
   const [year,  setYear]  = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
@@ -69,8 +70,9 @@ export function StudentCalendar({ onBack }: StudentCalendarProps) {
     setLoading(true)
 
     const fetchMonth = async () => {
-      const start = new Date(year, month, 1).toISOString()
-      const end   = new Date(year, month + 1, 0, 23, 59, 59).toISOString()
+      // Margen hasta 8:59am UTC del día siguiente = 11:59pm Tijuana UTC-8 (invierno)
+      const start = new Date(year, month, 1, 0, 0, 0).toISOString()
+      const end   = new Date(year, month + 1, 1, 8, 59, 59).toISOString()
 
       const { data, error } = await supabase
         .from("intento_leccion")
@@ -85,7 +87,7 @@ export function StudentCalendar({ onBack }: StudentCalendarProps) {
 
       if (!error && data) {
         const entries: LessonEntry[] = (data as any[]).map((row) => ({
-          fecha:       row.fecha_completado.slice(0, 10),
+          fecha:       fechaTijuana(row.fecha_completado),
           lessonTitle: row.leccion?.titulo ?? "Lección",
           estrellas:   row.estrellas ?? null,
         }))
@@ -150,7 +152,7 @@ export function StudentCalendar({ onBack }: StudentCalendarProps) {
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Volver"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             </button>
             <div>
               <h1 className="text-sm font-black text-foreground leading-none">Mi Calendario</h1>
@@ -173,16 +175,16 @@ export function StudentCalendar({ onBack }: StudentCalendarProps) {
       <main className="mx-auto max-w-4xl px-5 py-7 space-y-6">
 
         {/* Hero */}
-        <section aria-label="Mi calendario">
+        <section aria-labelledby="hero-calendario">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500 to-blue-600 p-6 shadow-xl shadow-primary/20">
-            <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" aria-hidden />
-            <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5 blur-xl" aria-hidden />
+            <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" aria-hidden="true" />
+            <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5 blur-xl" aria-hidden="true" />
             <div className="relative flex items-center gap-4">
-              <div className="w-14 h-14 shrink-0 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center shadow-lg">
-                <Calendar className="w-7 h-7 text-white" aria-hidden />
+              <div className="w-14 h-14 shrink-0 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center shadow-lg" aria-hidden="true">
+                <Calendar className="w-7 h-7 text-white" aria-hidden="true" />
               </div>
               <div>
-                <h2 className="text-lg font-black text-white leading-tight">{MONTHS_ES[month]} {year}</h2>
+                <h2 id="hero-calendario" className="text-lg font-black text-white leading-tight">{MONTHS_ES[month]} {year}</h2>
                 <p className="text-sm text-white/80 mt-0.5">
                   {completions.length} lección{completions.length !== 1 ? "es" : ""} completada{completions.length !== 1 ? "s" : ""} este mes
                 </p>
@@ -249,7 +251,7 @@ export function StudentCalendar({ onBack }: StudentCalendarProps) {
                         }}
                         className={`relative flex flex-col items-center justify-start p-2 rounded-xl min-h-[56px] transition-all border-2 ${
                           isToday
-                            ? "border-primary/60 bg-primary/5"
+                            ? "border-primary bg-primary/10 shadow-sm"
                             : count > 0
                               ? "border-success/60 bg-success/5 hover:border-success"
                               : "border-transparent hover:border-border"
@@ -257,13 +259,16 @@ export function StudentCalendar({ onBack }: StudentCalendarProps) {
                         aria-label={`${day} de ${MONTHS_ES[month]}${count > 0 ? `, ${count} lección${count > 1 ? "es" : ""} completada${count > 1 ? "s" : ""}` : ""}`}
                         aria-current={isToday ? "date" : undefined}
                       >
-                        <span className={`text-sm font-bold ${isToday ? "text-primary" : "text-foreground"}`}>
+                        {isToday && (
+                          <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
+                        )}
+                        <span className={`text-base font-bold ${isToday ? "text-primary" : "text-foreground"}`}>
                           {day}
                         </span>
                         {count > 0 && (
                           <div className="flex gap-0.5 mt-1 flex-wrap justify-center" aria-hidden="true">
                             {entries.slice(0, 3).map((e, j) => (
-                              <span key={j} className={`w-2 h-2 rounded-full ${starColor(e.estrellas)}`} />
+                              <span key={j} className={`w-2.5 h-2.5 rounded-full ${starColor(e.estrellas)}`} />
                             ))}
                             {count > 3 && (
                               <span className="text-xs text-muted-foreground font-bold leading-none">+{count - 3}</span>
@@ -277,7 +282,7 @@ export function StudentCalendar({ onBack }: StudentCalendarProps) {
               )}
 
               {/* Legend */}
-              <aside aria-label="Leyenda de colores" className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-border">
+              <div role="note" aria-label="Leyenda de colores" className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-border">
                 {[
                   { color: "bg-success",             label: "4-5 estrellas" },
                   { color: "bg-accent",              label: "2.5-3.9 estrellas" },
@@ -289,14 +294,26 @@ export function StudentCalendar({ onBack }: StudentCalendarProps) {
                     {label}
                   </div>
                 ))}
-              </aside>
+              </div>
             </CardContent>
           </Card>
         </section>
 
         {/* ── Month summary ─────────────────────────────── */}
-        {!loading && (
-          <section aria-label="Resumen del mes">
+        <section aria-label="Resumen del mes">
+          {loading ? (
+            <ul className="grid grid-cols-3 gap-4 list-none p-0" aria-busy="true">
+              {[1, 2, 3].map(i => (
+                <li key={i}>
+                  <div className="rounded-2xl border-2 border-border bg-card shadow-md p-5 flex flex-col items-center gap-2 animate-pulse">
+                    <div className="w-6 h-6 rounded-full bg-muted" />
+                    <div className="h-7 w-12 rounded-md bg-muted" />
+                    <div className="h-3 w-20 rounded-md bg-muted" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
             <ul className="grid grid-cols-3 gap-4 list-none p-0">
               {[
                 {
@@ -328,16 +345,16 @@ export function StudentCalendar({ onBack }: StudentCalendarProps) {
                     <CardContent className="pt-5 pb-4">
                       <Icon className="w-6 h-6 text-primary mx-auto mb-2" aria-hidden="true" />
                       <dl>
-                        <dd className="text-2xl font-bold text-foreground">{value}</dd>
-                        <dt className="text-xs text-muted-foreground mt-0.5">{label}</dt>
+                        <dt className="text-xs text-muted-foreground">{label}</dt>
+                        <dd className="text-2xl font-bold text-foreground mt-0.5">{value}</dd>
                       </dl>
                     </CardContent>
                   </Card>
                 </li>
               ))}
             </ul>
-          </section>
-        )}
+          )}
+        </section>
       </main>
 
       <VoiceAssistant

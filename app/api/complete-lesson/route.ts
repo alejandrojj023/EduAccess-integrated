@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabaseAdmin.auth.getUser(token)
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
 
-  const { lessonId, results, duracionSegundos } = await request.json()
+  const { lessonId, results, duracionSegundos, lessonStartTime } = await request.json()
   if (!lessonId || !Array.isArray(results)) {
     return NextResponse.json({ error: "lessonId y results son requeridos" }, { status: 400 })
   }
@@ -21,12 +21,21 @@ export async function POST(request: NextRequest) {
   const puntajePct = (correctFirst / total) * 100
   const totalReintentos = results.reduce((acc: number, r: any) => acc + Math.max(0, r.attempts - 1), 0)
 
-  // 1. Calcular estrellas via RPC
-  const { data: starsData } = await supabaseAdmin.rpc("fn_calcular_estrellas", {
-    p_puntaje_porcentaje: puntajePct,
-    p_total_reintentos_actividad: totalReintentos,
-  })
-  const stars: number = starsData ?? 0
+  // 1. Calcular estrellas: proporcional por actividad
+  //    - Actividades con puntaje parcial (sopa_letras): (puntaje/100) × perActivity
+  //    - Binarias correctas: perActivity − 0.1 si fue reintento
+  //    - Incorrectas: 0
+  const perActivity = 5 / total
+  let rawScore = 0
+  for (const r of results as any[]) {
+    if (r.puntaje != null && r.puntaje < 100) {
+      rawScore += (r.puntaje / 100) * perActivity
+    } else if (r.correct) {
+      rawScore += perActivity
+      if (r.attempts > 1) rawScore -= 0.1
+    }
+  }
+  const stars: number = Math.round(Math.max(0, rawScore) * 10) / 10
 
   // 2. Contar intentos previos de esta lección para numero_intento
   const { count: intentosPrevios } = await supabaseAdmin
@@ -87,14 +96,18 @@ export async function POST(request: NextRequest) {
   }
 
   // 4. Vincular los intento_actividad de esta sesión con el intento_leccion
+  //    Filtra por fecha_creacion >= lessonStartTime para evitar vincular
+  //    registros de sesiones anteriores (reintentos de actividades pasadas).
   if (intentoLeccionId) {
     const actIds = results.map((r: any) => r.id)
+    const sessionStart = lessonStartTime ?? new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
     await supabaseAdmin
       .from("intento_actividad")
       .update({ id_intento_leccion: intentoLeccionId })
       .in("id_actividad", actIds)
       .eq("id_alumno", user.id)
       .is("id_intento_leccion", null)
+      .gte("fecha_creacion", sessionStart)
   }
 
   // 5. Upsert progresion_alumno — sobreescribe con el resultado de esta sesión

@@ -47,6 +47,7 @@ export async function PUT(request, { params }) {
       material_audiovisual,
       material_pdf_url,
       material_pdf_titulo,
+      material_imagen_url,
     } = body;
 
     if (!titulo) {
@@ -63,6 +64,7 @@ export async function PUT(request, { params }) {
       material_audiovisual: material_audiovisual || null,
       material_pdf_url: material_pdf_url || null,
       material_pdf_titulo: material_pdf_titulo || null,
+      material_imagen_url: material_imagen_url || null,
     };
     const { error: updateError } = await supabaseAdmin
       .from("leccion")

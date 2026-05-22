@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
+import { useAccessibility } from "@/lib/accessibility-context"
 import {
   ArrowLeft, ChevronRight, CheckCircle2,
   Mic, Image as ImageIcon, ListOrdered, HelpCircle, PencilLine, Volume2,
   BookOpen, Youtube, Search, Paperclip, ExternalLink, FileText, RotateCcw, PlayCircle, AlignLeft,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, Square,
 } from "lucide-react"
 import { TextoConGlosario, type GlosarioEntry } from "@/components/ui/texto-con-glosario"
 
@@ -25,6 +26,7 @@ interface LessonMaterial {
   material_audiovisual: string | null
   material_pdf_url: string | null
   material_pdf_titulo: string | null
+  material_imagen_url: string | null
 }
 
 interface StudentLessonProps {
@@ -74,14 +76,16 @@ function getYouTubeEmbedUrl(url: string): string | null {
 
 export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartLesson, onBack }: StudentLessonProps) {
   const { user } = useAuth()
+  const { speak, stopSpeak } = useAccessibility()
   const [activities, setActivities] = useState<Activity[]>([])
   const [material, setMaterial] = useState<LessonMaterial>({
     material_lectura: null, material_audiovisual: null,
-    material_pdf_url: null, material_pdf_titulo: null,
+    material_pdf_url: null, material_pdf_titulo: null, material_imagen_url: null,
   })
   const [loading, setLoading] = useState(true)
   const [readingExpanded, setReadingExpanded] = useState(true)
   const [glosario, setGlosario] = useState<GlosarioEntry[]>([])
+  const [isReading, setIsReading] = useState(false)
 
   useEffect(() => {
     if (!user || !lessonId) return
@@ -91,13 +95,13 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
   async function load() {
     setLoading(true)
     const [leccionRes, { data: acts }, { data: glosarioData }] = await Promise.all([
-      supabase.from("leccion").select("material_lectura, material_audiovisual, material_pdf_url, material_pdf_titulo").eq("id_leccion", lessonId!).single(),
+      supabase.from("leccion").select("material_lectura, material_audiovisual, material_pdf_url, material_pdf_titulo, material_imagen_url").eq("id_leccion", lessonId!).single(),
       supabase.from("actividad").select("id_actividad, titulo, tipo, nivel_dificultad, orden").eq("id_leccion", lessonId!).eq("publicado", true).order("orden", { ascending: true }),
       supabase.from("glosario").select("palabra, definicion").eq("id_leccion", lessonId!),
     ])
     if (!leccionRes.error && leccionRes.data) {
       const d = leccionRes.data as any
-      setMaterial({ material_lectura: d.material_lectura ?? null, material_audiovisual: d.material_audiovisual ?? null, material_pdf_url: d.material_pdf_url ?? null, material_pdf_titulo: d.material_pdf_titulo ?? null })
+      setMaterial({ material_lectura: d.material_lectura ?? null, material_audiovisual: d.material_audiovisual ?? null, material_pdf_url: d.material_pdf_url ?? null, material_pdf_titulo: d.material_pdf_titulo ?? null, material_imagen_url: d.material_imagen_url ?? null })
     }
     setGlosario(glosarioData ?? [])
     if (!acts) { setLoading(false); return }
@@ -111,6 +115,18 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
   const completadas = activities.filter(a => a.completada).length
   const embedUrl = material.material_audiovisual ? getYouTubeEmbedUrl(material.material_audiovisual) : null
   const pct = activities.length > 0 ? Math.round((completadas / activities.length) * 100) : 0
+
+  async function handleReadMaterial() {
+    if (!material.material_lectura) return
+    if (isReading) {
+      stopSpeak()
+      setIsReading(false)
+      return
+    }
+    setIsReading(true)
+    await speak(material.material_lectura)
+    setIsReading(false)
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -204,12 +220,13 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
         {!loading && material.material_lectura && (
           <section aria-label="Material de lectura">
             <div className="overflow-hidden rounded-3xl border-2 border-primary/20 bg-primary/5 shadow-sm">
-              <button
-                className="w-full flex items-center justify-between gap-3 px-5 py-4 border-b border-primary/15 text-left hover:bg-primary/10 transition-colors"
-                onClick={() => setReadingExpanded(v => !v)}
-                aria-expanded={readingExpanded}
-              >
-                <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-5 py-4 border-b border-primary/15">
+                <button
+                  className="flex-1 flex items-center gap-3 text-left hover:bg-primary/10 transition-colors rounded-xl"
+                  onClick={() => setReadingExpanded(v => !v)}
+                  aria-expanded={readingExpanded}
+                  aria-controls="material-lectura-contenido"
+                >
                   <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shrink-0">
                     <BookOpen className="w-4 h-4 text-primary-foreground" aria-hidden />
                   </div>
@@ -217,13 +234,42 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
                     <p className="font-black text-foreground text-sm">Material de Lectura</p>
                     <p className="text-xs text-muted-foreground">Lee antes de comenzar las actividades</p>
                   </div>
+                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleReadMaterial}
+                    aria-label={isReading ? "Detener lectura" : "Escuchar material de lectura"}
+                    title={isReading ? "Detener" : "Escuchar"}
+                    className={`flex h-11 w-11 items-center justify-center rounded-xl border-2 transition-all active:scale-95 ${
+                      isReading
+                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                        : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20"
+                    }`}
+                  >
+                    {isReading
+                      ? <Square className="w-5 h-5 fill-current" aria-hidden />
+                      : <Volume2 className="w-5 h-5" aria-hidden />}
+                  </button>
+                  <button
+                    onClick={() => setReadingExpanded(v => !v)}
+                    aria-label={readingExpanded ? "Colapsar material de lectura" : "Expandir material de lectura"}
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:bg-muted transition-all active:scale-95"
+                  >
+                    {readingExpanded
+                      ? <ChevronUp className="w-4 h-4" aria-hidden />
+                      : <ChevronDown className="w-4 h-4" aria-hidden />}
+                  </button>
                 </div>
-                {readingExpanded
-                  ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
-                  : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
-              </button>
+              </div>
               {readingExpanded && (
-                <div className="px-5 py-5">
+                <div id="material-lectura-contenido" className="px-5 py-5 space-y-4">
+                  {material.material_imagen_url && (
+                    <img
+                      src={material.material_imagen_url}
+                      alt="Imagen de apoyo al material de lectura"
+                      className="w-full h-auto max-h-[400px] object-contain rounded-2xl border border-primary/15"
+                    />
+                  )}
                   <div className="prose prose-sm max-w-none text-foreground leading-relaxed">
                     <TextoConGlosario texto={material.material_lectura} glosario={glosario} />
                   </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
+import { fechaTijuana } from "@/lib/utils"
 
 // ============================================================
 // Tipos exportados
@@ -246,7 +247,7 @@ export function useAnalytics(filters: AnalyticsFilters): UseAnalyticsReturn {
     const leccionPrimeraFecha = new Map<string, string>()
     intentos?.forEach((i: any) => {
       const fecha     = new Date(i.fecha_creacion)
-      const dateISO   = fecha.toISOString().slice(0, 10)
+      const dateISO   = fechaTijuana(fecha)
       const leccionId = i.actividad?.id_leccion
       const prev      = dayMap.get(dateISO) ?? { pts: [] as number[], count: 0 }
       prev.count++

@@ -47,6 +47,7 @@ export async function POST(request) {
       material_audiovisual,
       material_pdf_url,
       material_pdf_titulo,
+      material_imagen_url,
     } = body;
 
     if (!courseId || !titulo) {
@@ -71,6 +72,7 @@ export async function POST(request) {
       material_audiovisual: material_audiovisual || null,
       material_pdf_url: material_pdf_url || null,
       material_pdf_titulo: material_pdf_titulo || null,
+      material_imagen_url: material_imagen_url || null,
       orden: nextOrden,
       publicado: true,
     };

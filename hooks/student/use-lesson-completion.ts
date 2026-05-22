@@ -10,7 +10,8 @@ export async function completarLeccion(
   _userId: string,
   lessonId: string,
   results: ActivityResult[],
-  duracionSegundos?: number
+  duracionSegundos?: number,
+  lessonStartTime?: string,
 ): Promise<number> {
   if (results.length === 0) return 0
 
@@ -21,7 +22,7 @@ export async function completarLeccion(
       "Content-Type": "application/json",
       Authorization: `Bearer ${session?.access_token}`,
     },
-    body: JSON.stringify({ lessonId, results, duracionSegundos }),
+    body: JSON.stringify({ lessonId, results, duracionSegundos, lessonStartTime }),
   })
   if (!res.ok) return 0
   const data = await res.json()

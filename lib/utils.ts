@@ -5,10 +5,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/** Devuelve la fecha en formato "YYYY-MM-DD" según zona horaria America/Mexico_City */
+/** Devuelve la fecha en formato "YYYY-MM-DD" según zona horaria America/Tijuana (Baja California) */
 export function fechaTijuana(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date
-  return d.toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Tijuana' })
 }
 
 export const NIVELES: Record<number, { nombre: string; emoji: string; icon: string; min: number; max: number }> = {

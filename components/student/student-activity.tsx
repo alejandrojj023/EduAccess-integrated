@@ -228,7 +228,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
 
   // Lesson mode state
   const isLessonMode = !!lessonId
-  interface ActivityResult { id: string; correct: boolean; attempts: number }
+  interface ActivityResult { id: string; correct: boolean; attempts: number; puntaje?: number }
   const [lessonActivities, setLessonActivities] = useState<DBActivity[]>([])
   const [lessonActIndex, setLessonActIndex] = useState(0)
   const [activityResults, setActivityResults] = useState<ActivityResult[]>([])
@@ -249,6 +249,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
   // Timer — tracks elapsed time per activity and total lesson time
   const activityStartRef = useRef<number>(Date.now())
   const lessonStartRef = useRef<number>(Date.now())
+  const currentAttemptsRef = useRef<number>(1)
   const [lessonElapsedSecs, setLessonElapsedSecs] = useState(0)
 
   // Word search (sopa_letras) state
@@ -336,6 +337,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
 
   function savePendingResult(correct: boolean, scoreVal: number, attempts: number) {
     if (!isLessonMode || !activity) return
+    currentAttemptsRef.current = attempts
     const tiempoSeg = Math.round((Date.now() - activityStartRef.current) / 1000)
     const key = lessonKey()
     if (!key) return
@@ -354,6 +356,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     setError(null)
     setRetryBanner(null)
     setActAttempts(0)
+    currentAttemptsRef.current = 1
     activityStartRef.current = Date.now()
 
     if (isLessonMode && lessonId) {
@@ -473,10 +476,11 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     setScore(0)
     setRetryBanner(null)
     setActAttempts(0)
+    currentAttemptsRef.current = 1
     setResultMessage("")
     activityStartRef.current = Date.now()
 
-    if (settings.voiceEnabled && act.tipo !== "reconocimiento_sonidos" && act.tipo !== "completar_oracion" && act.tipo !== "secuenciacion" && act.tipo !== "sopa_letras") {
+    if (settings.voiceEnabled && act.tipo !== "reconocimiento_sonidos" && act.tipo !== "completar_oracion" && act.tipo !== "secuenciacion" && act.tipo !== "sopa_letras" && act.tipo !== "respuesta_oral") {
       const cfg = parseActivityConfig(act.instrucciones)
       if (cfg.instrucciones) setTimeout(() => speak(cfg.instrucciones), 400)
     }
@@ -529,7 +533,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     setWsCellWord(new Map())
     setWsAnimatingCells(new Set())
     setWsGrid(generateWordSearchGrid(words))
-    const timer = settings.voiceEnabled ? setTimeout(() => speak(cfg.instrucciones ?? "Encuentra las palabras en la sopa de letras"), 400) : undefined
+    const timer = settings.voiceEnabled ? setTimeout(() => speak(cfg.instrucciones || "Encuentra las palabras en la sopa de letras"), 400) : undefined
     return () => clearTimeout(timer)
   }, [activity])
 
@@ -755,7 +759,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     if (correct) {
       setIsCorrect(true)
       setScore(100)
-      savePendingResult(true, 100, 1)
+      savePendingResult(true, 100, newAttempts)
       setPhase("result")
       speak("¡Muy bien! Respuesta correcta.")
     } else if (newAttempts >= 2) {
@@ -861,7 +865,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     if (allCorrect) {
       setIsCorrect(true)
       setScore(100)
-      savePendingResult(true, 100, 1)
+      savePendingResult(true, 100, newAttempts)
       setPhase("result")
       speak("¡Excelente! Ordenaste la secuencia correctamente.")
     } else if (newAttempts >= 2) {
@@ -871,13 +875,13 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
         )
         setSeqZones(correctZones)
         setSeqResult(correctZones.map(() => true))
+        speak("Este es el orden correcto de la secuencia.")
         setTimeout(() => {
           setIsCorrect(false)
           setScore(0)
           savePendingResult(false, 0, newAttempts)
           setPhase("result")
-          speak("Este es el orden correcto de la secuencia.")
-        }, 800)
+        }, 3000)
       }, 600)
     } else {
       speak("Algunas imágenes no están en el orden correcto. ¡Inténtalo de nuevo!")
@@ -912,6 +916,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     setWordBank(prev => prev.filter(w => w.id !== tokenId))
     setConstructionZone(prev => [...prev, token])
     setSoundError(null)
+    speak(token.text)
   }
 
   function moveWordToBank(tokenId: string) {
@@ -930,7 +935,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     setIsCorrect(correct)
     setScore(correct ? 100 : 0)
     if (correct) {
-      savePendingResult(true, 100, actAttempts || 1)
+      savePendingResult(true, 100, actAttempts + 1)
       setPhase("result")
       speak("¡Muy bien! Respuesta correcta.")
     } else {
@@ -974,7 +979,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
       setRetryBanner(null)
       const msg = MENSAJES_CORRECTO[Math.floor(Math.random() * MENSAJES_CORRECTO.length)]
       setResultMessage(msg)
-      savePendingResult(true, 100, actAttempts || 1)
+      savePendingResult(true, 100, actAttempts + 1)
       setPhase("result")
       if (settings.voiceEnabled) speak(msg)
     } else {
@@ -1009,7 +1014,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
       setRetryBanner(null)
       const msg = MENSAJES_CORRECTO[Math.floor(Math.random() * MENSAJES_CORRECTO.length)]
       setResultMessage(msg)
-      savePendingResult(true, 100, actAttempts || 1)
+      savePendingResult(true, 100, actAttempts + 1)
       setPhase("result")
       if (settings.voiceEnabled) speak(msg)
     } else {
@@ -1058,6 +1063,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     }
     if (tipo === "respuesta_corta") return config?.respuesta_correcta ?? "—"
     if (tipo === "completar_oracion" && fillPregunta) return fillPregunta.respuesta_esperada
+    if (tipo === "reconocimiento_sonidos" && soundPregunta) return soundPregunta.respuesta_esperada
     return "—"
   }
 
@@ -1090,7 +1096,8 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     const result: ActivityResult = {
       id: activity.id_actividad,
       correct: isCorrect,
-      attempts: actAttempts || 1,
+      attempts: currentAttemptsRef.current,
+      ...(activity.tipo === "sopa_letras" && { puntaje: score }),
     }
     const newResults = [...activityResults, result]
     setActivityResults(newResults)
@@ -1115,7 +1122,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     setPhase("loading")
     const totalSecs = Math.round((Date.now() - lessonStartRef.current) / 1000)
     setLessonElapsedSecs(totalSecs)
-    const stars = await completarLeccion(user!.id, lessonId!, results, totalSecs)
+    const stars = await completarLeccion(user!.id, lessonId!, results, totalSecs, new Date(lessonStartRef.current).toISOString())
     setEarnedStars(stars)
     setIsCompletingLesson(false)
     setPhase("lesson-done")
@@ -1184,8 +1191,8 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
         <VoiceActivity
           activityId={activity.id_actividad}
           onBack={handleBackPress}
-          onComplete={() =>
-            handleAdvanceLesson({ id: activity.id_actividad, correct: true, attempts: 1 })
+          onComplete={(result) =>
+            handleAdvanceLesson({ id: activity.id_actividad, correct: result?.correct ?? true, attempts: result?.attempts ?? 1 })
           }
           lessonIndex={lessonActIndex}
           lessonTotal={lessonActivities.length}
@@ -1297,7 +1304,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
       <main className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-8" aria-label="Lección completada">
         <div className={`w-full max-w-md space-y-4 transition-opacity duration-500 ${lessonDoneVisible ? "opacity-100" : "opacity-0"}`}>
           <section aria-live="polite" aria-label="Resultado de la lección" className="space-y-4">
-            <div className="relative overflow-hidden rounded-3xl border-2 border-amber-500/30 bg-gradient-to-b from-amber-500/15 to-orange-500/10 shadow-xl p-6 space-y-4">
+            <div className="relative overflow-hidden rounded-3xl border-2 border-amber-500/30 bg-card shadow-xl p-6 space-y-4">
               <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-amber-300/20 blur-2xl" aria-hidden />
               <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full bg-orange-300/20 blur-xl" aria-hidden />
 
@@ -1443,7 +1450,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                     <Button
                       variant="outline"
                       className="h-11 px-4 text-sm shrink-0 self-center rounded-2xl border-border bg-card shadow-sm hover:bg-muted active:bg-muted"
-                      onClick={() => speak(config?.instrucciones ?? "")}
+                      onClick={() => speak(config?.instrucciones || "Lee y responde la siguiente pregunta.")}
                       aria-label="Escuchar instrucciones"
                     >
                       <Volume2 className="w-4 h-4 mr-2" aria-hidden="true" />
@@ -1461,11 +1468,11 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
           <section aria-label="Pregunta y opciones de respuesta">
             {/* Retry banner — shown after first wrong attempt */}
             {retryBanner && (
-              <div className={`flex items-center gap-3 p-4 rounded-2xl bg-amber-50/60 border border-amber-200 mb-4 shadow-sm transition-opacity duration-300 ${retryVisible ? "opacity-100" : "opacity-0"}`}>
-                <div className="w-9 h-9 bg-amber-500/90 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
+              <div className={`flex items-center gap-3 p-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 mb-4 shadow-sm transition-opacity duration-300 ${retryVisible ? "opacity-100" : "opacity-0"}`}>
+                <div className="w-9 h-9 bg-amber-500 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
                   <RotateCcw className="w-4 h-4 text-white" aria-hidden="true" />
                 </div>
-                <p className="text-amber-900 font-semibold flex-1">{retryBanner}</p>
+                <p className="text-foreground font-semibold flex-1">{retryBanner}</p>
               </div>
             )}
             {/* Image — only for tipo identificacion */}
@@ -1528,7 +1535,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
             {isShortAnswer && (
               <Card className="border border-border/70 shadow-sm rounded-3xl">
                 <CardContent className="px-6 pt-5 pb-5 space-y-4">
-                  <label className="text-base font-semibold text-foreground" htmlFor="short-answer">
+                  <label className="text-lg font-bold text-foreground" htmlFor="short-answer">
                     Escribe tu respuesta:
                   </label>
                   <Input
@@ -1536,7 +1543,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                     value={textAnswer}
                     onChange={e => setTextAnswer(e.target.value)}
                     placeholder="Tu respuesta…"
-                    className="h-12 text-base rounded-2xl border-border/70 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-ring"
+                    className="h-16 text-3xl rounded-2xl border-border/70 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-ring px-5"
                     onKeyDown={e => e.key === "Enter" && handleSubmitText()}
                     autoFocus
                   />
@@ -1616,9 +1623,9 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
 
                       {/* Error */}
                       {soundError && (
-                        <div className="flex items-center gap-3 p-3 rounded-xl bg-destructive/10 border border-destructive/40">
-                          <X className="w-4 h-4 text-destructive shrink-0" aria-hidden="true" />
-                          <p className="text-destructive font-medium flex-1 text-sm">{soundError}</p>
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/15 border border-amber-500/40">
+                          <RotateCcw className="w-4 h-4 text-amber-500 shrink-0" aria-hidden="true" />
+                          <p className="text-foreground font-medium flex-1 text-sm">{soundError}</p>
                           <Button variant="outline" size="sm" onClick={handleRetrySound} className="gap-2 shrink-0" aria-label="Reintentar">
                             <RotateCcw className="w-4 h-4" aria-hidden="true" />
                             Reintentar
@@ -1765,9 +1772,9 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
 
                           {/* Error */}
                           {fillError && (
-                            <div className="flex items-center gap-3 p-3 rounded-xl bg-destructive/10 border border-destructive/40">
-                              <X className="w-4 h-4 text-destructive shrink-0" aria-hidden="true" />
-                              <p className="text-destructive font-medium flex-1 text-sm">{fillError}</p>
+                            <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/15 border border-amber-500/40">
+                              <RotateCcw className="w-4 h-4 text-amber-500 shrink-0" aria-hidden="true" />
+                              <p className="text-foreground font-medium flex-1 text-sm">{fillError}</p>
                               <Button variant="outline" size="sm" onClick={handleRetryFill} className="gap-2 shrink-0">
                                 <RotateCcw className="w-4 h-4" aria-hidden="true" />
                                 Reintentar
@@ -1895,7 +1902,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                             className={`relative rounded-2xl border-4 overflow-hidden transition-all duration-200 ${slotOk === true
                                 ? "border-green-400 bg-green-50/20"
                                 : slotOk === false
-                                  ? "border-destructive bg-destructive/5"
+                                  ? "border-amber-500 bg-amber-500/5"
                                   : zoneItem
                                     ? "border-primary/60 bg-card shadow-md"
                                     : isOver
@@ -1907,7 +1914,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                           >
                             {/* Zone number badge */}
                             <div className={`absolute top-2 left-2 z-10 w-8 h-8 rounded-full flex items-center justify-center font-black text-base shadow ${slotOk === true ? "bg-green-500 text-white"
-                                : slotOk === false ? "bg-destructive text-white"
+                                : slotOk === false ? "bg-amber-500 text-white"
                                   : "bg-primary text-primary-foreground"
                               }`}>
                               {idx + 1}
@@ -1915,7 +1922,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
 
                             {/* Result icon */}
                             {slotOk !== null && (
-                              <div className={`absolute top-2 right-2 z-10 w-7 h-7 rounded-full flex items-center justify-center shadow ${slotOk ? "bg-green-500" : "bg-destructive"}`}>
+                              <div className={`absolute top-2 right-2 z-10 w-7 h-7 rounded-full flex items-center justify-center shadow ${slotOk ? "bg-green-500" : "bg-amber-500"}`}>
                                 {slotOk ? <Check className="w-4 h-4 text-white" /> : <X className="w-4 h-4 text-white" />}
                               </div>
                             )}
@@ -1963,9 +1970,9 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
 
                   {/* Inline error */}
                   {seqChecked && !seqResult.every(Boolean) && seqAttempts < 2 && (
-                    <div className="flex items-center gap-3 p-4 rounded-xl bg-destructive/10 border-2 border-destructive/40">
-                      <X className="w-5 h-5 text-destructive shrink-0" aria-hidden="true" />
-                      <p className="text-destructive font-medium flex-1">
+                    <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/15 border-2 border-amber-500/40">
+                      <RotateCcw className="w-5 h-5 text-amber-500 shrink-0" aria-hidden="true" />
+                      <p className="text-foreground font-medium flex-1">
                         Algunas imágenes no están en el orden correcto. ¡Inténtalo de nuevo!
                       </p>
                     </div>
@@ -2074,6 +2081,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                       setScore(wsScore)
                       savePendingResult(wsCorrect, wsScore, 1)
                       setPhase("result")
+                      if (settings.voiceEnabled) speak(`Encontraste ${wsFoundWords.size} de ${wsPalabras.length} palabras. ¡Sigue practicando!`)
                     }}
                   >
                     Terminar con {wsFoundWords.size} de {wsPalabras.length} palabras

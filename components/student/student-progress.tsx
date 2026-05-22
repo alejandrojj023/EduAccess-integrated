@@ -120,9 +120,12 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
       .order("fecha_fin", { ascending: true })
 
     if (data) {
+      // Deduplicar por id_actividad — quedarse con el último intento por actividad
+      const seen = new Map<string, any>()
+      for (const d of data) seen.set(d.id_actividad, d)
       setAttemptDetails(prev => ({
         ...prev,
-        [attempt.id]: data.map((d: any) => ({
+        [attempt.id]: Array.from(seen.values()).map((d: any) => ({
           actividadId: d.id_actividad,
           titulo: d.actividad?.titulo ?? "Actividad",
           tipo: d.actividad?.tipo ?? "",

@@ -58,6 +58,9 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
   const [materialAudiovisual,setMaterialAudiovisual]= useState("")
   const [materialPdfUrl,     setMaterialPdfUrl]     = useState("")
   const [materialPdfTitulo,  setMaterialPdfTitulo]  = useState("")
+  const [materialImagenFile,    setMaterialImagenFile]    = useState<File | null>(null)
+  const [materialImagenPreview, setMaterialImagenPreview] = useState("")
+  const [imagenExpanded,        setImagenExpanded]        = useState(false)
   const [activities,         setActivities]         = useState<ActivityItem[]>([])
   const [isLoading,          setIsLoading]          = useState(false)
   const [error,              setError]              = useState("")
@@ -358,6 +361,16 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { setError("No hay sesión activa. Inicia sesión nuevamente."); setIsLoading(false); return }
 
+      let materialImagenUrl: string | null = null
+      if (materialImagenFile) {
+        const ext = materialImagenFile.name.split(".").pop()
+        const path = `lectura/${Date.now()}.${ext}`
+        const { error: uploadError } = await supabase.storage.from("lecciones").upload(path, materialImagenFile, { upsert: true })
+        if (uploadError) { setError("Error al subir la imagen: " + uploadError.message); setIsLoading(false); return }
+        const { data: urlData } = supabase.storage.from("lecciones").getPublicUrl(path)
+        materialImagenUrl = urlData.publicUrl
+      }
+
       const response = await fetch("/api/lessons", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session.access_token}` },
@@ -369,6 +382,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
           material_audiovisual: materialAudiovisual || null,
           material_pdf_url: materialPdfUrl || null,
           material_pdf_titulo: materialPdfTitulo || null,
+          material_imagen_url: materialImagenUrl,
           activities: activities.map((a) => ({
             type: a.type, title: a.title, instrucciones: a.instrucciones,
             nivel_dificultad: a.nivel_dificultad, imagen_url: a.imagen_url ?? null,
@@ -575,20 +589,72 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
             </div>
           </div>
 
-          {/* Material de Lectura */}
-          <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
-            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-1">
-              <BookOpen className="w-4 h-4 text-primary" aria-hidden="true" />
-              Material de Lectura
-              <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
-            </h2>
-            <p className="text-xs text-muted-foreground mb-3">
-              Texto de lectura que los estudiantes verán antes de las actividades. Sirve como base para las preguntas.
-            </p>
+          {/* Material de Lectura + Imagen de Apoyo */}
+          <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-primary" aria-hidden="true" />
+                  Material de Lectura
+                  <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Texto de lectura que los estudiantes verán antes de las actividades.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setImagenExpanded(v => !v)}
+                aria-expanded={imagenExpanded}
+                aria-label={imagenExpanded ? "Ocultar imagen de apoyo" : "Agregar imagen de apoyo"}
+                className={`flex items-center gap-1.5 shrink-0 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all active:scale-95 ${
+                  imagenExpanded || materialImagenPreview
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <ImageIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                {imagenExpanded || materialImagenPreview ? "Imagen" : "+ Imagen"}
+              </button>
+            </div>
+
             <label htmlFor="material-lectura" className="sr-only">Material de lectura</label>
             <textarea id="material-lectura" value={materialLectura} onChange={(e) => setMaterialLectura(e.target.value)}
               placeholder="Escribe aquí el texto de lectura para los estudiantes. Ej: El sistema solar está formado por el Sol y los ocho planetas que giran a su alrededor..."
               className="w-full min-h-[140px] p-3 text-sm border border-input rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
+
+            {(imagenExpanded || materialImagenPreview) && (
+              <div className="pt-1 border-t border-border space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  La imagen se mostrará encima del texto para los estudiantes.
+                </p>
+                {materialImagenPreview ? (
+                  <div className="relative w-full overflow-hidden rounded-xl border border-border">
+                    <img src={materialImagenPreview} alt="Vista previa" className="w-full h-auto max-h-[400px] object-contain" />
+                    <button type="button"
+                      onClick={() => { setMaterialImagenFile(null); setMaterialImagenPreview(""); setImagenExpanded(false) }}
+                      aria-label="Quitar imagen"
+                      className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-lg bg-black/40 text-white shadow hover:bg-black/60 transition-colors active:scale-95">
+                      <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                    </button>
+                  </div>
+                ) : (
+                  <label htmlFor="material-imagen-create" className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 p-5 cursor-pointer hover:bg-muted/50 transition-colors">
+                    <Upload className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
+                    <span className="text-sm text-muted-foreground font-medium">Haz clic para subir una imagen</span>
+                    <span className="text-xs text-muted-foreground">PNG, JPG, WEBP — máx. 5 MB</span>
+                    <input id="material-imagen-create" type="file" accept="image/*" className="sr-only"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        if (file.size > 5 * 1024 * 1024) { setError("La imagen no puede superar los 5 MB."); return }
+                        setMaterialImagenFile(file)
+                        setMaterialImagenPreview(URL.createObjectURL(file))
+                      }} />
+                  </label>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Glosario */}

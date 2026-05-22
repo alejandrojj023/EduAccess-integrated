@@ -15,6 +15,7 @@ import { useAccessibility } from "@/lib/accessibility-context"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import { useAnalytics, type AnalyticsFilters } from "@/hooks/teacher/use-analytics"
+import { fechaTijuana } from "@/lib/utils"
 import { useSpeakOnHover } from "@/components/ui/accessible-tooltip"
 import {
   ArrowLeft, Volume2, BarChart3, TrendingUp, Clock,
@@ -110,7 +111,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
   const [despCfg, setDespCfg] = useState({ ordenar: "nombre", filtrar: "todos", mostrar: "5" })
 
   // ── Hook de analíticas ──────────────────────────────────────
-  const toISODay = (d: Date) => d.toISOString().slice(0, 10)
+  const toISODay = (d: Date) => fechaTijuana(d)
 
   const filters: AnalyticsFilters = useMemo(() => ({
     grupoId,
@@ -236,7 +237,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
       if (progCfg.agrupar === "dia")    cutoff.setDate(cutoff.getDate() - n)
       else if (progCfg.agrupar === "semana") cutoff.setDate(cutoff.getDate() - n * 7)
       else if (progCfg.agrupar === "mes")    cutoff.setMonth(cutoff.getMonth() - n)
-      const cutISO = cutoff.toISOString().slice(0, 10)
+      const cutISO = fechaTijuana(cutoff)
       data = data.filter((d) => d.weekStart >= cutISO)
     }
 
@@ -254,14 +255,14 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
           const day = d.getDay() === 0 ? 7 : d.getDay()
           const mon = new Date(d)
           mon.setDate(d.getDate() - (day - 1))
-          return mon.toISOString().slice(0, 10)
+          return fechaTijuana(mon)
         },
         (iso) => {
           const d   = new Date(iso + "T12:00:00")
           const day = d.getDay() === 0 ? 7 : d.getDay()
           const mon = new Date(d)
           mon.setDate(d.getDate() - (day - 1))
-          const monISO = mon.toISOString().slice(0, 10)
+          const monISO = fechaTijuana(mon)
           if (!semKeys.has(monISO)) semKeys.set(monISO, ++semIdx)
           return `Sem ${semKeys.get(monISO)}`
         },
