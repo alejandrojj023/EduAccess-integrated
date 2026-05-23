@@ -4,6 +4,8 @@ interface ActivityResult {
   id: string
   correct: boolean
   attempts: number
+  puntaje?: number
+  intentoId?: string
 }
 
 export async function completarLeccion(

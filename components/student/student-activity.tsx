@@ -228,7 +228,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
 
   // Lesson mode state
   const isLessonMode = !!lessonId
-  interface ActivityResult { id: string; correct: boolean; attempts: number; puntaje?: number }
+  interface ActivityResult { id: string; correct: boolean; attempts: number; puntaje?: number; intentoId?: string }
   const [lessonActivities, setLessonActivities] = useState<DBActivity[]>([])
   const [lessonActIndex, setLessonActIndex] = useState(0)
   const [activityResults, setActivityResults] = useState<ActivityResult[]>([])
@@ -250,6 +250,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
   const activityStartRef = useRef<number>(Date.now())
   const lessonStartRef = useRef<number>(Date.now())
   const currentAttemptsRef = useRef<number>(1)
+  const answerRef = useRef<string>("")
   const [lessonElapsedSecs, setLessonElapsedSecs] = useState(0)
 
   // Word search (sopa_letras) state
@@ -357,6 +358,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     setRetryBanner(null)
     setActAttempts(0)
     currentAttemptsRef.current = 1
+    answerRef.current = ""
     activityStartRef.current = Date.now()
 
     if (isLessonMode && lessonId) {
@@ -669,6 +671,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
       setWsStart(null)
       // Check if all words found
       if (newFound.size === wsPalabras.length) {
+        answerRef.current = [...newFound].join(", ")
         setIsCorrect(true)
         setScore(100)
         savePendingResult(true, 100, 1)
@@ -753,6 +756,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
 
   function handleCheckFill() {
     if (!fillSelected || !fillPregunta) return
+    answerRef.current = fillSelected.text.trim()
     const correct = fillSelected.text.trim().toLowerCase() === fillPregunta.respuesta_esperada.trim().toLowerCase()
     const newAttempts = fillAttempts + 1
     setFillAttempts(newAttempts)
@@ -855,6 +859,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
   }
 
   function handleCheckSeq() {
+    answerRef.current = seqZones.map(z => z?.enunciado ?? "?").join(" → ")
     const result = seqZones.map((item, idx) => item !== null && item.orden === idx + 1)
     const allCorrect = result.every(Boolean)
     const newAttempts = seqAttempts + 1
@@ -931,6 +936,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
   function handleCheckSound() {
     const expected = (soundPregunta?.respuesta_esperada ?? "").trim().toLowerCase()
     const given = constructionZone.map(w => w.text).join(" ").trim().toLowerCase()
+    answerRef.current = constructionZone.map(w => w.text).join(" ").trim()
     const correct = expected ? given === expected : constructionZone.length > 0
     setIsCorrect(correct)
     setScore(correct ? 100 : 0)
@@ -973,6 +979,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
   function handleSelectOption(texto: string, correcta: boolean) {
     if (phase !== "question") return
     setSelectedAnswer(texto)
+    answerRef.current = texto
     if (correcta) {
       setIsCorrect(true)
       setScore(100)
@@ -1005,6 +1012,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
 
   function handleSubmitText() {
     if (!textAnswer.trim()) return
+    answerRef.current = textAnswer.trim()
     const expected = (config?.respuesta_correcta ?? "").trim().toLowerCase()
     const given = textAnswer.trim().toLowerCase()
     const correct = expected ? given.includes(expected) || expected.includes(given) : true
@@ -1084,19 +1092,28 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     }
     const tiempoSeg = Math.round((Date.now() - activityStartRef.current) / 1000)
     const { data: { session } } = await supabase.auth.getSession()
-    await fetch("/api/attempts", {
+    const attemptRes = await fetch("/api/attempts", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${session?.access_token}`,
       },
-      body: JSON.stringify({ activityId: activity.id_actividad, puntaje: score, tiempoSegundos: tiempoSeg }),
+      body: JSON.stringify({
+        activityId:      activity.id_actividad,
+        puntaje:         score,
+        tiempoSegundos:  tiempoSeg,
+        respuestaAlumno: answerRef.current || undefined,
+        esCorrecta:      isCorrect,
+        tipoActividad:   activity.tipo,
+      }),
     })
+    const attemptData = attemptRes.ok ? await attemptRes.json() : {}
 
     const result: ActivityResult = {
-      id: activity.id_actividad,
-      correct: isCorrect,
-      attempts: currentAttemptsRef.current,
+      id:        activity.id_actividad,
+      correct:   isCorrect,
+      attempts:  currentAttemptsRef.current,
+      intentoId: attemptData.id_intento ?? undefined,
       ...(activity.tipo === "sopa_letras" && { puntaje: score }),
     }
     const newResults = [...activityResults, result]
@@ -1192,7 +1209,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
           activityId={activity.id_actividad}
           onBack={handleBackPress}
           onComplete={(result) =>
-            handleAdvanceLesson({ id: activity.id_actividad, correct: result?.correct ?? true, attempts: result?.attempts ?? 1 })
+            handleAdvanceLesson({ id: activity.id_actividad, correct: result?.correct ?? true, attempts: result?.attempts ?? 1, intentoId: result?.intentoId })
           }
           lessonIndex={lessonActIndex}
           lessonTotal={lessonActivities.length}
@@ -2077,6 +2094,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                     onClick={() => {
                       const wsCorrect = wsFoundWords.size >= Math.ceil(wsPalabras.length / 2)
                       const wsScore = Math.round((wsFoundWords.size / wsPalabras.length) * 100)
+                      answerRef.current = [...wsFoundWords].join(", ")
                       setIsCorrect(wsCorrect)
                       setScore(wsScore)
                       savePendingResult(wsCorrect, wsScore, 1)

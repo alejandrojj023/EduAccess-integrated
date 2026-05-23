@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase-admin"
 
-// POST /api/attempts — guarda un intento_actividad del alumno
+// POST /api/attempts — guarda un intento_actividad y la respuesta literal del alumno
 export async function POST(request: NextRequest) {
   const token = request.headers.get("Authorization")?.substring(7)
   const { data: { user } } = await supabaseAdmin.auth.getUser(token)
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
 
-  const { activityId, puntaje, tiempoSegundos } = await request.json()
+  const { activityId, puntaje, tiempoSegundos, respuestaAlumno, esCorrecta, tipoActividad } = await request.json()
   if (!activityId) return NextResponse.json({ error: "activityId requerido" }, { status: 400 })
 
   // Obtener id_grupo desde actividad → leccion → curso → grupo
@@ -47,9 +47,33 @@ export async function POST(request: NextRequest) {
   }
   if (tiempoSegundos != null) insertData.tiempo_total_segundos = tiempoSegundos
 
-  const { error } = await supabaseAdmin.from("intento_actividad").insert(insertData)
+  const { data: intento, error } = await supabaseAdmin
+    .from("intento_actividad")
+    .insert(insertData)
+    .select("id_intento")
+    .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json({ success: true })
+  // Guardar respuesta literal del alumno si se proporcionó
+  console.log("[attempts] id_intento:", intento?.id_intento, "respuestaAlumno:", respuestaAlumno, "tipoActividad:", tipoActividad)
+  if (intento?.id_intento && respuestaAlumno != null && String(respuestaAlumno).trim() !== "") {
+    const tipoResp =
+      tipoActividad === "respuesta_oral" ? "voz"
+      : (tipoActividad === "seleccion_guiada" || tipoActividad === "identificacion" || tipoActividad === "reconocimiento_sonidos") ? "opcion"
+      : "texto_libre"
+
+    const { error: errorResp } = await supabaseAdmin.from("respuesta").insert({
+      id_intento:                intento.id_intento,
+      texto_respuesta:           String(respuestaAlumno).trim(),
+      tipo_respuesta:            tipoResp,
+      es_correcta:               esCorrecta ?? false,
+      tiempo_respuesta_segundos: tiempoSegundos ?? null,
+    })
+    if (errorResp) console.error("[attempts] error al guardar respuesta:", errorResp.message)
+  } else {
+    console.log("[attempts] respuesta no guardada — condición no cumplida")
+  }
+
+  return NextResponse.json({ success: true, id_intento: intento?.id_intento ?? null })
 }

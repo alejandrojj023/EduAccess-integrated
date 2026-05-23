@@ -95,19 +95,27 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // 4. Vincular los intento_actividad de esta sesión con el intento_leccion
-  //    Filtra por fecha_creacion >= lessonStartTime para evitar vincular
-  //    registros de sesiones anteriores (reintentos de actividades pasadas).
+  // 4. Vincular los intento_actividad de esta sesión con el intento_leccion.
+  //    Estrategia: usar id_intento directo si están disponibles (más confiable).
+  //    Fallback: filtro por fecha_creacion para compatibilidad con sesiones antiguas.
   if (intentoLeccionId) {
-    const actIds = results.map((r: any) => r.id)
-    const sessionStart = lessonStartTime ?? new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-    await supabaseAdmin
-      .from("intento_actividad")
-      .update({ id_intento_leccion: intentoLeccionId })
-      .in("id_actividad", actIds)
-      .eq("id_alumno", user.id)
-      .is("id_intento_leccion", null)
-      .gte("fecha_creacion", sessionStart)
+    const intentoIds = (results as any[]).map((r) => r.intentoId).filter(Boolean)
+    if (intentoIds.length > 0) {
+      await supabaseAdmin
+        .from("intento_actividad")
+        .update({ id_intento_leccion: intentoLeccionId })
+        .in("id_intento", intentoIds)
+    } else {
+      const actIds = results.map((r: any) => r.id)
+      const sessionStart = lessonStartTime ?? new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+      await supabaseAdmin
+        .from("intento_actividad")
+        .update({ id_intento_leccion: intentoLeccionId })
+        .in("id_actividad", actIds)
+        .eq("id_alumno", user.id)
+        .is("id_intento_leccion", null)
+        .gte("fecha_creacion", sessionStart)
+    }
   }
 
   // 5. Upsert progresion_alumno — sobreescribe con el resultado de esta sesión
@@ -117,7 +125,7 @@ export async function POST(request: NextRequest) {
       id_leccion: lessonId,
       pct_completado: 100,
       estrellas: stars,
-      total_intentos: total,
+      total_intentos: numeroIntento,
       promedio_puntaje: puntajePct,
     },
     { onConflict: "id_alumno,id_leccion" }

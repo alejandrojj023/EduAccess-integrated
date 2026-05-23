@@ -15,7 +15,7 @@ import {
 interface VoiceActivityProps {
   activityId: string | null
   onBack: () => void
-  onComplete: (result?: { correct: boolean; attempts: number }) => void
+  onComplete: (result?: { correct: boolean; attempts: number; intentoId?: string }) => void
   /** Contexto de lección — si se pasan, el header muestra "Actividad X de Y" en lugar del contador de estrellas */
   lessonIndex?: number
   lessonTotal?: number
@@ -239,32 +239,55 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
   }
 
   async function handleSkip() {
+    let intentoId: string | undefined
     if (!previewMode && user && activityId) {
       const { data: { session } } = await supabase.auth.getSession()
-      await fetch("/api/attempts", {
+      const res = await fetch("/api/attempts", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ activityId, puntaje: 0, tiempoSegundos: Math.round((Date.now() - activityStartRef.current) / 1000) }),
+        body: JSON.stringify({
+          activityId,
+          puntaje:        0,
+          tiempoSegundos: Math.round((Date.now() - activityStartRef.current) / 1000),
+          esCorrecta:     false,
+          tipoActividad:  "respuesta_oral",
+        }),
       })
+      if (res.ok) {
+        const data = await res.json()
+        intentoId = data.id_intento ?? undefined
+      }
     }
-    onComplete({ correct: false, attempts: MAX_ATTEMPTS })
+    onComplete({ correct: false, attempts: MAX_ATTEMPTS, intentoId })
   }
 
   async function handleFinish() {
+    let intentoId: string | undefined
     if (!previewMode) {
       if (user && activityId) {
         const { data: { session } } = await supabase.auth.getSession()
-        await fetch("/api/attempts", {
+        const res = await fetch("/api/attempts", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session?.access_token}`,
           },
-          body: JSON.stringify({ activityId, puntaje: score, tiempoSegundos: Math.round((Date.now() - activityStartRef.current) / 1000) }),
+          body: JSON.stringify({
+            activityId,
+            puntaje:         score,
+            tiempoSegundos:  Math.round((Date.now() - activityStartRef.current) / 1000),
+            respuestaAlumno: transcript || undefined,
+            esCorrecta:      isCorrect,
+            tipoActividad:   "respuesta_oral",
+          }),
         })
+        if (res.ok) {
+          const data = await res.json()
+          intentoId = data.id_intento ?? undefined
+        }
       }
     }
-    onComplete({ correct: isCorrect, attempts })
+    onComplete({ correct: isCorrect, attempts, intentoId })
   }
 
   // ── Render: loading ──────────────────────────────────────────

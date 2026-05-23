@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,7 +78,7 @@ interface SesionLeccion {
   fecha: string         // fecha_completado del intento_leccion
   puntaje_promedio: number   // 0–100 promedio del intento
   estrellas: number          // 0–5 desde fn_calcular_estrellas (DB)
-  actividades: { titulo: string; puntaje: number }[]
+  actividades: { titulo: string; tipo?: string; puntaje: number; respuestaAlumno?: string; respuestaCorrecta?: string; tiempoSegundos?: number }[]
   correctasPrimerIntento: number
   totalActividades: number
   totalReintentos: number
@@ -155,6 +156,8 @@ function formatTiempo(seg: number): string | null {
 
 /* ─── Componente principal ───────────────────────────────────────────────── */
 export function CourseStudents({ courseId, courseName, onBack, onInvite, openStudentId }: CourseStudentsProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [students, setStudents] = useState<CourseStudent[]>([])
   const [loading, setLoading] = useState(true)
   const [removingId, setRemovingId] = useState<string | null>(null)
@@ -167,6 +170,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
   const [expandedDetailAttemptId, setExpandedDetailAttemptId] = useState<string | null>(null)
   const [selectedLeccionId, setSelectedLeccionId] = useState<string | null>(null)
   const [selectedSesionId, setSelectedSesionId] = useState<string | null>(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const barraRef = useRef<HTMLElement>(null)
 
   const fetchStudents = useCallback(async () => {
@@ -253,7 +257,23 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
     }
   }, [loading, students, openStudentId, autoOpenedId])
 
+  // Auto-abrir desde query param ?alumno=ID (permite refresh y compartir URL)
+  useEffect(() => {
+    const alumnoId = searchParams.get("alumno")
+    if (loading || !alumnoId || autoOpenedId === alumnoId) return
+    const target = students.find(s => s.id === alumnoId)
+    if (target) {
+      setAutoOpenedId(alumnoId)
+      openReporte(target)
+    }
+  }, [loading, students, searchParams, autoOpenedId])
+
   const openReporte = async (student: CourseStudent) => {
+    // Sincronizar URL para que refresh mantenga el reporte abierto
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("alumno", student.id)
+    router.replace(`?${params.toString()}`, { scroll: false })
+
     setLoadingReporte(true)
     setSelectedLeccionId(null)
     setSelectedSesionId(null)
@@ -293,9 +313,18 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
     const intentosLeccionData: any[] = attemptsRes.intentosLeccion ?? []
     const intentosActData: any[]     = attemptsRes.intentosAct ?? []
     const actTitulo: Record<string, string> = {}
+    const actTipo: Record<string, string> = {}
     for (const a of attemptsRes.actividades ?? []) {
       actTitulo[a.id_actividad] = a.titulo
+      actTipo[a.id_actividad]   = a.tipo ?? ""
     }
+    const respuestaByIntento: Record<string, string> = {}
+    const tiempoByIntento: Record<string, number> = {}
+    for (const r of attemptsRes.respuestas ?? []) {
+      if (r.id_intento && r.texto_respuesta) respuestaByIntento[r.id_intento] = r.texto_respuesta
+      if (r.id_intento && r.tiempo_respuesta_segundos != null) tiempoByIntento[r.id_intento] = r.tiempo_respuesta_segundos
+    }
+    const respuestaCorrectaMap: Record<string, string> = attemptsRes.respuestaCorrecta ?? {}
 
     // 3. Construir sesiones desde intento_leccion
     //    Cada fila = una completación de la lección.
@@ -308,8 +337,12 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
       const seenActs = new Map<string, any>()
       for (const ia of actsDeEsteIntento) seenActs.set(ia.id_actividad, ia)
       const actividades = Array.from(seenActs.values()).map((ia: any) => ({
-        titulo: actTitulo[ia.id_actividad] ?? "Actividad",
-        puntaje: ia.puntaje_total ?? 0,
+        titulo:            actTitulo[ia.id_actividad] ?? "Actividad",
+        tipo:              actTipo[ia.id_actividad],
+        puntaje:           ia.puntaje_total ?? 0,
+        respuestaAlumno:   ia.id_intento ? respuestaByIntento[ia.id_intento] : undefined,
+        respuestaCorrecta: respuestaCorrectaMap[ia.id_actividad],
+        tiempoSegundos:    ia.id_intento ? tiempoByIntento[ia.id_intento] : undefined,
       }))
 
       // Puntaje basado en estrellas: estrellas * 20 = % (5★=100%, 4★=80%, 3★=60%...)
@@ -398,11 +431,13 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
       ? sesionesVisibles.find(s => s.id === selectedSesionId) ?? null
       : null
 
-    // Tendencia: peor vs mejor intento
-    const sesionesOrdenadas = [...sesionesVisibles].sort((a, b) => a.numero_intento - b.numero_intento)
+    // Tendencia: primer intento vs último intento (cronológico)
+    const sesionesOrdenadas = [...sesionesVisibles].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
+    const primerIntento = sesionesVisibles.length >= 2 ? sesionesOrdenadas[0].puntaje_promedio : null
+    const ultimoIntento = sesionesVisibles.length >= 2 ? sesionesOrdenadas[sesionesOrdenadas.length - 1].puntaje_promedio : null
     const peorIntento  = sesionesVisibles.length >= 2 ? Math.min(...sesionesVisibles.map(s => s.puntaje_promedio)) : null
     const mejorIntento = sesionesVisibles.length >= 2 ? Math.max(...sesionesVisibles.map(s => s.puntaje_promedio)) : null
-    const tendenciaDelta = peorIntento !== null && mejorIntento !== null ? mejorIntento - peorIntento : null
+    const tendenciaDelta = primerIntento !== null && ultimoIntento !== null ? ultimoIntento - primerIntento : null
     const promedioGeneral = sesionesVisibles.length >= 2
       ? Math.round(sesionesVisibles.reduce((acc, s) => acc + s.puntaje_promedio, 0) / sesionesVisibles.length)
       : null
@@ -418,6 +453,63 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
       .map(([titulo, { total, count }]) => ({ titulo, promedio: Math.round(total / count) }))
       .sort((a, b) => a.promedio - b.promedio)[0] ?? null
 
+    // Nombres de tipos de actividad para el resumen
+    const TIPO_NOMBRES: Record<string, string> = {
+      identificacion:          "identificación de imágenes",
+      reconocimiento_sonidos:  "reconocimiento de sonidos",
+      secuenciacion:           "secuenciación",
+      seleccion_guiada:        "selección guiada",
+      respuesta_corta:         "respuesta corta",
+      respuesta_oral:          "respuesta oral",
+      completar_oracion:       "completar oración",
+      sopa_letras:             "sopa de letras",
+    }
+
+    // Stats por tipo de actividad (promedio de puntaje y tiempo)
+    const tipoStats: Record<string, { total: number; count: number; tiempoTotal: number; tiempoCount: number }> = {}
+    sesionesVisibles.forEach(s => s.actividades.forEach(act => {
+      const tipo = act.tipo ?? "desconocido"
+      if (!tipoStats[tipo]) tipoStats[tipo] = { total: 0, count: 0, tiempoTotal: 0, tiempoCount: 0 }
+      tipoStats[tipo].total += act.puntaje
+      tipoStats[tipo].count++
+      if (act.tiempoSegundos != null) {
+        tipoStats[tipo].tiempoTotal += act.tiempoSegundos
+        tipoStats[tipo].tiempoCount++
+      }
+    }))
+
+    const tipoConMayorDificultad = Object.entries(tipoStats)
+      .filter(([, s]) => s.count >= 2)
+      .map(([tipo, s]) => ({ tipo, promedio: Math.round(s.total / s.count) }))
+      .sort((a, b) => a.promedio - b.promedio)[0] ?? null
+
+    const tiempoRanking = Object.entries(tipoStats)
+      .filter(([, s]) => s.tiempoCount >= 2)
+      .map(([tipo, s]) => ({ tipo, tiempoPromedio: Math.round(s.tiempoTotal / s.tiempoCount) }))
+      .sort((a, b) => b.tiempoPromedio - a.tiempoPromedio)
+
+    const sopaEnLeccion = tiempoRanking.find(t => t.tipo === "sopa_letras") ?? null
+    const segundoMasLento = tiempoRanking.find(t => t.tipo !== "sopa_letras") ?? null
+
+    // Resumen diagnóstico (texto natural)
+    const partesDiagnostico: string[] = []
+    if (tipoConMayorDificultad) {
+      const nombre = TIPO_NOMBRES[tipoConMayorDificultad.tipo] ?? tipoConMayorDificultad.tipo
+      partesDiagnostico.push(`Muestra más dificultad en actividades de ${nombre} (promedio ${tipoConMayorDificultad.promedio}%).`)
+    }
+    if (sopaEnLeccion) {
+      const seg = sopaEnLeccion.tiempoPromedio
+      const tiempoStr = seg >= 60 ? `${Math.floor(seg / 60)} min ${seg % 60} s` : `${seg} s`
+      partesDiagnostico.push(`Sopa de letras: promedio ${tiempoStr} por actividad.`)
+    }
+    if (segundoMasLento) {
+      const nombre = TIPO_NOMBRES[segundoMasLento.tipo] ?? segundoMasLento.tipo
+      const seg = segundoMasLento.tiempoPromedio
+      const tiempoStr = seg >= 60 ? `${Math.floor(seg / 60)} min ${seg % 60} s` : `${seg} s`
+      partesDiagnostico.push(`También tarda en ${nombre} (promedio ${tiempoStr}).`)
+    }
+    const resumenDiagnostico = partesDiagnostico.length > 0 ? partesDiagnostico.join(" ") : null
+
     // Tiempo total acumulado en la lección
     const tiempoTotalSeg = sesionesVisibles.reduce((acc, s) => acc + (s.duracionSegundos ?? 0), 0)
     const tiempoFormateado = formatTiempo(tiempoTotalSeg)
@@ -426,7 +518,13 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
       <div className="min-h-screen bg-background">
         <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
           <div className="mx-auto flex h-16 max-w-4xl items-center gap-3 px-6">
-            <button type="button" onClick={() => setReporte(null)}
+            <button type="button" onClick={() => {
+                const params = new URLSearchParams(searchParams.toString())
+                params.delete("alumno")
+                const qs = params.toString()
+                router.replace(qs ? `?${qs}` : "?", { scroll: false })
+                setReporte(null)
+              }}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Volver a la lista de estudiantes">
               <ArrowLeft className="w-4 h-4" aria-hidden="true" />
@@ -458,31 +556,43 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
 
               {/* ── Sidebar de lecciones ── */}
               <aside
-                className="md:sticky md:top-[72px] w-full md:w-52 shrink-0 rounded-2xl border border-border bg-card shadow-sm overflow-hidden"
+                className={`md:sticky md:top-[72px] shrink-0 rounded-2xl border border-border bg-card shadow-sm overflow-hidden transition-all duration-200 w-full ${sidebarCollapsed ? "md:w-10" : "md:w-52"}`}
                 aria-label="Filtrar por lección"
               >
-                <div className="px-4 py-3 border-b border-border">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Lecciones</p>
+                <div className="px-3 py-3 border-b border-border flex items-center justify-between gap-2">
+                  {!sidebarCollapsed && (
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Lecciones</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setSidebarCollapsed(v => !v)}
+                    className="ml-auto flex items-center justify-center w-5 h-5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    aria-label={sidebarCollapsed ? "Expandir lecciones" : "Ocultar lecciones"}
+                  >
+                    {sidebarCollapsed ? <ChevronDown className="w-3.5 h-3.5 rotate-[-90deg]" aria-hidden="true" /> : <ChevronDown className="w-3.5 h-3.5 rotate-90" aria-hidden="true" />}
+                  </button>
                 </div>
-                <ul className="divide-y divide-border list-none p-0 max-h-[70vh] overflow-y-auto">
-                  {leccionesConColor.map(l => {
-                    const prog = reporte.progresion.find(p => p.id_leccion === l.id_leccion)
-                    const completada = (prog?.pct_completado ?? 0) >= 100
-                    const isActive = selectedLeccionId === l.id_leccion
-                    return (
-                      <li key={l.id_leccion}>
-                        <button type="button"
-                          onClick={() => { setSelectedLeccionId(l.id_leccion); setSelectedSesionId(null); setExpandedDetailAttemptId(null) }}
-                          className={`w-full px-4 py-3 text-left text-sm transition-colors hover:bg-muted/50 flex items-start gap-2.5 ${isActive ? "bg-primary/5 font-semibold text-primary" : "text-foreground"}`}
-                          aria-pressed={isActive}>
-                          <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-1" style={{ backgroundColor: l.color }} aria-hidden="true" />
-                          <span className="flex-1 leading-snug">{l.titulo}</span>
-                          {completada && <CheckCircle className="w-3.5 h-3.5 text-success shrink-0 mt-0.5" aria-hidden="true" />}
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
+                {!sidebarCollapsed && (
+                  <ul className="divide-y divide-border list-none p-0 max-h-[70vh] overflow-y-auto">
+                    {leccionesConColor.map(l => {
+                      const prog = reporte.progresion.find(p => p.id_leccion === l.id_leccion)
+                      const completada = (prog?.pct_completado ?? 0) >= 100
+                      const isActive = selectedLeccionId === l.id_leccion
+                      return (
+                        <li key={l.id_leccion}>
+                          <button type="button"
+                            onClick={() => { setSelectedLeccionId(l.id_leccion); setSelectedSesionId(null); setExpandedDetailAttemptId(null) }}
+                            className={`w-full px-4 py-3 text-left text-sm transition-colors hover:bg-muted/50 flex items-start gap-2.5 ${isActive ? "bg-primary/5 font-semibold text-primary" : "text-foreground"}`}
+                            aria-pressed={isActive}>
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-1" style={{ backgroundColor: l.color }} aria-hidden="true" />
+                            <span className="flex-1 leading-snug">{l.titulo}</span>
+                            {completada && <CheckCircle className="w-3.5 h-3.5 text-success shrink-0 mt-0.5" aria-hidden="true" />}
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
               </aside>
 
               {/* ── Contenido principal ── */}
@@ -599,6 +709,11 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                       <p className="text-xs text-muted-foreground mt-2">
                         Peor <strong>{peorIntento}%</strong> · Mejor <strong>{mejorIntento}%</strong>
                       </p>
+                      {tendenciaDelta !== null && (
+                        <p className={`text-xs font-semibold mt-2 ${tendenciaDelta > 0 ? "text-success" : tendenciaDelta < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                          {tendenciaDelta > 0 ? `↑ Mejoró ${tendenciaDelta}%` : tendenciaDelta < 0 ? `↓ Bajó ${Math.abs(tendenciaDelta)}%` : "→ Sin cambio"} del 1er al último intento
+                        </p>
+                      )}
                     </div>
                   </section>
                 )}
@@ -618,6 +733,14 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                 )}
 
               </div>
+
+              {/* ── Resumen diagnóstico ── */}
+              {resumenDiagnostico && (
+                <section aria-label="Resumen diagnóstico" className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800/40 p-5 shadow-sm">
+                  <h3 className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-2">Resumen</h3>
+                  <p className="text-sm text-foreground leading-relaxed">{resumenDiagnostico}</p>
+                </section>
+              )}
 
               {/* ── Sección: Detalle de intentos ── */}
               <section ref={barraRef} aria-label="Detalle de intentos" className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
@@ -660,16 +783,26 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                             {sesion.actividades.length > 0 ? (
                               <ul className="space-y-2 list-none p-0">
                                 {sesion.actividades.map((act, ai) => (
-                                  <li key={ai} className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                      {act.puntaje >= 70
-                                        ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" aria-hidden="true" />
-                                        : <XCircle className="w-4 h-4 text-destructive shrink-0" aria-hidden="true" />}
-                                      <span className="text-sm text-foreground truncate">{act.titulo}</span>
+                                  <li key={ai} className="space-y-0.5">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        {act.puntaje >= 70
+                                          ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" aria-hidden="true" />
+                                          : <XCircle className="w-4 h-4 text-destructive shrink-0" aria-hidden="true" />}
+                                        <span className="text-sm text-foreground truncate">{act.titulo}</span>
+                                      </div>
+                                      <span className={`text-sm font-semibold shrink-0 ${act.puntaje >= 90 ? "text-success" : act.puntaje >= 70 ? "text-amber-600" : "text-destructive"}`}>
+                                        {act.puntaje}%
+                                      </span>
                                     </div>
-                                    <span className={`text-sm font-semibold shrink-0 ${act.puntaje >= 90 ? "text-success" : act.puntaje >= 70 ? "text-amber-600" : "text-destructive"}`}>
-                                      {act.puntaje}%
-                                    </span>
+                                    {act.respuestaAlumno && (
+                                      <p className="text-xs text-muted-foreground pl-6 truncate">
+                                        Respondió: <span className="italic">"{act.respuestaAlumno}"</span>
+                                        {act.puntaje < 70 && act.respuestaCorrecta && (
+                                          <span className="text-emerald-600 dark:text-emerald-400"> · Correcta: "{act.respuestaCorrecta}"</span>
+                                        )}
+                                      </p>
+                                    )}
                                   </li>
                                 ))}
                               </ul>
@@ -761,16 +894,23 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                                       {sesion.actividades.length > 0 ? (
                                         <ul className="space-y-2 list-none p-0">
                                           {sesion.actividades.map((act, ai) => (
-                                            <li key={ai} className="flex items-center justify-between gap-2">
-                                              <div className="flex items-center gap-2 min-w-0">
-                                                {act.puntaje >= 70
-                                                  ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" aria-hidden="true" />
-                                                  : <XCircle className="w-4 h-4 text-destructive shrink-0" aria-hidden="true" />}
-                                                <span className="text-sm text-foreground truncate">{act.titulo}</span>
+                                            <li key={ai} className="space-y-0.5">
+                                              <div className="flex items-center justify-between gap-2">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                  {act.puntaje >= 70
+                                                    ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" aria-hidden="true" />
+                                                    : <XCircle className="w-4 h-4 text-destructive shrink-0" aria-hidden="true" />}
+                                                  <span className="text-sm text-foreground truncate">{act.titulo}</span>
+                                                </div>
+                                                <span className={`text-sm font-semibold shrink-0 ${act.puntaje >= 90 ? "text-success" : act.puntaje >= 70 ? "text-amber-600" : "text-destructive"}`}>
+                                                  {act.puntaje}%
+                                                </span>
                                               </div>
-                                              <span className={`text-sm font-semibold shrink-0 ${act.puntaje >= 90 ? "text-success" : act.puntaje >= 70 ? "text-amber-600" : "text-destructive"}`}>
-                                                {act.puntaje}%
-                                              </span>
+                                              {act.respuestaAlumno && (
+                                                <p className="text-xs text-muted-foreground pl-6 truncate">
+                                                  Respondió: <span className="italic">"{act.respuestaAlumno}"</span>
+                                                </p>
+                                              )}
                                             </li>
                                           ))}
                                         </ul>
