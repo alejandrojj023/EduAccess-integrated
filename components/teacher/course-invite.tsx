@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
+import { useAccessibility } from "@/lib/accessibility-context"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -19,6 +20,10 @@ import {
   CheckCircle2,
   XCircle,
   UserPlus,
+  Volume2,
+  Pause,
+  Play,
+  RotateCcw,
 } from "lucide-react"
 
 interface CourseInviteProps {
@@ -49,6 +54,8 @@ const ESTADO_CONFIG = {
 
 export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps) {
   const { user } = useAuth()
+  const { speak, stopSpeak, settings } = useAccessibility()
+  const [inviteAudioState, setInviteAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
 
   const [tab, setTab] = useState<"email" | "list">("email")
 
@@ -201,10 +208,28 @@ export function CourseInvite({ courseId, courseName, onBack }: CourseInviteProps
             aria-label="Volver">
             <ArrowLeft className="w-4 h-4" aria-hidden="true" />
           </button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-base font-bold text-foreground leading-none">Invitar Alumnos</h1>
             {courseName && <p className="text-xs text-muted-foreground mt-0.5">{courseName}</p>}
           </div>
+          {settings.voiceEnabled && (
+            <button type="button"
+              onClick={async () => {
+                const text = `Invitar alumnos al curso ${courseName ?? ""}. Busca por correo electrónico o selecciona de tu lista de alumnos.`
+                if (inviteAudioState === "playing") { stopSpeak(); setInviteAudioState("paused") }
+                else { setInviteAudioState("playing"); await speak(text); setInviteAudioState("ended") }
+              }}
+              aria-label={inviteAudioState === "playing" ? "Pausar" : inviteAudioState === "paused" ? "Reanudar" : inviteAudioState === "ended" ? "Repetir" : "Escuchar instrucciones"}
+              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
+              {inviteAudioState === "playing" ? <Pause className="w-4 h-4" aria-hidden="true" />
+               : inviteAudioState === "paused" ? <Play className="w-4 h-4" aria-hidden="true" />
+               : inviteAudioState === "ended"  ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+               : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+              <span className="hidden sm:inline">
+                {inviteAudioState === "playing" ? "Pausar" : inviteAudioState === "paused" ? "Reanudar" : inviteAudioState === "ended" ? "Repetir" : "Escuchar"}
+              </span>
+            </button>
+          )}
         </div>
       </header>
 

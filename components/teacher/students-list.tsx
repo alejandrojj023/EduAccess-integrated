@@ -18,6 +18,9 @@ import { supabase } from "@/lib/supabase"
 import {
   ArrowLeft,
   Volume2,
+  Pause,
+  Play,
+  RotateCcw,
   Search,
   User,
   TrendingUp,
@@ -42,8 +45,9 @@ interface StudentsListProps {
 export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
   const { students, loading } = useStudents()
   const [searchQuery, setSearchQuery] = useState("")
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
   const { user } = useAuth()
+  const [studentsAudioState, setStudentsAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
 
   const [selectorAbierto,    setSelectorAbierto]    = useState(false)
   const [cursosDisponibles,  setCursosDisponibles]  = useState<CursoDelAlumno[]>([])
@@ -105,8 +109,10 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
   const hoverPromedio = useSpeakOnHover(`Progreso promedio: porcentaje de avance de todos tus alumnos. Actualmente ${averageProgress}%`)
   const hoverApoyo    = useSpeakOnHover(`Estudiantes que necesitan apoyo adicional: ${studentsNeedingSupport}`)
 
-  const handleReadInstructions = () => {
-    speak(`Lista de estudiantes. Tienes ${students.length} estudiantes. El progreso promedio es ${averageProgress} por ciento. ${studentsNeedingSupport} estudiantes necesitan apoyo adicional.`)
+  const handleReadInstructions = async () => {
+    const text = `Lista de estudiantes. Tienes ${students.length} estudiantes. El progreso promedio es ${averageProgress} por ciento. ${studentsNeedingSupport} estudiantes necesitan apoyo adicional.`
+    if (studentsAudioState === "playing") { stopSpeak(); setStudentsAudioState("paused") }
+    else { setStudentsAudioState("playing"); await speak(text); setStudentsAudioState("ended") }
   }
 
   return (
@@ -126,10 +132,15 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
           </div>
           {settings.voiceEnabled && (
             <button type="button" onClick={handleReadInstructions}
-              aria-label="Escuchar resumen de estudiantes"
+              aria-label={studentsAudioState === "playing" ? "Pausar" : studentsAudioState === "paused" ? "Reanudar" : studentsAudioState === "ended" ? "Repetir" : "Escuchar resumen de estudiantes"}
               className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
-              <Volume2 className="w-4 h-4" aria-hidden="true" />
-              <span className="hidden sm:inline" aria-hidden="true">Escuchar</span>
+              {studentsAudioState === "playing" ? <Pause className="w-4 h-4" aria-hidden="true" />
+               : studentsAudioState === "paused" ? <Play className="w-4 h-4" aria-hidden="true" />
+               : studentsAudioState === "ended"  ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+               : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+              <span className="hidden sm:inline" aria-hidden="true">
+                {studentsAudioState === "playing" ? "Pausar" : studentsAudioState === "paused" ? "Reanudar" : studentsAudioState === "ended" ? "Repetir" : "Escuchar"}
+              </span>
             </button>
           )}
         </div>

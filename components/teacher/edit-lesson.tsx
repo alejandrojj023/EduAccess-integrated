@@ -9,7 +9,7 @@ import {
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
-import { ArrowLeft, Save, Volume2, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip, BookMarked, Pencil, ImageIcon, List, ListOrdered, HelpCircle, PencilLine, Mic, AlignLeft, Upload, X } from "lucide-react"
+import { ArrowLeft, Save, Volume2, Pause, Play, RotateCcw, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip, BookMarked, Pencil, ImageIcon, List, ListOrdered, HelpCircle, PencilLine, Mic, AlignLeft, Upload, X } from "lucide-react"
 import { parseActivityConfig, serializeActivityConfig } from "@/lib/activity-config"
 import { ActivityConfigForm, ActivityOption, SequenceStep, getActivitySpeakText } from "@/components/teacher/activity-config-form"
 
@@ -102,8 +102,10 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
   const [actSequenceCount,        setActSequenceCount]        = useState<3 | 4 | 5>(3)
   const [actSequenceSteps,        setActSequenceSteps]        = useState<SequenceStep[]>([])
   const seqInputRefs = useRef<(HTMLInputElement | null)[]>([])
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
   const { user } = useAuth()
+  const [editLessonAudioState,   setEditLessonAudioState]   = useState<"idle" | "playing" | "paused" | "ended">("idle")
+  const [actSectionAudioState,   setActSectionAudioState]   = useState<"idle" | "playing" | "paused" | "ended">("idle")
 
   // Image upload state
   const [actImageFile,        setActImageFile]        = useState<File | null>(null)
@@ -546,11 +548,20 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
             </div>
             {settings.voiceEnabled && (
               <button type="button"
-                onClick={() => speak(getActivitySpeakText(configuringType.type, configuringType.label))}
-                aria-label="Escuchar instrucciones de la sección"
+                onClick={async () => {
+                  const text = getActivitySpeakText(configuringType.type, configuringType.label)
+                  if (actSectionAudioState === "playing") { stopSpeak(); setActSectionAudioState("paused") }
+                  else { setActSectionAudioState("playing"); await speak(text); setActSectionAudioState("ended") }
+                }}
+                aria-label={actSectionAudioState === "playing" ? "Pausar" : actSectionAudioState === "paused" ? "Reanudar" : actSectionAudioState === "ended" ? "Repetir" : "Escuchar instrucciones de la sección"}
                 className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
-                <Volume2 className="w-4 h-4" aria-hidden="true" />
-                <span className="hidden sm:inline" aria-hidden="true">Escuchar</span>
+                {actSectionAudioState === "playing" ? <Pause className="w-4 h-4" aria-hidden="true" />
+                 : actSectionAudioState === "paused" ? <Play className="w-4 h-4" aria-hidden="true" />
+                 : actSectionAudioState === "ended"  ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+                 : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+                <span className="hidden sm:inline" aria-hidden="true">
+                  {actSectionAudioState === "playing" ? "Pausar" : actSectionAudioState === "paused" ? "Reanudar" : actSectionAudioState === "ended" ? "Repetir" : "Escuchar"}
+                </span>
               </button>
             )}
           </div>
@@ -594,6 +605,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
             onSequenceStepsChange={setActSequenceSteps}
             seqInputRefs={seqInputRefs}
             speak={speak}
+            stopSpeak={stopSpeak}
             showValidation={attemptedSave}
             onDirty={() => setActivityDirty(true)}
           />
@@ -670,11 +682,20 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
           </div>
           {settings.voiceEnabled && (
             <button type="button"
-              onClick={() => speak("Editar leccion. Modifica el titulo, las instrucciones y las actividades. Luego presiona Guardar Cambios.")}
-              aria-label="Escuchar instrucciones de la sección"
+              onClick={async () => {
+                const text = "Editar leccion. Modifica el titulo, las instrucciones y las actividades. Luego presiona Guardar Cambios."
+                if (editLessonAudioState === "playing") { stopSpeak(); setEditLessonAudioState("paused") }
+                else { setEditLessonAudioState("playing"); await speak(text); setEditLessonAudioState("ended") }
+              }}
+              aria-label={editLessonAudioState === "playing" ? "Pausar" : editLessonAudioState === "paused" ? "Reanudar" : editLessonAudioState === "ended" ? "Repetir" : "Escuchar instrucciones de la sección"}
               className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
-              <Volume2 className="w-4 h-4" aria-hidden="true" />
-              <span className="hidden sm:inline" aria-hidden="true">Escuchar</span>
+              {editLessonAudioState === "playing" ? <Pause className="w-4 h-4" aria-hidden="true" />
+               : editLessonAudioState === "paused" ? <Play className="w-4 h-4" aria-hidden="true" />
+               : editLessonAudioState === "ended"  ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+               : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+              <span className="hidden sm:inline" aria-hidden="true">
+                {editLessonAudioState === "playing" ? "Pausar" : editLessonAudioState === "paused" ? "Reanudar" : editLessonAudioState === "ended" ? "Repetir" : "Escuchar"}
+              </span>
             </button>
           )}
         </div>

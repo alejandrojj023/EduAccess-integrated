@@ -15,6 +15,9 @@ import {
   LogOut,
   Settings,
   Volume2,
+  Pause,
+  Play,
+  RotateCcw,
   TrendingUp,
   Clock,
   CheckCircle,
@@ -30,12 +33,13 @@ interface TeacherDashboardProps {
 
 export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps) {
   const { user } = useAuth()
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
   const { stats: dashboardStats, recentActivity, loading, refetch } = useTeacherDashboard()
 
   const [avatarColor] = useState<string | null>(() =>
     typeof window !== "undefined" ? localStorage.getItem("ea_avatar_color") : null
   )
+  const [dashAudioState, setDashAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
 
   const hoverCursos      = useSpeakOnHover("Cursos: gestionar tus cursos y lecciones")
   const hoverLecciones   = useSpeakOnHover("Lecciones: ver y editar lecciones de tus cursos")
@@ -78,11 +82,17 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
     },
   ], [dashboardStats, hoverEstudiantesCard, hoverCursosCard, hoverProgresoCard])
 
-  const handleReadInstructions = useCallback(() => {
-    speak(
-      `Panel del docente. Bienvenido ${user?.name}. Tienes ${dashboardStats.estudiantes} estudiantes, ${dashboardStats.cursos} cursos activos, y el progreso general es del ${dashboardStats.progresoGeneral}.`
-    )
-  }, [speak, user?.name, dashboardStats])
+  const handleReadInstructions = useCallback(async () => {
+    const text = `Panel del docente. Bienvenido ${user?.name}. Tienes ${dashboardStats.estudiantes} estudiantes, ${dashboardStats.cursos} cursos activos, y el progreso general es del ${dashboardStats.progresoGeneral}.`
+    if (dashAudioState === "playing") {
+      stopSpeak()
+      setDashAudioState("paused")
+    } else {
+      setDashAudioState("playing")
+      await speak(text)
+      setDashAudioState("ended")
+    }
+  }, [speak, stopSpeak, dashAudioState, user?.name, dashboardStats])
 
   const navItems = [
     { label: "Cursos",      sub: "Ver y gestionar",                                     Icon: FolderOpen,  screen: "courses",    hover: hoverCursos,      color: "bg-blue-100 group-hover:bg-blue-200",       icon: "text-blue-600"    },
@@ -115,10 +125,15 @@ export function TeacherDashboard({ onNavigate, onLogout }: TeacherDashboardProps
                 type="button"
                 onClick={handleReadInstructions}
                 className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
-                aria-label="Escuchar resumen"
+                aria-label={dashAudioState === "playing" ? "Pausar" : dashAudioState === "paused" ? "Reanudar" : dashAudioState === "ended" ? "Repetir" : "Escuchar resumen"}
               >
-                <Volume2 className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline text-xs">Escuchar</span>
+                {dashAudioState === "playing" ? <Pause    className="h-4 w-4" aria-hidden="true" />
+                 : dashAudioState === "paused"  ? <Play     className="h-4 w-4" aria-hidden="true" />
+                 : dashAudioState === "ended"   ? <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                 : <Volume2 className="h-4 w-4" aria-hidden="true" />}
+                <span className="hidden sm:inline text-xs">
+                  {dashAudioState === "playing" ? "Pausar" : dashAudioState === "paused" ? "Reanudar" : dashAudioState === "ended" ? "Repetir" : "Escuchar"}
+                </span>
               </button>
             )}
             <AccessibleTooltip label="Ajustes de accesibilidad">

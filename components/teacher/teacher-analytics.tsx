@@ -18,7 +18,7 @@ import { useAnalytics, type AnalyticsFilters } from "@/hooks/teacher/use-analyti
 import { fechaTijuana } from "@/lib/utils"
 import { useSpeakOnHover } from "@/components/ui/accessible-tooltip"
 import {
-  ArrowLeft, Volume2, BarChart3, TrendingUp, Clock,
+  ArrowLeft, Volume2, Pause, Play, RotateCcw, BarChart3, TrendingUp, Clock,
   CheckCircle, Users, Target, SlidersHorizontal,
 } from "lucide-react"
 import {
@@ -85,11 +85,12 @@ function ConfigBtn({ children }: { children: React.ReactNode }) {
 }
 
 export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
   const { user }            = useAuth()
 
   // ── Filtros globales ────────────────────────────────────────
   const [showFilters, setShowFilters] = useState(false)
+  const [analyticsAudioState, setAnalyticsAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
   const [grupoId,    setGrupoId]    = useState<string | null>(null)
   const [cursoId,    setCursoId]    = useState<string | null>(null)
   const [alumnoId,   setAlumnoId]   = useState<string | null>(null)
@@ -334,10 +335,20 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
           </div>
           {settings.voiceEnabled && (
             <button type="button"
-              onClick={() => speak(`Analíticas. Promedio correcto: ${overallStats.averageCorrect}%. Intentos totales: ${overallStats.totalAttempts}. Tiempo promedio: ${overallStats.averageTime}. Estudiantes activos: ${overallStats.activeStudents}.`)}
-              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
-              <Volume2 className="w-4 h-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Escuchar</span>
+              onClick={async () => {
+                const text = `Analíticas. Promedio correcto: ${overallStats.averageCorrect}%. Intentos totales: ${overallStats.totalAttempts}. Tiempo promedio: ${overallStats.averageTime}. Estudiantes activos: ${overallStats.activeStudents}.`
+                if (analyticsAudioState === "playing") { stopSpeak(); setAnalyticsAudioState("paused") }
+                else { setAnalyticsAudioState("playing"); await speak(text); setAnalyticsAudioState("ended") }
+              }}
+              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
+              aria-label={analyticsAudioState === "playing" ? "Pausar" : analyticsAudioState === "paused" ? "Reanudar" : analyticsAudioState === "ended" ? "Repetir" : "Escuchar analíticas"}>
+              {analyticsAudioState === "playing" ? <Pause className="w-4 h-4" aria-hidden="true" />
+               : analyticsAudioState === "paused" ? <Play className="w-4 h-4" aria-hidden="true" />
+               : analyticsAudioState === "ended"  ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+               : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+              <span className="hidden sm:inline">
+                {analyticsAudioState === "playing" ? "Pausar" : analyticsAudioState === "paused" ? "Reanudar" : analyticsAudioState === "ended" ? "Repetir" : "Escuchar"}
+              </span>
             </button>
           )}
         </div>

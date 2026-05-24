@@ -3,7 +3,7 @@
 import { useRef, useState } from "react"
 import { Input } from "@/components/ui/input"
 import {
-  Volume2, ImageIcon, Plus, Trash2, Upload, AlignLeft, Search, GripVertical, X,
+  Volume2, Pause, Play, RotateCcw, ImageIcon, Plus, Trash2, Upload, AlignLeft, Search, GripVertical, X,
 } from "lucide-react"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -95,7 +95,8 @@ export interface ActivityConfigFormProps {
   seqInputRefs: React.MutableRefObject<(HTMLInputElement | null)[]>
 
   // TTS
-  speak: (text: string) => void
+  speak: (text: string) => Promise<void>
+  stopSpeak: () => void
 
   // Validación al guardar
   showValidation?: boolean
@@ -325,9 +326,13 @@ export function ActivityConfigForm({
   wsWords, wsInput, onWsInputChange, onAddWsWord, onRemoveWsWord,
   sequenceCount, onSequenceCountChange, sequenceSteps, onSequenceStepsChange, seqInputRefs,
   speak,
+  stopSpeak,
   showValidation = false,
   onDirty,
 }: ActivityConfigFormProps) {
+
+  const [soundAudioState, setSoundAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
+  const [voiceAudioState, setVoiceAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
 
   const [distInput, setDistInput] = useState("")
   const [voiceAnswerInput, setVoiceAnswerInput] = useState("")
@@ -524,12 +529,19 @@ export function ActivityConfigForm({
                 className="border-border flex-1"
               />
               <button type="button"
-                onClick={() => correctAnswer.trim() && speak(correctAnswer.trim())}
+                onClick={async () => {
+                  if (!correctAnswer.trim()) return
+                  if (soundAudioState === "playing") { stopSpeak(); setSoundAudioState("paused") }
+                  else { setSoundAudioState("playing"); await speak(correctAnswer.trim()); setSoundAudioState("ended") }
+                }}
                 disabled={!correctAnswer.trim()}
-                aria-label="Escuchar oración"
+                aria-label={soundAudioState === "playing" ? "Pausar oración" : soundAudioState === "paused" ? "Reanudar oración" : soundAudioState === "ended" ? "Repetir oración" : "Escuchar oración"}
                 className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted active:scale-[0.98] disabled:opacity-50 shrink-0 transition-all">
-                <Volume2 className="w-4 h-4" aria-hidden="true" />
-                Escuchar
+                {soundAudioState === "playing" ? <Pause className="w-4 h-4" aria-hidden="true" />
+                 : soundAudioState === "paused" ? <Play className="w-4 h-4" aria-hidden="true" />
+                 : soundAudioState === "ended"  ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+                 : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+                {soundAudioState === "playing" ? "Pausar" : soundAudioState === "paused" ? "Reanudar" : soundAudioState === "ended" ? "Repetir" : "Escuchar"}
               </button>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -634,12 +646,19 @@ export function ActivityConfigForm({
                 className="border-border flex-1"
               />
               <button type="button"
-                onClick={() => voiceEnunciado.trim() && speak(voiceEnunciado.trim())}
+                onClick={async () => {
+                  if (!voiceEnunciado.trim()) return
+                  if (voiceAudioState === "playing") { stopSpeak(); setVoiceAudioState("paused") }
+                  else { setVoiceAudioState("playing"); await speak(voiceEnunciado.trim()); setVoiceAudioState("ended") }
+                }}
                 disabled={!voiceEnunciado.trim()}
-                aria-label="Escuchar pregunta"
+                aria-label={voiceAudioState === "playing" ? "Pausar pregunta" : voiceAudioState === "paused" ? "Reanudar pregunta" : voiceAudioState === "ended" ? "Repetir pregunta" : "Escuchar pregunta"}
                 className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted active:scale-[0.98] disabled:opacity-50 shrink-0 transition-all">
-                <Volume2 className="w-4 h-4" aria-hidden="true" />
-                Escuchar
+                {voiceAudioState === "playing" ? <Pause className="w-4 h-4" aria-hidden="true" />
+                 : voiceAudioState === "paused" ? <Play className="w-4 h-4" aria-hidden="true" />
+                 : voiceAudioState === "ended"  ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+                 : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+                {voiceAudioState === "playing" ? "Pausar" : voiceAudioState === "paused" ? "Reanudar" : voiceAudioState === "ended" ? "Repetir" : "Escuchar"}
               </button>
             </div>
             {voiceEnunciadoBlurred && !voiceEnunciado.trim() && (

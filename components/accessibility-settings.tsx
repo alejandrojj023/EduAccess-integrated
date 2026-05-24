@@ -9,7 +9,7 @@ import { useAccessibility } from "@/lib/accessibility-context"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import {
-  ArrowLeft, Volume2, Type, Eye, EyeOff, Mic, Sparkles, Check,
+  ArrowLeft, Volume2, Pause, Play, RotateCcw, Type, Eye, EyeOff, Mic, Sparkles, Check,
   User, Settings, Gauge, MessageSquare,
   Sun, Moon, Contrast, X, Pencil, Lock, AlertCircle,
 } from "lucide-react"
@@ -50,9 +50,11 @@ function loadAvatarColor(): string | null {
 // ═══════════════════════════════════════════════════════════
 
 export function AccessibilitySettings({ onBack }: AccessibilitySettingsProps) {
-  const { settings, updateSettings, speak } = useAccessibility()
+  const { settings, updateSettings, speak, stopSpeak } = useAccessibility()
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>("accesibilidad")
+  const [settingsAudioState, setSettingsAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
+  const [testAudioState,     setTestAudioState]     = useState<"idle" | "playing" | "paused" | "ended">("idle")
 
   // ── Profile state ────────────────────────────────────────
   const [editName, setEditName] = useState(user?.name ?? "")
@@ -181,11 +183,19 @@ export function AccessibilitySettings({ onBack }: AccessibilitySettingsProps) {
             <Button
               variant="outline"
               size="lg"
-              onClick={() => speak("Ajustes. Tienes dos secciones: Perfil y Accesibilidad.")}
+              onClick={async () => {
+                const text = "Ajustes. Tienes dos secciones: Perfil y Accesibilidad."
+                if (settingsAudioState === "playing") { stopSpeak(); setSettingsAudioState("paused") }
+                else { setSettingsAudioState("playing"); await speak(text); setSettingsAudioState("ended") }
+              }}
               className="h-12"
+              aria-label={settingsAudioState === "playing" ? "Pausar" : settingsAudioState === "paused" ? "Reanudar" : settingsAudioState === "ended" ? "Repetir" : "Escuchar instrucciones"}
             >
-              <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />
-              Escuchar
+              {settingsAudioState === "playing" ? <Pause    className="w-5 h-5 mr-2" aria-hidden="true" />
+               : settingsAudioState === "paused"  ? <Play     className="w-5 h-5 mr-2" aria-hidden="true" />
+               : settingsAudioState === "ended"   ? <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+               : <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />}
+              {settingsAudioState === "playing" ? "Pausar" : settingsAudioState === "paused" ? "Reanudar" : settingsAudioState === "ended" ? "Repetir" : "Escuchar"}
             </Button>
           )}
         </div>
@@ -596,10 +606,18 @@ export function AccessibilitySettings({ onBack }: AccessibilitySettingsProps) {
                       <Button
                         variant="outline"
                         className="w-full h-11 border-2"
-                        onClick={() => speak("Esta es una prueba de lectura en voz alta. La configuración funciona correctamente.")}
+                        onClick={async () => {
+                          const text = "Esta es una prueba de lectura en voz alta. La configuración funciona correctamente."
+                          if (testAudioState === "playing") { stopSpeak(); setTestAudioState("paused") }
+                          else { setTestAudioState("playing"); await speak(text); setTestAudioState("ended") }
+                        }}
+                        aria-label={testAudioState === "playing" ? "Pausar prueba" : testAudioState === "paused" ? "Reanudar prueba" : testAudioState === "ended" ? "Repetir prueba" : "Probar voz"}
                       >
-                        <Volume2 className="w-4 h-4 mr-2" aria-hidden="true" />
-                        Probar voz
+                        {testAudioState === "playing" ? <Pause    className="w-4 h-4 mr-2" aria-hidden="true" />
+                         : testAudioState === "paused"  ? <Play     className="w-4 h-4 mr-2" aria-hidden="true" />
+                         : testAudioState === "ended"   ? <RotateCcw className="w-4 h-4 mr-2" aria-hidden="true" />
+                         : <Volume2 className="w-4 h-4 mr-2" aria-hidden="true" />}
+                        {testAudioState === "playing" ? "Pausar" : testAudioState === "paused" ? "Reanudar" : testAudioState === "ended" ? "Repetir" : "Probar voz"}
                       </Button>
                     </div>
                   </>

@@ -8,6 +8,9 @@ import { useAccessibility } from "@/lib/accessibility-context"
 import { supabase } from "@/lib/supabase"
 import {
   Volume2,
+  Pause,
+  Play,
+  RotateCcw,
   Check,
   ChevronRight,
   Eye,
@@ -86,16 +89,35 @@ export function InitialTest({ onComplete }: InitialTestProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [isComplete, setIsComplete] = useState(false)
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
+  const [testAudioState,  setTestAudioState]  = useState<"idle" | "playing" | "paused" | "ended">("idle")
+  const [soundAudioState, setSoundAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
 
   const question = testQuestions[currentQuestion]
   const totalQuestions = testQuestions.length
   const progress = ((currentQuestion + 1) / totalQuestions) * 100
 
-  const handleReadInstructions = () => {
-    speak(
-      `Test inicial. Pregunta ${currentQuestion + 1} de ${totalQuestions}. ${question.question}`
-    )
+  const handleReadInstructions = async () => {
+    const text = `Test inicial. Pregunta ${currentQuestion + 1} de ${totalQuestions}. ${question.question}`
+    if (testAudioState === "playing") {
+      stopSpeak()
+      setTestAudioState("paused")
+    } else {
+      setTestAudioState("playing")
+      await speak(text)
+      setTestAudioState("ended")
+    }
+  }
+
+  const handleSoundAudio = async () => {
+    if (soundAudioState === "playing") {
+      stopSpeak()
+      setSoundAudioState("paused")
+    } else {
+      setSoundAudioState("playing")
+      await speak("Guau guau guau")
+      setSoundAudioState("ended")
+    }
   }
 
   const handleSelectAnswer = (optionId: string) => {
@@ -111,6 +133,8 @@ export function InitialTest({ onComplete }: InitialTestProps) {
     if (currentQuestion < totalQuestions - 1) {
       setCurrentQuestion(currentQuestion + 1)
       setSelectedAnswer(null)
+      setTestAudioState("idle")
+      setSoundAudioState("idle")
     } else {
       // Test completado — enviar resultados al backend
       const respuestas = testQuestions.map((q) => {
@@ -214,9 +238,13 @@ export function InitialTest({ onComplete }: InitialTestProps) {
                 size="lg"
                 onClick={handleReadInstructions}
                 className="h-12"
+                aria-label={testAudioState === "playing" ? "Pausar" : testAudioState === "paused" ? "Reanudar" : testAudioState === "ended" ? "Repetir" : "Escuchar instrucciones"}
               >
-                <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />
-                Escuchar
+                {testAudioState === "playing" ? <Pause    className="w-5 h-5 mr-2" aria-hidden="true" />
+                 : testAudioState === "paused"  ? <Play     className="w-5 h-5 mr-2" aria-hidden="true" />
+                 : testAudioState === "ended"   ? <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                 : <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />}
+                {testAudioState === "playing" ? "Pausar" : testAudioState === "paused" ? "Reanudar" : testAudioState === "ended" ? "Repetir" : "Escuchar"}
               </Button>
             )}
           </div>
@@ -268,10 +296,14 @@ export function InitialTest({ onComplete }: InitialTestProps) {
                   variant="outline"
                   size="lg"
                   className="h-14 text-lg border-2"
-                  onClick={() => speak("Guau guau guau")}
+                  onClick={handleSoundAudio}
+                  aria-label={soundAudioState === "playing" ? "Pausar sonido" : soundAudioState === "paused" ? "Reanudar sonido" : soundAudioState === "ended" ? "Repetir sonido" : "Escuchar sonido"}
                 >
-                  <Volume2 className="w-6 h-6 mr-3" aria-hidden="true" />
-                  Escuchar Sonido
+                  {soundAudioState === "playing" ? <Pause    className="w-6 h-6 mr-3" aria-hidden="true" />
+                   : soundAudioState === "paused"  ? <Play     className="w-6 h-6 mr-3" aria-hidden="true" />
+                   : soundAudioState === "ended"   ? <RotateCcw className="w-6 h-6 mr-3" aria-hidden="true" />
+                   : <Volume2 className="w-6 h-6 mr-3" aria-hidden="true" />}
+                  {soundAudioState === "playing" ? "Pausar" : soundAudioState === "paused" ? "Reanudar" : soundAudioState === "ended" ? "Repetir" : "Escuchar Sonido"}
                 </Button>
               </div>
             </CardContent>

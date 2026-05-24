@@ -8,6 +8,9 @@ import { supabase } from "@/lib/supabase"
 import {
   ArrowLeft,
   Volume2,
+  Pause,
+  Play,
+  RotateCcw,
   Star,
   CheckCircle,
   Clock,
@@ -67,7 +70,7 @@ function StarRow({ stars, size = "w-5 h-5" }: { stars: number | null; size?: str
 
 export function StudentProgress({ onBack }: StudentProgressProps) {
   const { user } = useAuth()
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
   const { lessons: lessonProgressData, stats, loading } = useStudentProgress()
   const localColor = typeof window !== "undefined" ? localStorage.getItem("ea_avatar_color") : null
 
@@ -76,6 +79,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
   const [attemptDetails, setAttemptDetails] = useState<Record<string, ActivityAttemptDetail[]>>({})
   const [loadingAttempt, setLoadingAttempt] = useState<string | null>(null)
   const [animatedProgress, setAnimatedProgress] = useState(0)
+  const [progressAudioState, setProgressAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
 
   const {
     completedLessons,
@@ -136,10 +140,16 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
     setLoadingAttempt(null)
   }
 
-  const handleReadInstructions = () => {
-    speak(
-      `Tu reporte de progreso. Has completado ${completedLessons} de ${totalLessons} lecciones. Tu puntaje promedio es ${averageScore} por ciento. Tu racha actual es de ${currentStreak} dias.`
-    )
+  const handleReadInstructions = async () => {
+    const text = `Tu reporte de progreso. Has completado ${completedLessons} de ${totalLessons} lecciones. Tu puntaje promedio es ${averageScore} por ciento. Tu racha actual es de ${currentStreak} dias.`
+    if (progressAudioState === "playing") {
+      stopSpeak()
+      setProgressAudioState("paused")
+    } else {
+      setProgressAudioState("playing")
+      await speak(text)
+      setProgressAudioState("ended")
+    }
   }
 
   const statCards = [
@@ -198,10 +208,19 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
             </div>
           </div>
           {settings.voiceEnabled && (
-            <button type="button" onClick={handleReadInstructions}
-              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
-              <Volume2 className="w-4 h-4" aria-hidden />
-              <span className="hidden sm:inline">Escuchar</span>
+            <button
+              type="button"
+              onClick={handleReadInstructions}
+              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
+              aria-label={progressAudioState === "playing" ? "Pausar" : progressAudioState === "paused" ? "Reanudar" : progressAudioState === "ended" ? "Repetir" : "Escuchar resumen"}
+            >
+              {progressAudioState === "playing" ? <Pause    className="w-4 h-4" aria-hidden />
+               : progressAudioState === "paused"  ? <Play     className="w-4 h-4" aria-hidden />
+               : progressAudioState === "ended"   ? <RotateCcw className="w-4 h-4" aria-hidden />
+               : <Volume2 className="w-4 h-4" aria-hidden />}
+              <span className="hidden sm:inline">
+                {progressAudioState === "playing" ? "Pausar" : progressAudioState === "paused" ? "Reanudar" : progressAudioState === "ended" ? "Repetir" : "Escuchar"}
+              </span>
             </button>
           )}
         </div>

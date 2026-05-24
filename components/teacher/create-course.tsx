@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
-import { ArrowLeft, Volume2, Copy, Check } from "lucide-react"
+import { ArrowLeft, Volume2, Pause, Play, RotateCcw, Copy, Check } from "lucide-react"
 
 interface CreateCourseProps {
   onBack: () => void
@@ -27,7 +27,8 @@ const gradoShort: Record<string, string> = { "1": "1ro", "2": "2do", "3": "3ro" 
 
 export function CreateCourse({ onBack, onSave }: CreateCourseProps) {
   const { user } = useAuth()
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
+  const [createCourseAudioState, setCreateCourseAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
 
   const [name,        setName]        = useState("")
   const [description, setDescription] = useState("")
@@ -130,10 +131,20 @@ export function CreateCourse({ onBack, onSave }: CreateCourseProps) {
           </div>
           {settings.voiceEnabled && (
             <button type="button"
-              onClick={() => speak("Crear nuevo curso. Escribe el nombre, descripción, elige el grado, sección y materia.")}
-              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
-              <Volume2 className="w-4 h-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Escuchar</span>
+              onClick={async () => {
+                const text = "Crear nuevo curso. Escribe el nombre, descripción, elige el grado, sección y materia."
+                if (createCourseAudioState === "playing") { stopSpeak(); setCreateCourseAudioState("paused") }
+                else { setCreateCourseAudioState("playing"); await speak(text); setCreateCourseAudioState("ended") }
+              }}
+              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
+              aria-label={createCourseAudioState === "playing" ? "Pausar" : createCourseAudioState === "paused" ? "Reanudar" : createCourseAudioState === "ended" ? "Repetir" : "Escuchar instrucciones"}>
+              {createCourseAudioState === "playing" ? <Pause className="w-4 h-4" aria-hidden="true" />
+               : createCourseAudioState === "paused" ? <Play className="w-4 h-4" aria-hidden="true" />
+               : createCourseAudioState === "ended"  ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+               : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+              <span className="hidden sm:inline">
+                {createCourseAudioState === "playing" ? "Pausar" : createCourseAudioState === "paused" ? "Reanudar" : createCourseAudioState === "ended" ? "Repetir" : "Escuchar"}
+              </span>
             </button>
           )}
         </div>

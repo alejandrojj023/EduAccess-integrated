@@ -13,6 +13,9 @@ import {
   ChevronRight,
   Calendar,
   Volume2,
+  Pause,
+  Play,
+  RotateCcw,
   Star,
   BookOpen,
 } from "lucide-react"
@@ -43,7 +46,7 @@ function starColor(estrellas: number | null): string {
 
 export function StudentCalendar({ onBack }: StudentCalendarProps) {
   const { user } = useAuth()
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
 
   const today    = useMemo(() => new Date(), [])
   const todayStr = useMemo(() => fechaTijuana(today), [today])
@@ -52,6 +55,7 @@ export function StudentCalendar({ onBack }: StudentCalendarProps) {
   const [month, setMonth] = useState(today.getMonth())
   const [loading, setLoading] = useState(true)
   const [completions, setCompletions] = useState<LessonEntry[]>([])
+  const [calAudioState, setCalAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
 
   // ── Month cache: avoids re-fetching already loaded months ──
   const cache = useRef<Record<string, LessonEntry[]>>({})
@@ -162,11 +166,27 @@ export function StudentCalendar({ onBack }: StudentCalendarProps) {
           {settings.voiceEnabled && (
             <button
               type="button"
-              onClick={() => speak(`Calendario de lecciones. ${MONTHS_ES[month]} ${year}. Completaste ${completions.length} lección${completions.length !== 1 ? "es" : ""} este mes.`)}
+              onClick={async () => {
+                const text = `Calendario de lecciones. ${MONTHS_ES[month]} ${year}. Completaste ${completions.length} lección${completions.length !== 1 ? "es" : ""} este mes.`
+                if (calAudioState === "playing") {
+                  stopSpeak()
+                  setCalAudioState("paused")
+                } else {
+                  setCalAudioState("playing")
+                  await speak(text)
+                  setCalAudioState("ended")
+                }
+              }}
               className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
+              aria-label={calAudioState === "playing" ? "Pausar" : calAudioState === "paused" ? "Reanudar" : calAudioState === "ended" ? "Repetir" : "Escuchar calendario"}
             >
-              <Volume2 className="w-4 h-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Escuchar</span>
+              {calAudioState === "playing" ? <Pause    className="w-4 h-4" aria-hidden="true" />
+               : calAudioState === "paused"  ? <Play     className="w-4 h-4" aria-hidden="true" />
+               : calAudioState === "ended"   ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+               : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+              <span className="hidden sm:inline">
+                {calAudioState === "playing" ? "Pausar" : calAudioState === "paused" ? "Reanudar" : calAudioState === "ended" ? "Repetir" : "Escuchar"}
+              </span>
             </button>
           )}
         </div>
