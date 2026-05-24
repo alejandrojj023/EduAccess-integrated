@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
-import { ArrowLeft, BookOpen, ChevronRight, CheckCircle2, Star, Lock } from "lucide-react"
+import { ArrowLeft, BookOpen, ChevronRight, CheckCircle2, Star, Lock, Volume2, Pause, Play, RotateCcw } from "lucide-react"
 import { VoiceAssistant } from "@/components/student/voice-assistant"
+import { useAccessibility } from "@/lib/accessibility-context"
 
 function StarRow({ stars, size = "w-4 h-4" }: { stars: number | null; size?: string }) {
   if (stars == null || stars === 0) return null
@@ -46,6 +47,8 @@ interface StudentCourseProps {
 
 export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: StudentCourseProps) {
   const { user } = useAuth()
+  const { speak, stopSpeak, settings } = useAccessibility()
+  const [courseAudioState, setCourseAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [loading, setLoading] = useState(true)
   const [highlightedLessonIdx, setHighlightedLessonIdx] = useState<number | null>(null)
@@ -98,6 +101,12 @@ export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: 
   const completadas = lessons.filter(l => l.pct_completado >= 100).length
   const overallPct  = lessons.length > 0 ? Math.round((completadas / lessons.length) * 100) : 0
 
+  async function handleCourseAudio() {
+    const text = `Curso: ${courseName ?? "Curso"}. ${completadas} de ${lessons.length} lecciones completadas. Progreso general: ${overallPct}%.`
+    if (courseAudioState === "playing") { stopSpeak(); setCourseAudioState("paused") }
+    else { setCourseAudioState("playing"); await speak(text); setCourseAudioState("ended") }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* ── HEADER ── */}
@@ -128,6 +137,22 @@ export function StudentCourse({ courseId, courseName, onSelectLesson, onBack }: 
               </div>
               <span className="text-xs font-black text-primary">{overallPct}%</span>
             </div>
+          )}
+          {settings.voiceEnabled && !loading && (
+            <button
+              type="button"
+              onClick={handleCourseAudio}
+              aria-label={courseAudioState === "playing" ? "Pausar" : courseAudioState === "paused" ? "Reanudar" : courseAudioState === "ended" ? "Repetir descripción del curso" : "Escuchar descripción del curso"}
+              className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98] shrink-0"
+            >
+              {courseAudioState === "playing" ? <Pause className="w-4 h-4" aria-hidden="true" />
+               : courseAudioState === "paused" ? <Play className="w-4 h-4" aria-hidden="true" />
+               : courseAudioState === "ended"  ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+               : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+              <span className="hidden sm:inline" aria-hidden="true">
+                {courseAudioState === "playing" ? "Pausar" : courseAudioState === "paused" ? "Reanudar" : courseAudioState === "ended" ? "Repetir" : "Escuchar"}
+              </span>
+            </button>
           )}
         </div>
       </header>

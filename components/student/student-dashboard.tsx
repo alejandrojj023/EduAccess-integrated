@@ -15,6 +15,8 @@ import { VoiceAssistant } from "@/components/student/voice-assistant"
 import {
   BookOpen,
   Play,
+  Pause,
+  RotateCcw,
   Volume2,
   Settings,
   LogOut,
@@ -32,7 +34,7 @@ interface StudentDashboardProps {
 
 export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps) {
   const { user } = useAuth()
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
   const { courses, gamification, loading } = useStudentDashboard()
 
   const [avatarColor] = useState<string | null>(() =>
@@ -41,6 +43,7 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
   const colorPerfil = gamification.colorPerfil ?? avatarColor
 
   const [pendingInvitations, setPendingInvitations] = useState(0)
+  const [dashAudioState, setDashAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
 
   useEffect(() => {
     if (!user) return
@@ -103,11 +106,17 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
     onNavigate(`course-${elegido.id}|${elegido.name}`)
   }, [courses, onNavigate])
 
-  const handleReadInstructions = useCallback(() => {
-    speak(
-      `Hola ${user?.name}! Tienes ${courses.length} cursos asignados. Tu nivel es ${nivelNombre} y llevas ${estrellasTotales} estrellas.`
-    )
-  }, [speak, user?.name, courses.length, nivelNombre, estrellasTotales])
+  const handleReadInstructions = useCallback(async () => {
+    const text = `Hola ${user?.name}! Tienes ${courses.length} cursos asignados. Tu nivel es ${nivelNombre} y llevas ${estrellasTotales} estrellas.`
+    if (dashAudioState === "playing") {
+      stopSpeak()
+      setDashAudioState("paused")
+    } else {
+      setDashAudioState("playing")
+      await speak(text)
+      setDashAudioState("ended")
+    }
+  }, [speak, stopSpeak, dashAudioState, user?.name, courses.length, nivelNombre, estrellasTotales])
 
   const initials = (user?.name ?? "E").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
   const firstName = user?.name?.split(" ")[0] ?? "Estudiante"
@@ -133,10 +142,15 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
                 type="button"
                 onClick={handleReadInstructions}
                 className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground active:scale-[0.98]"
-                aria-label="Escuchar resumen"
+                aria-label={dashAudioState === "playing" ? "Pausar" : dashAudioState === "paused" ? "Reanudar" : dashAudioState === "ended" ? "Repetir" : "Escuchar resumen"}
               >
-                <Volume2 className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline text-xs">Escuchar</span>
+                {dashAudioState === "playing" ? <Pause    className="h-4 w-4" aria-hidden="true" />
+                 : dashAudioState === "paused"  ? <Play     className="h-4 w-4" aria-hidden="true" />
+                 : dashAudioState === "ended"   ? <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                 : <Volume2 className="h-4 w-4" aria-hidden="true" />}
+                <span className="hidden sm:inline text-xs">
+                  {dashAudioState === "playing" ? "Pausar" : dashAudioState === "paused" ? "Reanudar" : dashAudioState === "ended" ? "Repetir" : "Escuchar"}
+                </span>
               </button>
             )}
             <button

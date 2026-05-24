@@ -8,8 +8,8 @@ import {
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useLessons } from "@/hooks/teacher/use-lessons"
 import {
-  ArrowLeft, Plus, Edit, Trash2, Volume2,
-  FileText, Play, CheckCircle, BookOpen,
+  ArrowLeft, Plus, Edit, Trash2, Volume2, Pause, Play, RotateCcw,
+  FileText, CheckCircle, BookOpen,
 } from "lucide-react"
 
 interface LessonManagementProps {
@@ -20,12 +20,15 @@ interface LessonManagementProps {
 
 export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagementProps) {
   const { lessons, loading, deleteLesson } = useLessons(courseId)
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
   const [lessonToDelete, setLessonToDelete] = useState<{ id: string; title: string } | null>(null)
+  const [lessonsAudioState, setLessonsAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
 
-  const handleReadInstructions = () => {
+  const handleReadInstructions = async () => {
     if (loading) { speak("Cargando lecciones, por favor espera."); return }
-    speak(`Gestión de lecciones. Tienes ${lessons.length} ${lessons.length === 1 ? "lección" : "lecciones"} en este curso.`)
+    const text = `Gestión de lecciones. Tienes ${lessons.length} ${lessons.length === 1 ? "lección" : "lecciones"} en este curso.`
+    if (lessonsAudioState === "playing") { stopSpeak(); setLessonsAudioState("paused") }
+    else { setLessonsAudioState("playing"); await speak(text); setLessonsAudioState("ended") }
   }
 
   const handleDeleteLesson = async () => {
@@ -58,10 +61,15 @@ export function LessonManagement({ courseId, onNavigate, onBack }: LessonManagem
           <div className="flex items-center gap-2">
             {settings.voiceEnabled && (
               <button type="button" onClick={handleReadInstructions}
-                aria-label="Escuchar descripción de lecciones"
+                aria-label={lessonsAudioState === "playing" ? "Pausar" : lessonsAudioState === "paused" ? "Reanudar" : lessonsAudioState === "ended" ? "Repetir" : "Escuchar descripción de lecciones"}
                 className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
-                <Volume2 className="w-4 h-4" aria-hidden="true" />
-                <span className="hidden sm:inline" aria-hidden="true">Escuchar</span>
+                {lessonsAudioState === "playing" ? <Pause className="w-4 h-4" aria-hidden="true" />
+                 : lessonsAudioState === "paused" ? <Play className="w-4 h-4" aria-hidden="true" />
+                 : lessonsAudioState === "ended"  ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+                 : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+                <span className="hidden sm:inline" aria-hidden="true">
+                  {lessonsAudioState === "playing" ? "Pausar" : lessonsAudioState === "paused" ? "Reanudar" : lessonsAudioState === "ended" ? "Repetir" : "Escuchar"}
+                </span>
               </button>
             )}
             <button type="button" onClick={() => onNavigate("create-lesson")}

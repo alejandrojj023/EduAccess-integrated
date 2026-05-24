@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
-import { ArrowLeft, BookOpen, CheckCircle2, XCircle, Hash } from "lucide-react"
+import { ArrowLeft, BookOpen, CheckCircle2, XCircle, Hash, Volume2, Pause, Play, RotateCcw } from "lucide-react"
 import { VoiceAssistant } from "@/components/student/voice-assistant"
+import { useAccessibility } from "@/lib/accessibility-context"
 
 interface CourseInvitation {
   id_invitacion: string
@@ -40,6 +41,25 @@ function getInitials(name: string): string {
 }
 
 export function JoinGroup({ onNavigate }: JoinGroupProps) {
+  const { speak, stopSpeak, settings } = useAccessibility()
+  const [joinAudioState, setJoinAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
+
+  const handleJoinAudio = async () => {
+    const text = courseInvitations.length === 0
+      ? "Aquí puedes unirte a un curso. Pídele a tu docente el código de 6 caracteres e ingrésalo en el campo. No tienes invitaciones pendientes."
+      : courseInvitations.length === 1
+        ? `Aquí puedes unirte a un curso. Tienes una invitación pendiente del curso ${courseInvitations[0].curso?.titulo ?? "desconocido"}, de ${courseInvitations[0].docente?.nombre ?? "tu docente"}.`
+        : `Aquí puedes unirte a un curso. Tienes ${courseInvitations.length} invitaciones pendientes. Puedes aceptarlas o rechazarlas desde aquí.`
+    if (joinAudioState === "playing") {
+      stopSpeak()
+      setJoinAudioState("paused")
+    } else {
+      setJoinAudioState("playing")
+      await speak(text)
+      setJoinAudioState("ended")
+    }
+  }
+
   const [courseCode,    setCourseCode]    = useState("")
   const [joiningCourse, setJoiningCourse] = useState(false)
   const [courseMsg,     setCourseMsg]     = useState<{ ok: boolean; text: string } | null>(null)
@@ -110,6 +130,22 @@ export function JoinGroup({ onNavigate }: JoinGroupProps) {
               <p className="text-xs text-muted-foreground mt-0.5">Código de curso o invitación</p>
             </div>
           </div>
+          {settings.voiceEnabled && !loadingCourseInv && (
+            <button
+              type="button"
+              onClick={handleJoinAudio}
+              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
+              aria-label={joinAudioState === "playing" ? "Pausar" : joinAudioState === "paused" ? "Reanudar" : joinAudioState === "ended" ? "Repetir" : "Escuchar instrucciones"}
+            >
+              {joinAudioState === "playing" ? <Pause    className="w-4 h-4" aria-hidden="true" />
+               : joinAudioState === "paused"  ? <Play     className="w-4 h-4" aria-hidden="true" />
+               : joinAudioState === "ended"   ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+               : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+              <span className="hidden sm:inline">
+                {joinAudioState === "playing" ? "Pausar" : joinAudioState === "paused" ? "Reanudar" : joinAudioState === "ended" ? "Repetir" : "Escuchar"}
+              </span>
+            </button>
+          )}
         </div>
       </header>
 

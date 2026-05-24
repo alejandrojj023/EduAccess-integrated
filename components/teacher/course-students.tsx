@@ -38,8 +38,13 @@ import {
   XCircle,
   Flame,
   Trophy,
+  Volume2,
+  Pause,
+  Play,
+  RotateCcw,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { useAccessibility } from "@/lib/accessibility-context"
 
 /* ─── Nivel nombres ─────────────────────────────────────────────────────── */
 const NIVEL_NOMBRES: Record<number, string> = {
@@ -158,6 +163,10 @@ function formatTiempo(seg: number): string | null {
 export function CourseStudents({ courseId, courseName, onBack, onInvite, openStudentId }: CourseStudentsProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { speak, stopSpeak, settings } = useAccessibility()
+  const [studentsAudioState, setStudentsAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
+  const [reporteAudioState, setReporteAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
+
   const [students, setStudents] = useState<CourseStudent[]>([])
   const [loading, setLoading] = useState(true)
   const [removingId, setRemovingId] = useState<string | null>(null)
@@ -514,6 +523,13 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
     const tiempoTotalSeg = sesionesVisibles.reduce((acc, s) => acc + (s.duracionSegundos ?? 0), 0)
     const tiempoFormateado = formatTiempo(tiempoTotalSeg)
 
+    async function handleReporteAudio() {
+      if (!reporte) return
+      const text = `Reporte de ${reporte.student.nombre}. Progreso: ${progresoStat}. Estrellas: ${totalEstrellas}. Sesiones: ${totalSesiones}. ${resumenDiagnostico ?? "Sin datos de diagnóstico adicionales."}`
+      if (reporteAudioState === "playing") { stopSpeak(); setReporteAudioState("paused") }
+      else { setReporteAudioState("playing"); await speak(text); setReporteAudioState("ended") }
+    }
+
     return (
       <div className="min-h-screen bg-background">
         <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
@@ -524,12 +540,13 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                 const qs = params.toString()
                 router.replace(qs ? `?${qs}` : "?", { scroll: false })
                 setReporte(null)
+                setReporteAudioState("idle")
               }}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
               aria-label="Volver a la lista de estudiantes">
               <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             </button>
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <div
                 style={reporte.student.colorPerfil ? { backgroundColor: reporte.student.colorPerfil } : undefined}
                 className={`w-8 h-8 rounded-full ${reporte.student.colorPerfil ? "" : "bg-primary"} flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0`}
@@ -542,6 +559,22 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">{courseName ?? "Curso"}</p>
               </div>
             </div>
+            {settings.voiceEnabled && (
+              <button
+                type="button"
+                onClick={handleReporteAudio}
+                aria-label={reporteAudioState === "playing" ? "Pausar" : reporteAudioState === "paused" ? "Reanudar" : reporteAudioState === "ended" ? "Repetir reporte" : "Escuchar reporte del alumno"}
+                className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98] shrink-0"
+              >
+                {reporteAudioState === "playing" ? <Pause className="w-4 h-4" aria-hidden="true" />
+                 : reporteAudioState === "paused" ? <Play className="w-4 h-4" aria-hidden="true" />
+                 : reporteAudioState === "ended"  ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+                 : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+                <span className="hidden sm:inline" aria-hidden="true">
+                  {reporteAudioState === "playing" ? "Pausar" : reporteAudioState === "paused" ? "Reanudar" : reporteAudioState === "ended" ? "Repetir" : "Escuchar"}
+                </span>
+              </button>
+            )}
           </div>
         </header>
 
@@ -970,6 +1003,24 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
             <h1 className="text-base font-bold text-foreground leading-none">Estudiantes</h1>
             <p className="text-xs text-muted-foreground mt-0.5">{courseName ?? "Curso"}</p>
           </div>
+          {settings.voiceEnabled && !loading && (
+            <button type="button"
+              onClick={async () => {
+                const text = `Estudiantes del curso ${courseName ?? ""}. Tienes ${students.length} ${students.length === 1 ? "estudiante inscrito" : "estudiantes inscritos"}.`
+                if (studentsAudioState === "playing") { stopSpeak(); setStudentsAudioState("paused") }
+                else { setStudentsAudioState("playing"); await speak(text); setStudentsAudioState("ended") }
+              }}
+              aria-label={studentsAudioState === "playing" ? "Pausar" : studentsAudioState === "paused" ? "Reanudar" : studentsAudioState === "ended" ? "Repetir" : "Escuchar resumen"}
+              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
+              {studentsAudioState === "playing" ? <Pause className="w-4 h-4" aria-hidden="true" />
+               : studentsAudioState === "paused" ? <Play className="w-4 h-4" aria-hidden="true" />
+               : studentsAudioState === "ended"  ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+               : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+              <span className="hidden sm:inline">
+                {studentsAudioState === "playing" ? "Pausar" : studentsAudioState === "paused" ? "Reanudar" : studentsAudioState === "ended" ? "Repetir" : "Escuchar"}
+              </span>
+            </button>
+          )}
           <button type="button" onClick={onInvite}
             className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 hover:shadow-md active:scale-[0.98]">
             <UserPlus className="w-4 h-4" aria-hidden="true" />Invitar

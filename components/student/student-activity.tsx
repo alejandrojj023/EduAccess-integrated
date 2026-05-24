@@ -13,7 +13,7 @@ import { SpeakableText } from "@/components/ui/accessible-tooltip"
 import { TextoConGlosario, type GlosarioEntry } from "@/components/ui/texto-con-glosario"
 import {
   ArrowLeft, Volume2, Check, X, Star, ChevronRight,
-  Mic, HelpCircle, Loader2, RotateCcw, Clock, Turtle,
+  Mic, HelpCircle, Loader2, RotateCcw, Clock, Turtle, Pause, Play,
 } from "lucide-react"
 import { motion, LayoutGroup, useReducedMotion } from "framer-motion"
 import { completarLeccion } from "@/hooks/student/use-lesson-completion"
@@ -185,7 +185,7 @@ function BackConfirmModal({ isPlayingModal, onSpeak, onContinue, onExit }: BackC
 
 export function StudentActivity({ activityId, lessonId, lessonName, onBack, onComplete, onVoiceActivity, previewMode = false }: StudentActivityProps) {
   const { user } = useAuth()
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
   const prefersReducedMotion = useReducedMotion()
 
   const [activity, setActivity] = useState<DBActivity | null>(null)
@@ -245,6 +245,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
   const [showBackConfirm, setShowBackConfirm] = useState(false)
   const [isPlayingModal, setIsPlayingModal] = useState(false)
   const [resultMessage, setResultMessage] = useState("")
+  const [instrAudioState, setInstrAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
 
   // Timer — tracks elapsed time per activity and total lesson time
   const activityStartRef = useRef<number>(Date.now())
@@ -481,6 +482,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     setActAttempts(0)
     currentAttemptsRef.current = 1
     setResultMessage("")
+    setInstrAudioState("idle")
     activityStartRef.current = Date.now()
 
     if (settings.voiceEnabled && act.tipo !== "reconocimiento_sonidos" && act.tipo !== "completar_oracion" && act.tipo !== "secuenciacion" && act.tipo !== "respuesta_oral") {
@@ -489,6 +491,18 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
         ? (cfg.instrucciones?.trim() || "Busca las palabras en la sopa de letras")
         : cfg.instrucciones
       if (instrToSpeak) setTimeout(() => speak(instrToSpeak), 400)
+    }
+  }
+
+  async function handleInstrAudio() {
+    const text = config?.instrucciones || "Lee y responde la siguiente pregunta."
+    if (instrAudioState === "playing") {
+      stopSpeak()
+      setInstrAudioState("paused")
+    } else {
+      setInstrAudioState("playing")
+      await speak(text)
+      setInstrAudioState("ended")
     }
   }
 
@@ -1490,11 +1504,22 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                     <Button
                       variant="outline"
                       className="h-11 px-4 text-sm shrink-0 self-center rounded-2xl border-border bg-card shadow-sm hover:bg-muted active:bg-muted"
-                      onClick={() => speak(config?.instrucciones || "Lee y responde la siguiente pregunta.")}
-                      aria-label="Escuchar instrucciones"
+                      onClick={handleInstrAudio}
+                      aria-label={
+                        instrAudioState === "playing" ? "Pausar instrucciones" :
+                        instrAudioState === "paused"  ? "Reanudar instrucciones" :
+                        instrAudioState === "ended"   ? "Repetir instrucciones" :
+                        "Escuchar instrucciones"
+                      }
                     >
-                      <Volume2 className="w-4 h-4 mr-2" aria-hidden="true" />
-                      Escuchar
+                      {instrAudioState === "playing" && <Pause    className="w-4 h-4 mr-2" aria-hidden="true" />}
+                      {instrAudioState === "paused"  && <Play     className="w-4 h-4 mr-2" aria-hidden="true" />}
+                      {instrAudioState === "ended"   && <RotateCcw className="w-4 h-4 mr-2" aria-hidden="true" />}
+                      {instrAudioState === "idle"    && <Volume2  className="w-4 h-4 mr-2" aria-hidden="true" />}
+                      {instrAudioState === "playing" ? "Pausar"   :
+                       instrAudioState === "paused"  ? "Reanudar" :
+                       instrAudioState === "ended"   ? "Repetir"  :
+                       "Escuchar"}
                     </Button>
                   )}
                 </div>

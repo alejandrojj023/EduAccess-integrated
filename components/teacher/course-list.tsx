@@ -11,7 +11,7 @@ import {
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useCourses } from "@/hooks/teacher/use-courses"
 import {
-  ArrowLeft, Plus, Trash2, BookOpen, Users, Volume2,
+  ArrowLeft, Plus, Trash2, BookOpen, Users, Volume2, Pause, Play, RotateCcw,
   FolderOpen, Settings, Check, UserPlus, MoreVertical,
 } from "lucide-react"
 
@@ -30,7 +30,8 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
   const { courses, loading, deleteCourse } = useCourses()
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [courseToDelete, setCourseToDelete] = useState<{ id: string; name: string } | null>(null)
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
+  const [coursesAudioState, setCoursesAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
 
   const handleCopyCode = (courseId: string, code: string) => {
     navigator.clipboard.writeText(code)
@@ -39,8 +40,10 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
     speak("Código copiado al portapapeles")
   }
 
-  const handleReadInstructions = () => {
-    speak(`Lista de cursos. Tienes ${courses.length} cursos creados.`)
+  const handleReadInstructions = async () => {
+    const text = `Lista de cursos. Tienes ${courses.length} cursos creados.`
+    if (coursesAudioState === "playing") { stopSpeak(); setCoursesAudioState("paused") }
+    else { setCoursesAudioState("playing"); await speak(text); setCoursesAudioState("ended") }
   }
 
   const handleDeleteCourse = async () => {
@@ -69,10 +72,15 @@ export function CourseList({ onNavigate, onBack }: CourseListProps) {
           <div className="flex items-center gap-2">
             {settings.voiceEnabled && (
               <button type="button" onClick={handleReadInstructions}
-                aria-label="Escuchar descripción de la sección"
+                aria-label={coursesAudioState === "playing" ? "Pausar" : coursesAudioState === "paused" ? "Reanudar" : coursesAudioState === "ended" ? "Repetir" : "Escuchar descripción de la sección"}
                 className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
-                <Volume2 className="w-4 h-4" aria-hidden="true" />
-                <span className="hidden sm:inline" aria-hidden="true">Escuchar</span>
+                {coursesAudioState === "playing" ? <Pause className="w-4 h-4" aria-hidden="true" />
+                 : coursesAudioState === "paused" ? <Play className="w-4 h-4" aria-hidden="true" />
+                 : coursesAudioState === "ended"  ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+                 : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+                <span className="hidden sm:inline" aria-hidden="true">
+                  {coursesAudioState === "playing" ? "Pausar" : coursesAudioState === "paused" ? "Reanudar" : coursesAudioState === "ended" ? "Repetir" : "Escuchar"}
+                </span>
               </button>
             )}
             <button type="button" onClick={() => onNavigate("create-course")}

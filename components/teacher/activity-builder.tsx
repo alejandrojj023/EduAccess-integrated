@@ -8,6 +8,9 @@ import {
   ArrowLeft,
   Save,
   Volume2,
+  Pause,
+  Play,
+  RotateCcw,
   Image,
   Music,
   ListOrdered,
@@ -109,9 +112,11 @@ const difficultyFromInt = (n: number | null): string => {
 
 export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
   const { user } = useAuth()
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
 
   const [view, setView] = useState<BuilderView>("grid")
+  const [builderAudioState, setBuilderAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
+  const [actTypeAudioState, setActTypeAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
   const [selectedType, setSelectedType] = useState<ActivityType>(null)
   const [editingActivity, setEditingActivity] = useState<ExistingActivity | null>(null)
   const [selectedLessonId, setSelectedLessonId] = useState("")
@@ -787,10 +792,20 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
             </div>
             {settings.voiceEnabled && (
               <button type="button"
-                onClick={() => speak(getActivitySpeakText(selectedType ?? "", selectedTypeInfo?.label ?? editingActivity?.typeLabel ?? ""))}
-                className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
-                <Volume2 className="w-4 h-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Escuchar</span>
+                onClick={async () => {
+                  const text = getActivitySpeakText(selectedType ?? "", selectedTypeInfo?.label ?? editingActivity?.typeLabel ?? "")
+                  if (actTypeAudioState === "playing") { stopSpeak(); setActTypeAudioState("paused") }
+                  else { setActTypeAudioState("playing"); await speak(text); setActTypeAudioState("ended") }
+                }}
+                className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
+                aria-label={actTypeAudioState === "playing" ? "Pausar" : actTypeAudioState === "paused" ? "Reanudar" : actTypeAudioState === "ended" ? "Repetir" : "Escuchar instrucciones"}>
+                {actTypeAudioState === "playing" ? <Pause className="w-4 h-4" aria-hidden="true" />
+                 : actTypeAudioState === "paused" ? <Play className="w-4 h-4" aria-hidden="true" />
+                 : actTypeAudioState === "ended"  ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+                 : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+                <span className="hidden sm:inline">
+                  {actTypeAudioState === "playing" ? "Pausar" : actTypeAudioState === "paused" ? "Reanudar" : actTypeAudioState === "ended" ? "Repetir" : "Escuchar"}
+                </span>
               </button>
             )}
           </div>
@@ -874,6 +889,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
               onSequenceStepsChange={setSequenceSteps}
               seqInputRefs={seqInputRefs}
               speak={speak}
+              stopSpeak={stopSpeak}
               showValidation={attemptedSave}
               onDirty={() => setActivityDirty(true)}
             />
@@ -959,10 +975,20 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
           </div>
           {settings.voiceEnabled && (
             <button type="button"
-              onClick={() => speak("Constructor de actividades. Selecciona el tipo de actividad que deseas crear, o revisa tus actividades existentes.")}
-              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
-              <Volume2 className="w-4 h-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Escuchar</span>
+              onClick={async () => {
+                const text = "Constructor de actividades. Selecciona el tipo de actividad que deseas crear, o revisa tus actividades existentes."
+                if (builderAudioState === "playing") { stopSpeak(); setBuilderAudioState("paused") }
+                else { setBuilderAudioState("playing"); await speak(text); setBuilderAudioState("ended") }
+              }}
+              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]"
+              aria-label={builderAudioState === "playing" ? "Pausar" : builderAudioState === "paused" ? "Reanudar" : builderAudioState === "ended" ? "Repetir" : "Escuchar instrucciones"}>
+              {builderAudioState === "playing" ? <Pause className="w-4 h-4" aria-hidden="true" />
+               : builderAudioState === "paused" ? <Play className="w-4 h-4" aria-hidden="true" />
+               : builderAudioState === "ended"  ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+               : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+              <span className="hidden sm:inline">
+                {builderAudioState === "playing" ? "Pausar" : builderAudioState === "paused" ? "Reanudar" : builderAudioState === "ended" ? "Repetir" : "Escuchar"}
+              </span>
             </button>
           )}
         </div>

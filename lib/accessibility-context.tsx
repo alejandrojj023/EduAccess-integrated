@@ -25,7 +25,7 @@ export interface AccessibilitySettings {
 interface AccessibilityContextType {
   settings: AccessibilitySettings
   updateSettings: (newSettings: Partial<AccessibilitySettings>) => void
-  speak: (text: string) => void
+  speak: (text: string) => Promise<void>
   stopSpeak: () => void
   loading: boolean
 }

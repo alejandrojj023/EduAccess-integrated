@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { supabase } from "@/lib/supabase"
-import { ArrowLeft, Volume2 } from "lucide-react"
+import { ArrowLeft, Volume2, Pause, Play, RotateCcw } from "lucide-react"
 
 interface EditCourseProps {
   courseId: string | null
@@ -28,7 +28,8 @@ export function EditCourse({ courseId, onBack, onSave }: EditCourseProps) {
   const [isLoading,   setIsLoading]   = useState(false)
   const [isFetching,  setIsFetching]  = useState(true)
   const [error,       setError]       = useState("")
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
+  const [editCourseAudioState, setEditCourseAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
 
   useEffect(() => {
     if (!courseId) { setError("No se encontró el curso."); setIsFetching(false); return }
@@ -107,11 +108,20 @@ export function EditCourse({ courseId, onBack, onSave }: EditCourseProps) {
           </div>
           {settings.voiceEnabled && (
             <button type="button"
-              onClick={() => speak("Editar curso. Modifica el título, descripción y materia. Luego presiona Guardar cambios.")}
-              aria-label="Escuchar instrucciones de la sección"
+              onClick={async () => {
+                const text = "Editar curso. Modifica el título, descripción y materia. Luego presiona Guardar cambios."
+                if (editCourseAudioState === "playing") { stopSpeak(); setEditCourseAudioState("paused") }
+                else { setEditCourseAudioState("playing"); await speak(text); setEditCourseAudioState("ended") }
+              }}
+              aria-label={editCourseAudioState === "playing" ? "Pausar" : editCourseAudioState === "paused" ? "Reanudar" : editCourseAudioState === "ended" ? "Repetir" : "Escuchar instrucciones de la sección"}
               className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
-              <Volume2 className="w-4 h-4" aria-hidden="true" />
-              <span className="hidden sm:inline" aria-hidden="true">Escuchar</span>
+              {editCourseAudioState === "playing" ? <Pause className="w-4 h-4" aria-hidden="true" />
+               : editCourseAudioState === "paused" ? <Play className="w-4 h-4" aria-hidden="true" />
+               : editCourseAudioState === "ended"  ? <RotateCcw className="w-4 h-4" aria-hidden="true" />
+               : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+              <span className="hidden sm:inline" aria-hidden="true">
+                {editCourseAudioState === "playing" ? "Pausar" : editCourseAudioState === "paused" ? "Reanudar" : editCourseAudioState === "ended" ? "Repetir" : "Escuchar"}
+              </span>
             </button>
           )}
         </div>
