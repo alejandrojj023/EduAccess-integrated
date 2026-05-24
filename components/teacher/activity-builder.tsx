@@ -24,6 +24,7 @@ import {
   List,
   AlignLeft,
   Search,
+  Lock,
 } from "lucide-react"
 import { parseActivityConfig, serializeActivityConfig } from "@/lib/activity-config"
 import { StudentActivity } from "@/components/student/student-activity"
@@ -159,6 +160,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
 
   // Remote data
   const [existingActivities, setExistingActivities] = useState<ExistingActivity[]>([])
+  const [activitiesWithAttempts, setActivitiesWithAttempts] = useState<Map<string, number>>(new Map())
   const [lessons, setLessons] = useState<LessonOption[]>([])
   const [loadingData, setLoadingData] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -239,6 +241,20 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
     }))
 
     setExistingActivities(mapped)
+
+    if (mapped.length > 0) {
+      const actIds = mapped.map((a) => a.id)
+      const { data: intentos } = await supabase
+        .from("intento_actividad")
+        .select("id_actividad")
+        .in("id_actividad", actIds)
+      const attemptsMap = new Map<string, number>()
+      for (const intento of intentos ?? []) {
+        attemptsMap.set(intento.id_actividad, (attemptsMap.get(intento.id_actividad) ?? 0) + 1)
+      }
+      setActivitiesWithAttempts(attemptsMap)
+    }
+
     setLoadingData(false)
   }
 
@@ -710,6 +726,12 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                                     {difficultyFromInt(activity.nivel_dificultad)}
                                   </span>
                                 )}
+                                {(activitiesWithAttempts.get(activity.id) ?? 0) > 0 && (
+                                  <span className="inline-flex items-center gap-1 mt-1 text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
+                                    <Lock className="w-2.5 h-2.5" aria-hidden="true" />
+                                    {activitiesWithAttempts.get(activity.id)} resp.
+                                  </span>
+                                )}
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 <button type="button"
@@ -848,6 +870,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
 
             <ActivityConfigForm
               type={selectedType ?? ""}
+              hasAttempts={!!(editingActivity && (activitiesWithAttempts.get(editingActivity.id) ?? 0) > 0)}
               imagePreviewUrl={imagePreviewUrl}
               existingImageUrl={existingImageUrl}
               imageInputRef={imageInputRef}
