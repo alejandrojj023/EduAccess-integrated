@@ -464,6 +464,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
           material_pdf_titulo: materialPdfTitulo || null,
           material_imagen_url: imagenFinalUrl,
           activities: activities.map((a) => ({
+            id: a.id,
             type: a.type, title: a.title, instrucciones: a.instrucciones,
             nivel_dificultad: a.nivel_dificultad, imagen_url: a.imagen_url ?? null,
             audio_url: a.audio_url ?? null, pregunta: a.pregunta ?? null, steps: a.sequence_steps ?? null,
