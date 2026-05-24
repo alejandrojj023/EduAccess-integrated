@@ -483,9 +483,12 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     setResultMessage("")
     activityStartRef.current = Date.now()
 
-    if (settings.voiceEnabled && act.tipo !== "reconocimiento_sonidos" && act.tipo !== "completar_oracion" && act.tipo !== "secuenciacion" && act.tipo !== "sopa_letras" && act.tipo !== "respuesta_oral") {
+    if (settings.voiceEnabled && act.tipo !== "reconocimiento_sonidos" && act.tipo !== "completar_oracion" && act.tipo !== "secuenciacion" && act.tipo !== "respuesta_oral") {
       const cfg = parseActivityConfig(act.instrucciones)
-      if (cfg.instrucciones) setTimeout(() => speak(cfg.instrucciones), 400)
+      const instrToSpeak = act.tipo === "sopa_letras"
+        ? (cfg.instrucciones?.trim() || "Busca las palabras en la sopa de letras")
+        : cfg.instrucciones
+      if (instrToSpeak) setTimeout(() => speak(instrToSpeak), 400)
     }
   }
 
@@ -525,7 +528,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     return () => clearTimeout(timerId)
   }, [activity])
 
-  // Initialize word search when activity loads
+  // Initialize word search grid when activity loads
   useEffect(() => {
     if (!activity || activity.tipo !== "sopa_letras") return
     const cfg = parseActivityConfig(activity.instrucciones)
@@ -539,9 +542,8 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     setWsCellWord(new Map())
     setWsAnimatingCells(new Set())
     setWsGrid(generateWordSearchGrid(words))
-    const timer = settings.voiceEnabled ? setTimeout(() => speak(cfg.instrucciones || "Encuentra las palabras en la sopa de letras"), 400) : undefined
-    return () => clearTimeout(timer)
   }, [activity])
+
 
   // Star animation when lesson-done phase starts
   useEffect(() => {
@@ -1027,9 +1029,11 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
   function handleSubmitText() {
     if (!textAnswer.trim()) return
     answerRef.current = textAnswer.trim()
-    const expected = (config?.respuesta_correcta ?? "").trim().toLowerCase()
+    const alternatives = (config?.respuesta_correcta ?? "").split("|").map(a => a.trim().toLowerCase()).filter(Boolean)
     const given = textAnswer.trim().toLowerCase()
-    const correct = expected ? given.includes(expected) || expected.includes(given) : true
+    const correct = alternatives.length > 0
+      ? alternatives.some(exp => given.includes(exp) || exp.includes(given))
+      : true
     if (correct) {
       setIsCorrect(true)
       setScore(100)
@@ -1049,7 +1053,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
         setResultMessage("")
         savePendingResult(false, 0, newAttempts)
         setPhase("result")
-        if (settings.voiceEnabled && config?.respuesta_correcta) speak(`La respuesta correcta es: ${config.respuesta_correcta}`)
+        if (settings.voiceEnabled && alternatives.length > 0) speak(`La respuesta correcta es: ${alternatives.join(" o ")}`)
       } else {
         const msg = RETRY_MESSAGES[Math.floor(Math.random() * RETRY_MESSAGES.length)]
         setRetryBanner(msg)
@@ -1083,7 +1087,10 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     if (tipo === "seleccion_guiada" || tipo === "identificacion") {
       return opciones.find((o) => o.correcta)?.texto ?? "—"
     }
-    if (tipo === "respuesta_corta") return config?.respuesta_correcta ?? "—"
+    if (tipo === "respuesta_corta") {
+      const alts = (config?.respuesta_correcta ?? "").split("|").filter(Boolean)
+      return alts.length > 0 ? alts.join(" o ") : "—"
+    }
     if (tipo === "completar_oracion" && fillPregunta) return fillPregunta.respuesta_esperada
     if (tipo === "reconocimiento_sonidos" && soundPregunta) return soundPregunta.respuesta_esperada
     return "—"
