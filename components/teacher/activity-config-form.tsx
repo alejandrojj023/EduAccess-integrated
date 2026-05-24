@@ -3,7 +3,7 @@
 import { useRef, useState } from "react"
 import { Input } from "@/components/ui/input"
 import {
-  Volume2, Pause, Play, RotateCcw, ImageIcon, Plus, Trash2, Upload, AlignLeft, Search, GripVertical, X,
+  Volume2, Pause, Play, RotateCcw, ImageIcon, Plus, Trash2, Upload, AlignLeft, Search, GripVertical, X, Lock,
 } from "lucide-react"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -103,6 +103,9 @@ export interface ActivityConfigFormProps {
 
   // Notificación de cambio (para modal de salida inteligente)
   onDirty?: () => void
+
+  // La actividad ya fue respondida por alumnos — bloquea campos de respuesta
+  hasAttempts?: boolean
 }
 
 const difficultyLevels = [
@@ -329,6 +332,7 @@ export function ActivityConfigForm({
   stopSpeak,
   showValidation = false,
   onDirty,
+  hasAttempts = false,
 }: ActivityConfigFormProps) {
 
   const [soundAudioState, setSoundAudioState] = useState<"idle" | "playing" | "paused" | "ended">("idle")
@@ -406,6 +410,17 @@ export function ActivityConfigForm({
 
   return (
     <div className="space-y-5">
+
+      {/* ── Aviso actividad ya respondida ────────────────────────── */}
+      {hasAttempts && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3" role="alert">
+          <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-semibold text-amber-800">Actividad ya respondida por alumnos</p>
+            <p className="text-xs text-amber-700 mt-0.5">Puedes editar título e instrucciones. Los campos de respuesta correcta están bloqueados para no afectar el historial.</p>
+          </div>
+        </div>
+      )}
 
       {/* ── Instrucciones de la Actividad ─────────────────────────── */}
       <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
@@ -527,6 +542,7 @@ export function ActivityConfigForm({
                 aria-label="Oración correcta"
                 placeholder="Ej: Los gatos son bonitos"
                 className="border-border flex-1"
+                disabled={hasAttempts}
               />
               <button type="button"
                 onClick={async () => {
@@ -644,6 +660,7 @@ export function ActivityConfigForm({
                 aria-label="Pregunta de la actividad"
                 placeholder="Ej: ¿De qué color es el cielo?"
                 className="border-border flex-1"
+                disabled={hasAttempts}
               />
               <button type="button"
                 onClick={async () => {
@@ -815,6 +832,7 @@ export function ActivityConfigForm({
               aria-label="Oración a completar con espacio en blanco"
               placeholder="Ej: Yo tengo tres ___."
               className="border-border"
+              disabled={hasAttempts}
             />
             <p className="text-xs text-muted-foreground">
               Usa <strong>___</strong> (tres guiones bajos) para marcar el espacio en blanco.
@@ -856,6 +874,7 @@ export function ActivityConfigForm({
               aria-label="Palabra correcta para completar el espacio"
               placeholder="Ej: gatos"
               className="border-border"
+              disabled={hasAttempts}
             />
             {fillCorrectBlurred && !correctAnswer.trim() && (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-1.5" role="alert" aria-live="polite">
@@ -961,10 +980,11 @@ export function ActivityConfigForm({
               placeholder="Ej: GATO"
               className="border-border flex-1"
               maxLength={15}
+              disabled={hasAttempts}
             />
             <button type="button"
               onClick={() => { onAddWsWord(); onDirty?.() }}
-              disabled={wsWords.length >= 10 || !wsInput.trim()}
+              disabled={wsWords.length >= 10 || !wsInput.trim() || hasAttempts}
               aria-label="Agregar palabra a la sopa de letras"
               className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all shrink-0">
               <Plus className="w-4 h-4" aria-hidden="true" />
@@ -1010,14 +1030,15 @@ export function ActivityConfigForm({
             <div key={option.id} className="space-y-1">
               <div className="flex items-center gap-3">
                 <button type="button"
-                  onClick={() => { onSetCorrect(option.id); onDirty?.() }}
+                  onClick={() => { if (!hasAttempts) { onSetCorrect(option.id); onDirty?.() } }}
                   aria-pressed={option.isCorrect}
                   aria-label={option.isCorrect
                     ? `Opción ${index + 1} marcada como correcta`
                     : `Marcar opción ${index + 1} como correcta`}
+                  disabled={hasAttempts}
                   className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 transition-all text-sm font-bold ${option.isCorrect
                     ? "bg-success border-success text-success-foreground"
-                    : "border-border hover:border-primary"}`}>
+                    : "border-border hover:border-primary"} ${hasAttempts ? "opacity-50 cursor-not-allowed" : ""}`}>
                   {option.isCorrect ? "✓" : String.fromCharCode(65 + index)}
                 </button>
                 <Input

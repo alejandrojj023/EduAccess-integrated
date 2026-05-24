@@ -9,7 +9,7 @@ import {
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
-import { ArrowLeft, Save, Volume2, Pause, Play, RotateCcw, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip, BookMarked, Pencil, ImageIcon, List, ListOrdered, HelpCircle, PencilLine, Mic, AlignLeft, Upload, X } from "lucide-react"
+import { ArrowLeft, Save, Volume2, Pause, Play, RotateCcw, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip, BookMarked, Pencil, ImageIcon, List, ListOrdered, HelpCircle, PencilLine, Mic, AlignLeft, Upload, X, Lock } from "lucide-react"
 import { parseActivityConfig, serializeActivityConfig } from "@/lib/activity-config"
 import { ActivityConfigForm, ActivityOption, SequenceStep, getActivitySpeakText } from "@/components/teacher/activity-config-form"
 
@@ -205,6 +205,20 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
       }
 
       setActivities(acts)
+
+      // Load attempt counts per activity to detect answered activities
+      if (acts.length > 0) {
+        const { data: intentos } = await supabase
+          .from("intento_actividad")
+          .select("id_actividad")
+          .in("id_actividad", acts.map(a => a.id))
+        const map = new Map<string, number>()
+        for (const i of intentos ?? []) {
+          map.set(i.id_actividad, (map.get(i.id_actividad) ?? 0) + 1)
+        }
+        setActivitiesWithAttempts(map)
+      }
+
       setGlosario(glosarioResult.data ?? [])
       setIsFetching(false)
     }
@@ -312,6 +326,9 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
   const [showExitConfirm,       setShowExitConfirm]       = useState(false)
   const [lessonDirty,           setLessonDirty]           = useState(false)
   const [showLessonExitConfirm, setShowLessonExitConfirm] = useState(false)
+  const [activitiesWithAttempts,  setActivitiesWithAttempts]  = useState<Map<string, number>>(new Map())
+  const [blockedDeleteInfo,       setBlockedDeleteInfo]       = useState<{ title: string; count: number } | null>(null)
+  const [showSaveProgressWarning, setShowSaveProgressWarning] = useState(false)
 
   const handleConfirmActivity = async () => {
     if (!configuringType) return
@@ -434,6 +451,13 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const hasNewActivities = activitiesWithAttempts.size > 0 && activities.some(a => !activitiesWithAttempts.has(a.id))
+    if (hasNewActivities) { setShowSaveProgressWarning(true); return }
+    await performSave()
+  }
+
+  const performSave = async () => {
+    setShowSaveProgressWarning(false)
     setIsLoading(true); setError("")
 
     if (!lessonId) { setError("No se encontró la lección."); setIsLoading(false); return }
@@ -609,6 +633,7 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
             stopSpeak={stopSpeak}
             showValidation={attemptedSave}
             onDirty={() => setActivityDirty(true)}
+            hasAttempts={!!editingActivityId && (activitiesWithAttempts.get(editingActivityId) ?? 0) > 0}
           />
 
           {/* Action buttons */}
@@ -916,7 +941,15 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
                           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary shrink-0">{index + 1}</span>
                         )})()}
                         <div className="min-w-0">
-                          <span className="text-sm font-semibold text-foreground block truncate">{activity.title}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-sm font-semibold text-foreground truncate">{activity.title}</span>
+                            {(activitiesWithAttempts.get(activity.id) ?? 0) > 0 && (
+                              <span className="flex items-center gap-0.5 text-xs bg-amber-100 text-amber-700 font-medium px-1.5 py-0.5 rounded-full shrink-0">
+                                <Lock className="w-2.5 h-2.5" aria-hidden="true" />
+                                {activitiesWithAttempts.get(activity.id)} resp.
+                              </span>
+                            )}
+                          </div>
                           <span className="text-xs text-muted-foreground line-clamp-1">{preview} · {diffLabel}</span>
                         </div>
                       </div>
@@ -926,11 +959,21 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
                           className="flex items-center justify-center rounded-lg p-1.5 text-primary hover:bg-primary/10 transition-colors">
                           <Pencil className="w-4 h-4" aria-hidden="true" />
                         </button>
-                        <button type="button" onClick={() => setActivityToRemove(activity.id)}
-                          aria-label={`Eliminar ${activity.title}`}
-                          className="flex items-center justify-center rounded-lg p-1.5 text-destructive hover:bg-destructive/10 transition-colors">
-                          <Trash2 className="w-4 h-4" aria-hidden="true" />
-                        </button>
+                        {(activitiesWithAttempts.get(activity.id) ?? 0) > 0 ? (
+                          <button type="button"
+                            onClick={() => setBlockedDeleteInfo({ title: activity.title, count: activitiesWithAttempts.get(activity.id)! })}
+                            aria-label={`No se puede eliminar ${activity.title}: ya fue respondida por alumnos`}
+                            title="Ya fue respondida por alumnos"
+                            className="flex items-center justify-center rounded-lg p-1.5 text-muted-foreground/40 cursor-not-allowed">
+                            <Trash2 className="w-4 h-4" aria-hidden="true" />
+                          </button>
+                        ) : (
+                          <button type="button" onClick={() => setActivityToRemove(activity.id)}
+                            aria-label={`Eliminar ${activity.title}`}
+                            className="flex items-center justify-center rounded-lg p-1.5 text-destructive hover:bg-destructive/10 transition-colors">
+                            <Trash2 className="w-4 h-4" aria-hidden="true" />
+                          </button>
+                        )}
                       </div>
                     </li>
                   )
@@ -957,6 +1000,40 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
                 >
                   Sí, eliminar
                 </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Diálogo: no se puede eliminar actividad con intentos */}
+          <AlertDialog open={blockedDeleteInfo !== null} onOpenChange={(open) => { if (!open) setBlockedDeleteInfo(null) }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-amber-600" aria-hidden="true" />
+                  No se puede eliminar esta actividad
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  <strong>"{blockedDeleteInfo?.title}"</strong> ya fue respondida por {blockedDeleteInfo?.count} {blockedDeleteInfo?.count === 1 ? "alumno" : "alumnos"}. Eliminarla borraría su historial de intentos.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogAction onClick={() => setBlockedDeleteInfo(null)}>Entendido</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Diálogo: advertencia al guardar con actividades nuevas en lección con progreso */}
+          <AlertDialog open={showSaveProgressWarning} onOpenChange={(open) => { if (!open) setShowSaveProgressWarning(false) }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Guardar con actividades nuevas?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta lección ya tiene alumnos con progreso. Agregar nuevas actividades reducirá su porcentaje de avance aunque ya las hayan completado antes.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => performSave()}>Continuar de todas formas</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
