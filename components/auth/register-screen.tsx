@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/lib/auth-context"
 import { useAccessibility } from "@/lib/accessibility-context"
-import { Eye, EyeOff, Volume2, User, Mail, Lock, GraduationCap, Users } from "lucide-react"
+import { Eye, EyeOff, Volume2, Pause, User, Mail, Lock, GraduationCap, Users } from "lucide-react"
 
 interface RegisterScreenProps {
   onSwitchToLogin: () => void
@@ -19,7 +19,9 @@ export function RegisterScreen({ onSwitchToLogin, onRegisterSuccess }: RegisterS
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const { register } = useAuth()
-  const { speak } = useAccessibility()
+  const { speak, stopSpeak } = useAccessibility()
+  const [instrSpeakState, setInstrSpeakState] = useState<"idle" | "playing" | "played">("idle")
+  const instrPlayIdRef = useRef(0)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,8 +32,16 @@ export function RegisterScreen({ onSwitchToLogin, onRegisterSuccess }: RegisterS
     setIsLoading(false)
   }
 
-  const handleReadInstructions = () => {
-    speak("Crear cuenta en EduAccess. Escribe tu nombre, correo y contraseña. Selecciona tu rol: Docente o Estudiante.")
+  const handleReadInstructions = async () => {
+    if (instrSpeakState === "playing") {
+      stopSpeak()
+      setInstrSpeakState("played")
+      return
+    }
+    const playId = ++instrPlayIdRef.current
+    setInstrSpeakState("playing")
+    await speak("Crear cuenta en EduAccess. Escribe tu nombre, correo y contraseña. Selecciona tu rol: Docente o Estudiante.")
+    if (instrPlayIdRef.current === playId) setInstrSpeakState("played")
   }
 
   return (
@@ -56,10 +66,13 @@ export function RegisterScreen({ onSwitchToLogin, onRegisterSuccess }: RegisterS
           <button
             type="button"
             onClick={handleReadInstructions}
+            aria-label={instrSpeakState === "playing" ? "Pausar instrucciones" : instrSpeakState === "played" ? "Repetir instrucciones" : "Escuchar instrucciones"}
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
           >
-            <Volume2 className="w-4 h-4" aria-hidden="true" />
-            Escuchar instrucciones
+            {instrSpeakState === "playing"
+              ? <Pause className="w-4 h-4" aria-hidden="true" />
+              : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+            {instrSpeakState === "playing" ? "Pausar" : instrSpeakState === "played" ? "Repetir instrucciones" : "Escuchar instrucciones"}
           </button>
 
           <form onSubmit={handleSubmit} className="space-y-4">

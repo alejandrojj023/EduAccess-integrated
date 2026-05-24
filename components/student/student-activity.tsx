@@ -13,7 +13,7 @@ import { SpeakableText } from "@/components/ui/accessible-tooltip"
 import { TextoConGlosario, type GlosarioEntry } from "@/components/ui/texto-con-glosario"
 import {
   ArrowLeft, Volume2, Check, X, Star, ChevronRight,
-  Mic, HelpCircle, Loader2, RotateCcw, Clock, Turtle,
+  Mic, HelpCircle, Loader2, RotateCcw, Clock, Turtle, Pause,
 } from "lucide-react"
 import { motion, LayoutGroup, useReducedMotion } from "framer-motion"
 import { completarLeccion } from "@/hooks/student/use-lesson-completion"
@@ -140,13 +140,22 @@ function _stopModalAudio() {
 }
 
 interface BackConfirmModalProps {
-  isPlayingModal: boolean
-  onSpeak: () => void
+  modalSpeakState: "idle" | "playing" | "played"
+  onSpeakToggle: () => void
   onContinue: () => void
   onExit: () => void
 }
 
-function BackConfirmModal({ isPlayingModal, onSpeak, onContinue, onExit }: BackConfirmModalProps) {
+function BackConfirmModal({ modalSpeakState, onSpeakToggle, onContinue, onExit }: BackConfirmModalProps) {
+  const speakLabel =
+    modalSpeakState === "playing" ? "Pausar mensaje" :
+    modalSpeakState === "played"  ? "Repetir mensaje" :
+    "Escuchar mensaje"
+  const speakHint =
+    modalSpeakState === "playing" ? "Toca para pausar" :
+    modalSpeakState === "played"  ? "Toca para repetir" :
+    "Toca para escuchar"
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
       <motion.div
@@ -161,14 +170,17 @@ function BackConfirmModal({ isPlayingModal, onSpeak, onContinue, onExit }: BackC
             <motion.button
               whileTap={{ scale: 1.25 }}
               transition={{ type: "spring", stiffness: 500, damping: 10 }}
-              onClick={onSpeak}
+              onClick={onSpeakToggle}
               className="relative w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:bg-primary/90 hover:scale-105 transition-all duration-150"
-              aria-label="Escuchar mensaje"
+              aria-label={speakLabel}
             >
-              <Volume2 className="w-7 h-7" aria-hidden="true" />
+              {modalSpeakState === "playing"
+                ? <Pause className="w-7 h-7" aria-hidden="true" />
+                : <Volume2 className="w-7 h-7" aria-hidden="true" />
+              }
             </motion.button>
           </div>
-          <span className="text-sm font-semibold text-foreground" aria-hidden="true">Toca para repetir</span>
+          <span className="text-sm font-semibold text-foreground" aria-hidden="true">{speakHint}</span>
         </div>
         <div className="flex flex-col gap-2 pt-1">
           <Button size="lg" className="h-11 text-base font-black" onClick={onContinue}>
@@ -185,7 +197,7 @@ function BackConfirmModal({ isPlayingModal, onSpeak, onContinue, onExit }: BackC
 
 export function StudentActivity({ activityId, lessonId, lessonName, onBack, onComplete, onVoiceActivity, previewMode = false }: StudentActivityProps) {
   const { user } = useAuth()
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
   const prefersReducedMotion = useReducedMotion()
 
   const [activity, setActivity] = useState<DBActivity | null>(null)
@@ -212,6 +224,11 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
   const [fillAttempts, setFillAttempts] = useState(0)
   const [fillHighlighted, setFillHighlighted] = useState<string | null>(null)
   const fillAnimatingRef = useRef(false)   // bloquea clics durante la animación layout
+  const soundPlaybackRef = useRef<{ source: AudioBufferSourceNode; ctx: AudioContext } | null>(null)
+  const instrPlayIdRef = useRef(0)
+  const soundPlayIdRef = useRef(0)
+  const [soundNormalState, setSoundNormalState] = useState<"idle" | "playing" | "played">("idle")
+  const [soundSlowState, setSoundSlowState] = useState<"idle" | "playing" | "played">("idle")
 
   // Sequence activity (secuenciacion) state
   type SeqItem = { id_pregunta: string; enunciado: string; orden: number; imagen_url: string | null }
@@ -243,8 +260,9 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
   const [lessonDoneVisible, setLessonDoneVisible] = useState(false)
   const [retryVisible, setRetryVisible] = useState(false)
   const [showBackConfirm, setShowBackConfirm] = useState(false)
-  const [isPlayingModal, setIsPlayingModal] = useState(false)
+  const [modalSpeakState, setModalSpeakState] = useState<"idle" | "playing" | "played">("idle")
   const [resultMessage, setResultMessage] = useState("")
+  const [instrState, setInstrState] = useState<"idle" | "playing" | "played">("idle")
 
   // Timer — tracks elapsed time per activity and total lesson time
   const activityStartRef = useRef<number>(Date.now())
@@ -286,14 +304,15 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     if (showBackConfirm) {
       handleModalSpeak()
     } else {
-      stopModalAudio()
+      _stopModalAudio()
+      setModalSpeakState("idle")
     }
   }, [showBackConfirm])
 
   async function handleModalSpeak() {
     _stopModalAudio()
     _modalCancelled = false
-    setIsPlayingModal(true)
+    setModalSpeakState("playing")
     try {
       const res = await fetch("/api/tts", {
         method: "POST",
@@ -301,21 +320,39 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
         body: JSON.stringify({ text: "¡Lo estás haciendo increíble! Si te quedas un poquito más, estarás más cerca de completar la lección. Si sales ahora, tendrás que empezar de nuevo. ¿Seguimos aprendiendo?" }),
       })
       if (_modalCancelled) return
-      if (!res.ok) { setIsPlayingModal(false); return }
+      if (!res.ok) { setModalSpeakState("played"); return }
       const { audio } = await res.json()
       if (_modalCancelled) return
       const audioEl = new Audio(`data:audio/mp3;base64,${audio}`)
       _modalAudio = audioEl
-      audioEl.onended = () => { setIsPlayingModal(false); _modalAudio = null }
+      audioEl.onended = () => { setModalSpeakState("played"); _modalAudio = null }
       await audioEl.play()
     } catch {
-      setIsPlayingModal(false)
+      setModalSpeakState("played")
     }
   }
 
-  function stopModalAudio() {
-    _stopModalAudio()
-    setIsPlayingModal(false)
+  function handleModalSpeakToggle() {
+    if (modalSpeakState === "playing") {
+      _stopModalAudio()
+      setModalSpeakState("played")
+    } else {
+      handleModalSpeak()
+    }
+  }
+
+  async function handleInstrSpeak() {
+    if (instrState === "playing") {
+      stopSpeak()
+      setInstrState("played")
+      return
+    }
+    const cfg = activity ? parseActivityConfig(activity.instrucciones) : null
+    const text = cfg?.instrucciones || "Lee y responde la siguiente pregunta."
+    const playId = ++instrPlayIdRef.current
+    setInstrState("playing")
+    await speak(text)
+    if (instrPlayIdRef.current === playId) setInstrState("played")
   }
 
   // ── Session storage helpers ────────────────────────────────
@@ -480,11 +517,14 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     setActAttempts(0)
     currentAttemptsRef.current = 1
     setResultMessage("")
+    setInstrState("idle")
+    instrPlayIdRef.current = 0
     activityStartRef.current = Date.now()
 
-    if (settings.voiceEnabled && act.tipo !== "reconocimiento_sonidos" && act.tipo !== "completar_oracion" && act.tipo !== "secuenciacion" && act.tipo !== "sopa_letras" && act.tipo !== "respuesta_oral") {
+    if (settings.voiceEnabled && act.tipo !== "reconocimiento_sonidos" && act.tipo !== "completar_oracion" && act.tipo !== "secuenciacion" && act.tipo !== "respuesta_oral") {
       const cfg = parseActivityConfig(act.instrucciones)
-      if (cfg.instrucciones) setTimeout(() => speak(cfg.instrucciones), 400)
+      const instrToSpeak = cfg.instrucciones || "Lee y responde la siguiente pregunta."
+      setTimeout(() => speak(instrToSpeak), 400)
     }
   }
 
@@ -495,6 +535,9 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     setWordBank([])
     setConstructionZone([])
     setSoundError(null)
+    setSoundNormalState("idle")
+    setSoundSlowState("idle")
+    soundPlayIdRef.current = 0
     let timerId: ReturnType<typeof setTimeout>
 
     supabase
@@ -514,8 +557,8 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
           text,
         }))
         setWordBank(tokens)
-        // Auto-speak sentence via Web Speech API after a short delay
-        if (settings.voiceEnabled) timerId = setTimeout(() => speak(pq.respuesta_esperada), 600)
+        // Auto-speak instructions like other activities
+        if (settings.voiceEnabled) timerId = setTimeout(() => speak(activity.instrucciones ?? "Escucha y arma la oración"), 600)
       })
 
     return () => clearTimeout(timerId)
@@ -535,8 +578,6 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     setWsCellWord(new Map())
     setWsAnimatingCells(new Set())
     setWsGrid(generateWordSearchGrid(words))
-    const timer = settings.voiceEnabled ? setTimeout(() => speak(cfg.instrucciones || "Encuentra las palabras en la sopa de letras"), 400) : undefined
-    return () => clearTimeout(timer)
   }, [activity])
 
   // Star animation when lesson-done phase starts
@@ -893,8 +934,17 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     }
   }
 
+  function stopSoundPlayback() {
+    if (soundPlaybackRef.current) {
+      try { soundPlaybackRef.current.source.stop() } catch {}
+      try { soundPlaybackRef.current.ctx.close() } catch {}
+      soundPlaybackRef.current = null
+    }
+  }
+
   async function playSoundSentence(speakingRate = 1) {
     if (!soundPregunta) return
+    stopSoundPlayback()
     try {
       const res = await fetch("/api/tts", {
         method: "POST",
@@ -909,9 +959,40 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
       const source  = actx.createBufferSource()
       source.buffer = decoded
       source.connect(actx.destination)
-      source.onended = () => actx.close()
-      source.start(0)
+      soundPlaybackRef.current = { source, ctx: actx }
+      await new Promise<void>((resolve) => {
+        source.onended = () => { actx.close(); soundPlaybackRef.current = null; resolve() }
+        source.start(0)
+      })
     } catch {}
+  }
+
+  async function handleSoundNormalPlay() {
+    if (soundNormalState === "playing") {
+      ++soundPlayIdRef.current
+      stopSoundPlayback()
+      setSoundNormalState("played")
+      return
+    }
+    if (soundSlowState === "playing") { ++soundPlayIdRef.current; setSoundSlowState("played") }
+    const playId = ++soundPlayIdRef.current
+    setSoundNormalState("playing")
+    await playSoundSentence(1)
+    if (soundPlayIdRef.current === playId) setSoundNormalState("played")
+  }
+
+  async function handleSoundSlowPlay() {
+    if (soundSlowState === "playing") {
+      ++soundPlayIdRef.current
+      stopSoundPlayback()
+      setSoundSlowState("played")
+      return
+    }
+    if (soundNormalState === "playing") { ++soundPlayIdRef.current; setSoundNormalState("played") }
+    const playId = ++soundPlayIdRef.current
+    setSoundSlowState("playing")
+    await playSoundSentence(0.6)
+    if (soundPlayIdRef.current === playId) setSoundSlowState("played")
   }
 
   function moveWordToZone(tokenId: string) {
@@ -1013,9 +1094,14 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
   function handleSubmitText() {
     if (!textAnswer.trim()) return
     answerRef.current = textAnswer.trim()
-    const expected = (config?.respuesta_correcta ?? "").trim().toLowerCase()
     const given = textAnswer.trim().toLowerCase()
-    const correct = expected ? given.includes(expected) || expected.includes(given) : true
+    const alternatives = (config?.respuesta_correcta ?? "")
+      .split("|")
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean)
+    const correct = alternatives.length > 0
+      ? alternatives.some(expected => given.includes(expected) || expected.includes(given))
+      : true
     if (correct) {
       setIsCorrect(true)
       setScore(100)
@@ -1069,7 +1155,11 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
     if (tipo === "seleccion_guiada" || tipo === "identificacion") {
       return opciones.find((o) => o.correcta)?.texto ?? "—"
     }
-    if (tipo === "respuesta_corta") return config?.respuesta_correcta ?? "—"
+    if (tipo === "respuesta_corta") {
+      const raw = config?.respuesta_correcta ?? ""
+      const alts = raw.split("|").map(s => s.trim()).filter(Boolean)
+      return alts.length > 1 ? alts.join(" / ") : alts[0] ?? "—"
+    }
     if (tipo === "completar_oracion" && fillPregunta) return fillPregunta.respuesta_esperada
     if (tipo === "reconocimiento_sonidos" && soundPregunta) return soundPregunta.respuesta_esperada
     return "—"
@@ -1216,8 +1306,8 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
         />
         {showBackConfirm && (
           <BackConfirmModal
-            isPlayingModal={isPlayingModal}
-            onSpeak={handleModalSpeak}
+            modalSpeakState={modalSpeakState}
+            onSpeakToggle={handleModalSpeakToggle}
             onContinue={() => setShowBackConfirm(false)}
             onExit={() => { _stopModalAudio(); clearLessonProgress(); onBack() }}
           />
@@ -1357,12 +1447,14 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                 })}
               </div>
 
-              <div className="relative flex items-center justify-center gap-4">
-                <p className="text-xl font-black text-amber-600 dark:text-amber-400">{earnedStars % 1 === 0 ? earnedStars : earnedStars.toFixed(1)} de 5 estrellas</p>
+              <div className="relative flex flex-col items-center gap-2">
+                <p className="text-xl font-black text-amber-600 dark:text-amber-400 text-center">
+                  {earnedStars % 1 === 0 ? earnedStars : earnedStars.toFixed(1)} de 5 estrellas
+                </p>
                 {lessonElapsedSecs > 0 && (
-                  <div className="inline-flex items-center gap-1.5 bg-card rounded-full px-3 py-1 border border-border">
-                    <Clock className="w-3.5 h-3.5 text-foreground" aria-hidden="true" />
-                    <span className="text-sm font-semibold text-foreground">
+                  <div className="inline-flex items-center gap-2 bg-amber-50 dark:bg-amber-950/30 rounded-full px-4 py-1.5 border border-amber-200 dark:border-amber-800 shadow-sm">
+                    <Clock className="w-4 h-4 text-amber-500" aria-hidden="true" />
+                    <span className="text-sm font-bold text-amber-600 dark:text-amber-400">
                       {lessonElapsedSecs < 60
                         ? `${lessonElapsedSecs} seg`
                         : `${Math.floor(lessonElapsedSecs / 60)}:${String(lessonElapsedSecs % 60).padStart(2, "0")} min`}
@@ -1467,11 +1559,15 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                     <Button
                       variant="outline"
                       className="h-11 px-4 text-sm shrink-0 self-center rounded-2xl border-border bg-card shadow-sm hover:bg-muted active:bg-muted"
-                      onClick={() => speak(config?.instrucciones || "Lee y responde la siguiente pregunta.")}
-                      aria-label="Escuchar instrucciones"
+                      onClick={handleInstrSpeak}
+                      aria-label={instrState === "playing" ? "Pausar instrucciones" : instrState === "played" ? "Repetir instrucciones" : "Escuchar instrucciones"}
                     >
-                      <Volume2 className="w-4 h-4 mr-2" aria-hidden="true" />
-                      Escuchar
+                      {instrState === "playing" ? (
+                        <Pause className="w-4 h-4 mr-2" aria-hidden="true" />
+                      ) : (
+                        <Volume2 className="w-4 h-4 mr-2" aria-hidden="true" />
+                      )}
+                      {instrState === "playing" ? "Pausar" : instrState === "played" ? "Repetir" : "Escuchar"}
                     </Button>
                   )}
                 </div>
@@ -1583,25 +1679,33 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                 <div className="flex items-end justify-center gap-5">
                   <div className="flex flex-col items-center gap-1">
                     <button
-                      onClick={() => playSoundSentence(1)}
+                      onClick={handleSoundNormalPlay}
                       disabled={!soundPregunta}
                       className="w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/30 hover:bg-primary/90 hover:scale-105 active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
-                      aria-label="Reproducir oración a velocidad normal"
+                      aria-label={soundNormalState === "playing" ? "Pausar" : soundNormalState === "played" ? "Repetir" : "Reproducir oración a velocidad normal"}
                     >
-                      <Volume2 className="w-7 h-7" aria-hidden="true" />
+                      {soundNormalState === "playing"
+                        ? <Pause className="w-7 h-7" aria-hidden="true" />
+                        : <Volume2 className="w-7 h-7" aria-hidden="true" />}
                     </button>
-                    <span className="text-sm font-semibold text-foreground">Escuchar</span>
+                    <span className="text-sm font-semibold text-foreground">
+                      {soundNormalState === "playing" ? "Pausar" : soundNormalState === "played" ? "Repetir" : "Escuchar"}
+                    </span>
                   </div>
                   <div className="flex flex-col items-center gap-1">
                     <button
-                      onClick={() => playSoundSentence(0.6)}
+                      onClick={handleSoundSlowPlay}
                       disabled={!soundPregunta}
                       className="w-12 h-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-md shadow-primary/20 hover:bg-primary/90 hover:scale-105 active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
-                      aria-label="Reproducir oración despacio"
+                      aria-label={soundSlowState === "playing" ? "Pausar" : soundSlowState === "played" ? "Repetir despacio" : "Reproducir oración despacio"}
                     >
-                      <Turtle className="w-5 h-5" aria-hidden="true" />
+                      {soundSlowState === "playing"
+                        ? <Pause className="w-5 h-5" aria-hidden="true" />
+                        : <Turtle className="w-5 h-5" aria-hidden="true" />}
                     </button>
-                    <span className="text-xs font-semibold text-muted-foreground">Despacio</span>
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {soundSlowState === "playing" ? "Pausar" : soundSlowState === "played" ? "Repetir" : "Despacio"}
+                    </span>
                   </div>
                 </div>
 
@@ -2012,79 +2116,73 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
             {/* Word search activity — sopa de letras */}
             {activity?.tipo === "sopa_letras" && wsGrid.length > 0 && (
               <div className="space-y-2">
-                {/* Grid + word list side by side */}
-                <div className="flex gap-3 items-start">
-                  {/* Grid */}
-                  <Card className={`border-2 transition-all flex-1 min-w-0 ${wsWrongFlash ? "border-destructive" : "border-border"}`}>
-                    <CardContent className="p-2 flex justify-center overflow-x-auto">
-                      <div
-                        className="inline-grid gap-1"
-                        style={{ gridTemplateColumns: `repeat(${wsGrid[0]?.length ?? 12}, minmax(0, 1fr))` }}
-                        aria-label="Cuadrícula de sopa de letras"
-                      >
-                        {wsGrid.map((rowArr, r) =>
-                          rowArr.map((letter, c) => {
-                            const key = `${r}-${c}`
-                            const isFound = wsFoundCells.has(key)
-                            const wordKey = wsCellWord.get(key)
-                            const colorIdx = wordKey !== undefined ? wsWordColors.get(wordKey) : undefined
-                            const color = colorIdx !== undefined ? WS_COLORS[colorIdx] : null
-                            const isAnimating = wsAnimatingCells.has(key)
-                            const isStart = wsStart?.row === r && wsStart?.col === c
-                            return (
-                              <button
-                                key={key}
-                                onClick={() => handleWsCellClick(r, c)}
-                                className={`w-8 h-8 sm:w-9 sm:h-9 text-xs sm:text-sm font-bold rounded flex items-center justify-center transition-all select-none ${isFound && color
-                                    ? `${color.bg} text-white${isAnimating ? " scale-125 shadow-md" : ""}`
-                                    : isStart
-                                      ? "bg-primary text-primary-foreground scale-110 z-10 relative"
-                                      : wsWrongFlash
-                                        ? "bg-destructive/20 text-foreground"
-                                        : "bg-muted hover:bg-primary/20 text-foreground"
-                                  }`}
-                                aria-label={`Letra ${letter}`}
-                              >
-                                {letter}
-                              </button>
-                            )
-                          })
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Word list — vertical, right side */}
-                  <Card className="border-2 w-36 shrink-0">
-                    <CardContent className="p-3">
-                      <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
-                        {wsFoundWords.size}/{wsPalabras.length}
-                      </p>
-                      <div className="flex flex-col gap-1.5">
-                        {wsPalabras.map(word => {
-                          const colorIdx = wsWordColors.get(word)
-                          const color = colorIdx !== undefined ? WS_COLORS[colorIdx] : null
-                          return (
-                            <span
-                              key={word}
-                              className={`px-2 py-1 rounded-lg border-2 font-bold text-sm text-center transition-all ${
-                                color
-                                  ? `${color.light} ${color.border} ${color.text} line-through`
-                                  : "bg-muted border-border text-foreground"
-                              }`}
-                            >
-                              {word}
-                            </span>
-                          )
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
+                {/* Instruction text — above grid */}
                 <p className="text-center text-xs text-muted-foreground">
                   Toca la primera y última letra de cada palabra
                 </p>
+
+                {/* Grid — full width */}
+                <Card className={`border-2 transition-all ${wsWrongFlash ? "border-destructive" : "border-border"}`}>
+                  <CardContent className="p-2 flex justify-center overflow-x-auto">
+                    <div
+                      className="inline-grid gap-1"
+                      style={{ gridTemplateColumns: `repeat(${wsGrid[0]?.length ?? 12}, minmax(0, 1fr))` }}
+                      aria-label="Cuadrícula de sopa de letras"
+                    >
+                      {wsGrid.map((rowArr, r) =>
+                        rowArr.map((letter, c) => {
+                          const key = `${r}-${c}`
+                          const isFound = wsFoundCells.has(key)
+                          const wordKey = wsCellWord.get(key)
+                          const colorIdx = wordKey !== undefined ? wsWordColors.get(wordKey) : undefined
+                          const color = colorIdx !== undefined ? WS_COLORS[colorIdx] : null
+                          const isAnimating = wsAnimatingCells.has(key)
+                          const isStart = wsStart?.row === r && wsStart?.col === c
+                          return (
+                            <button
+                              key={key}
+                              onClick={() => handleWsCellClick(r, c)}
+                              className={`w-8 h-8 sm:w-9 sm:h-9 text-xs sm:text-sm font-bold rounded flex items-center justify-center transition-all select-none ${isFound && color
+                                  ? `${color.bg} text-white${isAnimating ? " scale-125 shadow-md" : ""}`
+                                  : isStart
+                                    ? "bg-primary text-primary-foreground scale-110 z-10 relative"
+                                    : wsWrongFlash
+                                      ? "bg-destructive/20 text-foreground"
+                                      : "bg-muted hover:bg-primary/20 text-foreground"
+                                }`}
+                              aria-label={`Letra ${letter}`}
+                            >
+                              {letter}
+                            </button>
+                          )
+                        })
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Word list — horizontal, centered, below grid */}
+                <div className="flex flex-wrap gap-1.5 justify-center items-center pt-1">
+                  <p className="w-full text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">
+                    {wsFoundWords.size}/{wsPalabras.length} palabras
+                  </p>
+                  {wsPalabras.map(word => {
+                    const colorIdx = wsWordColors.get(word)
+                    const color = colorIdx !== undefined ? WS_COLORS[colorIdx] : null
+                    return (
+                      <span
+                        key={word}
+                        className={`px-2 py-1 rounded-lg border-2 font-bold text-sm text-center transition-all ${
+                          color
+                            ? `${color.light} ${color.border} ${color.text} line-through`
+                            : "bg-muted border-border text-foreground"
+                        }`}
+                      >
+                        {word}
+                      </span>
+                    )
+                  })}
+                </div>
                 {/* Give up button */}
                 {wsFoundWords.size < wsPalabras.length && (
                   <Button
@@ -2167,7 +2265,9 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                 <SpeakableText as="p" className="text-lg text-muted-foreground">
                   {isCorrect
                     ? activity?.tipo === "sopa_letras"
-                      ? `¡Encontraste todas las palabras! ${wsPalabras.length} de ${wsPalabras.length}.`
+                      ? wsFoundWords.size === wsPalabras.length
+                        ? `¡Encontraste todas las palabras! ${wsPalabras.length} de ${wsPalabras.length}.`
+                        : `¡Encontraste ${wsFoundWords.size} de ${wsPalabras.length} palabras!`
                       : "¡Muy bien! Has respondido correctamente."
                     : activity?.tipo === "sopa_letras"
                       ? `Encontraste ${wsFoundWords.size} de ${wsPalabras.length} palabras. ¡Sigue practicando!`
@@ -2209,8 +2309,8 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
 
       {showBackConfirm && (
         <BackConfirmModal
-          isPlayingModal={isPlayingModal}
-          onSpeak={handleModalSpeak}
+          modalSpeakState={modalSpeakState}
+          onSpeakToggle={handleModalSpeakToggle}
           onContinue={() => setShowBackConfirm(false)}
           onExit={() => { clearLessonProgress(); onBack() }}
         />

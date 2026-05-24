@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Label } from "@/components/ui/label"
 import { DatePicker } from "@/components/ui/date-picker"
 import {
@@ -15,12 +15,15 @@ import { useAccessibility } from "@/lib/accessibility-context"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import { useAnalytics, type AnalyticsFilters } from "@/hooks/teacher/use-analytics"
-import { fechaTijuana } from "@/lib/utils"
+import { StudentProfileSheet, type StudentProfileSheetStudent } from "@/components/teacher/student-profile-sheet"
+import { fechaTijuana, NIVELES } from "@/lib/utils"
 import { useSpeakOnHover } from "@/components/ui/accessible-tooltip"
 import {
-  ArrowLeft, Volume2, BarChart3, TrendingUp, Clock,
+  ArrowLeft, Volume2, Pause, BarChart3, TrendingUp, Clock,
   CheckCircle, Users, Target, SlidersHorizontal,
+  ChevronLeft, ChevronRight, Trophy, Crown, Award, Star, Flame,
 } from "lucide-react"
+import { Tooltip as UITooltip, TooltipTrigger as UITooltipTrigger, TooltipContent as UITooltipContent } from "@/components/ui/tooltip"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, LabelList,
@@ -73,20 +76,30 @@ function ConfigSection({ title, children }: { title: string; children: React.Rea
   )
 }
 
-function ConfigBtn({ children }: { children: React.ReactNode }) {
+function ConfigBtn() {
   return (
-    <PopoverTrigger asChild>
-      <button type="button" className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98] shrink-0">
-        <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" />
-        Configurar
-      </button>
-    </PopoverTrigger>
+    <UITooltip>
+      <UITooltipTrigger asChild>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label="Configurar"
+            className="flex items-center justify-center rounded-xl border border-border bg-card w-8 h-8 text-muted-foreground transition-all hover:bg-muted active:scale-[0.98] shrink-0"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" />
+          </button>
+        </PopoverTrigger>
+      </UITooltipTrigger>
+      <UITooltipContent side="left">Configurar</UITooltipContent>
+    </UITooltip>
   )
 }
 
 export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
   const { user }            = useAuth()
+  const [analyticsSpeakState, setAnalyticsSpeakState] = useState<"idle" | "playing" | "played">("idle")
+  const analyticsPlayIdRef = useRef(0)
 
   // ── Filtros globales ────────────────────────────────────────
   const [showFilters, setShowFilters] = useState(false)
@@ -103,12 +116,19 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
 
   // ── Config por gráfico ──────────────────────────────────────
   const [perfCfg, setPerfCfg] = useState({ metrica: "promedio_puntaje", cantidad: "5", ordenar: "nombre" })
-  const [progCfg, setProgCfg] = useState({ periodo: "7", metrica: "progreso", agrupar: "dia" })
+  const [progCfg, setProgCfg] = useState({ metrica: "progreso", agrupar: "dia" })
   const [tipoCfg, setTipoCfg] = useState({
     vista:  "dona",
     tipos:  TIPOS_ACTIVIDAD.map((t) => t.value),
   })
-  const [despCfg, setDespCfg] = useState({ ordenar: "nombre", filtrar: "todos", mostrar: "5" })
+  const [despCfg, setDespCfg] = useState({ ordenar: "nombre", filtrar: "todos" })
+  const [topCfg,  setTopCfg]  = useState({ filtro: "racha", cantidad: "3" })
+  const [despPage, setDespPage] = useState(0)
+  const DESP_PAGE_SIZE = 10
+
+  // ── Perfil de alumno (sheet lateral) ───────────────────────
+  const [profileStudent, setProfileStudent] = useState<StudentProfileSheetStudent | null>(null)
+  const openProfile = (s: StudentProfileSheetStudent) => setProfileStudent(s)
 
   // ── Hook de analíticas ──────────────────────────────────────
   const toISODay = (d: Date) => fechaTijuana(d)
@@ -123,7 +143,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
 
   const {
     performanceData, progressData, activityTypeData,
-    studentPerformance, overallStats, loading,
+    studentPerformance, grupoStudents, overallStats, loading,
   } = useAnalytics(filters)
 
   // ── Cargar grupos al montar ─────────────────────────────────
@@ -214,32 +234,23 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
       keyFn: (iso: string) => string,
       labelFn: (iso: string) => string,
     ) {
-      const map = new Map<string, { label: string; pts: number[]; intentos: number }>()
+      const map = new Map<string, { label: string; pts: number[]; intentos: number; intentosLeccion: number }>()
       data.forEach((item) => {
         if (!item.weekStart) return
         const key  = keyFn(item.weekStart)
-        const prev = map.get(key) ?? { label: labelFn(item.weekStart), pts: [] as number[], intentos: 0 }
+        const prev = map.get(key) ?? { label: labelFn(item.weekStart), pts: [] as number[], intentos: 0, intentosLeccion: 0 }
         prev.pts.push(item.puntaje)
-        prev.intentos += item.intentos
+        prev.intentos        += item.intentos
+        prev.intentosLeccion += item.intentosLeccion
         map.set(key, prev)
       })
       return Array.from(map.values()).map((m) => {
         const avg = m.pts.length > 0 ? Math.round(m.pts.reduce((a, b) => a + b, 0) / m.pts.length) : 0
-        return { week: m.label, weekStart: "", progreso: avg, puntaje: avg, intentos: m.intentos }
+        return { week: m.label, weekStart: "", progreso: avg, puntaje: avg, intentos: m.intentos, intentosLeccion: m.intentosLeccion }
       })
     }
 
-    // Aplicar periodo según modo de agrupación
-    let data = [...progressData]
-    if (progCfg.periodo !== "todo") {
-      const n = parseInt(progCfg.periodo)
-      const cutoff = new Date()
-      if (progCfg.agrupar === "dia")    cutoff.setDate(cutoff.getDate() - n)
-      else if (progCfg.agrupar === "semana") cutoff.setDate(cutoff.getDate() - n * 7)
-      else if (progCfg.agrupar === "mes")    cutoff.setMonth(cutoff.getMonth() - n)
-      const cutISO = fechaTijuana(cutoff)
-      data = data.filter((d) => d.weekStart >= cutISO)
-    }
+    const data = [...progressData]
 
     // Por día: usar datos directamente (ya son diarios)
     if (progCfg.agrupar === "dia") return data
@@ -264,7 +275,11 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
           mon.setDate(d.getDate() - (day - 1))
           const monISO = fechaTijuana(mon)
           if (!semKeys.has(monISO)) semKeys.set(monISO, ++semIdx)
-          return `Sem ${semKeys.get(monISO)}`
+          const num = semKeys.get(monISO)
+          const sun = new Date(mon)
+          sun.setDate(mon.getDate() + 6)
+          const fmt = (date: Date) => date.toLocaleString("es", { day: "numeric", month: "short" })
+          return `Sem ${num}\n${fmt(mon)}–${fmt(sun)}`
         },
       )
     }
@@ -280,7 +295,9 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
     )
   }, [progressData, progCfg])
 
-  const progDataKey = progCfg.metrica === "intentos" ? "intentos" : progCfg.metrica
+  const progDataKey = progCfg.metrica === "intentos" ? "intentos"
+    : progCfg.metrica === "intentosLeccion" ? "intentosLeccion"
+    : progCfg.metrica
 
   // Tipos de actividad
   const processedTipos = useMemo(() =>
@@ -291,18 +308,40 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
   // Desempeño individual
   const processedDesp = useMemo(() => {
     let data = [...studentPerformance]
-    // Ordenar
     if (despCfg.ordenar === "correctas") data.sort((a, b) => b.correctas - a.correctas)
     else if (despCfg.ordenar === "intentos") data.sort((a, b) => b.intentos - a.intentos)
     else if (despCfg.ordenar === "tiempo") data.sort((a, b) => b.tiempoSeconds - a.tiempoSeconds)
     else data.sort((a, b) => a.name.localeCompare(b.name))
-    // Filtrar
     if (despCfg.filtrar === "apoyo") data = data.filter((s) => s.correctas < 50)
     else if (despCfg.filtrar === "alto") data = data.filter((s) => s.correctas > 80)
-    // Mostrar
-    if (despCfg.mostrar !== "todos") data = data.slice(0, parseInt(despCfg.mostrar))
     return data
   }, [studentPerformance, despCfg])
+
+  // Reset página cuando cambian los filtros
+  const paginatedDesp = useMemo(() => {
+    const start = despPage * DESP_PAGE_SIZE
+    return processedDesp.slice(start, start + DESP_PAGE_SIZE)
+  }, [processedDesp, despPage])
+  const totalDespPages = Math.ceil(processedDesp.length / DESP_PAGE_SIZE)
+
+  // Top Alumnos — usa grupoStudents (solo filtro de grupo, no fecha/alumno/curso)
+  const processedTop = useMemo(() => {
+    let data = [...grupoStudents]
+    if (topCfg.filtro === "racha")          data.sort((a, b) => b.racha - a.racha)
+    else if (topCfg.filtro === "estrellas") data.sort((a, b) => b.estrellas - a.estrellas)
+    else                                    data.sort((a, b) => b.nivel - a.nivel)
+    return data.slice(0, parseInt(topCfg.cantidad))
+  }, [grupoStudents, topCfg])
+
+  // Distribución de niveles — usa grupoStudents (solo filtro de grupo, no fecha/alumno/curso)
+  const nivelDistData = useMemo(() => {
+    const counts = new Map<number, number>()
+    grupoStudents.forEach((s) => counts.set(s.nivel, (counts.get(s.nivel) ?? 0) + 1))
+    return Array.from({ length: 10 }, (_, i) => {
+      const n = i + 1
+      return { nivel: n, ...NIVELES[n], count: counts.get(n) ?? 0 }
+    }).filter((d) => d.count > 0)
+  }, [grupoStudents])
 
   // ── Estilos comunes Tooltip ─────────────────────────────────
   const tooltipStyle = {
@@ -334,10 +373,25 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
           </div>
           {settings.voiceEnabled && (
             <button type="button"
-              onClick={() => speak(`Analíticas. Promedio correcto: ${overallStats.averageCorrect}%. Intentos totales: ${overallStats.totalAttempts}. Tiempo promedio: ${overallStats.averageTime}. Estudiantes activos: ${overallStats.activeStudents}.`)}
+              onClick={async () => {
+                if (analyticsSpeakState === "playing") {
+                  stopSpeak()
+                  setAnalyticsSpeakState("played")
+                  return
+                }
+                const playId = ++analyticsPlayIdRef.current
+                setAnalyticsSpeakState("playing")
+                await speak(`Analíticas. Promedio correcto: ${overallStats.averageCorrect}%. Intentos totales: ${overallStats.totalAttempts}. Tiempo promedio: ${overallStats.averageTime}. Estudiantes activos: ${overallStats.activeStudents}.`)
+                if (analyticsPlayIdRef.current === playId) setAnalyticsSpeakState("played")
+              }}
+              aria-label={analyticsSpeakState === "playing" ? "Pausar" : analyticsSpeakState === "played" ? "Repetir" : "Escuchar resumen analíticas"}
               className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
-              <Volume2 className="w-4 h-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Escuchar</span>
+              {analyticsSpeakState === "playing"
+                ? <Pause className="w-4 h-4" aria-hidden="true" />
+                : <Volume2 className="w-4 h-4" aria-hidden="true" />}
+              <span className="hidden sm:inline">
+                {analyticsSpeakState === "playing" ? "Pausar" : analyticsSpeakState === "played" ? "Repetir" : "Escuchar"}
+              </span>
             </button>
           )}
         </div>
@@ -501,7 +555,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                   ? <div className="h-8 w-16 rounded-lg bg-white/30 animate-pulse mb-0.5" aria-hidden="true" />
                   : <p className="text-2xl font-black text-white">{overallStats.totalAttempts}</p>
                 }
-                <p className="text-xs font-medium text-white/80 mt-0.5">Total Intentos</p>
+                <p className="text-xs font-medium text-white/80 mt-0.5">Intentos de Lección</p>
               </div>
             </li>
             <li>
@@ -514,7 +568,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                   ? <div className="h-8 w-24 rounded-lg bg-white/30 animate-pulse mb-0.5" aria-hidden="true" />
                   : <p className="text-2xl font-black text-white">{overallStats.averageTime}</p>
                 }
-                <p className="text-xs font-medium text-white/80 mt-0.5">Tiempo Promedio</p>
+                <p className="text-xs font-medium text-white/80 mt-0.5">Tiempo prom./Lección</p>
               </div>
             </li>
             <li>
@@ -546,15 +600,16 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                 <h2 className="text-sm font-black text-foreground">Rendimiento por Lección</h2>
               </div>
               <Popover>
-                <ConfigBtn><span /></ConfigBtn>
+                <ConfigBtn />
                 <PopoverContent className="w-72" align="end">
                   <div className="space-y-5 p-1">
                     <p className="font-semibold text-sm">Configurar gráfico</p>
 
                     <ConfigSection title="Métrica">
                       <RadioGroup value={perfCfg.metrica} onValueChange={(v) => setPerfCfg((p) => ({ ...p, metrica: v }))} className="space-y-1.5">
-                        <RadioRow value="promedio_puntaje" label="Promedio de puntaje" />
-                        <RadioRow value="total_intentos" label="Total de intentos" />
+                        <RadioRow value="promedio_puntaje"   label="Promedio de puntaje" />
+                        <RadioRow value="total_intentos"     label="Intentos de lección" />
+                        <RadioRow value="total_intentos_act" label="Intentos de actividad" />
                       </RadioGroup>
                     </ConfigSection>
 
@@ -581,6 +636,11 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
               <div className="h-72">
                 {loading ? (
                   <div className="h-full rounded-xl bg-muted animate-pulse" aria-hidden="true" />
+                ) : processedPerf.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                    <BarChart3 className="w-8 h-8 opacity-30" aria-hidden="true" />
+                    <p className="text-sm">Sin datos para el período seleccionado</p>
+                  </div>
                 ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={processedPerf} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
@@ -598,7 +658,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                     <Tooltip
                       {...tooltipStyle}
                       formatter={(value: number, name: string) => [
-                        perfCfg.metrica === "total_intentos" ? value : `${value}%`,
+                        perfCfg.metrica === "promedio_puntaje" ? `${value}%` : value,
                         name,
                       ]}
                       labelFormatter={(label: string) => label}
@@ -610,8 +670,13 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                       </Bar>
                     )}
                     {perfCfg.metrica === "total_intentos" && (
-                      <Bar dataKey="total_intentos" name="Total intentos" fill="var(--color-chart-2)" radius={[4, 4, 0, 0]}>
+                      <Bar dataKey="total_intentos" name="Intentos de lección" fill="var(--color-chart-2)" radius={[4, 4, 0, 0]}>
                         <LabelList dataKey="total_intentos" position="top" style={{ fill: "var(--foreground)", fontSize: 11, fontWeight: 600 }} />
+                      </Bar>
+                    )}
+                    {perfCfg.metrica === "total_intentos_act" && (
+                      <Bar dataKey="total_intentos_act" name="Intentos de actividad" fill="var(--color-chart-3)" radius={[4, 4, 0, 0]}>
+                        <LabelList dataKey="total_intentos_act" position="top" style={{ fill: "var(--foreground)", fontSize: 11, fontWeight: 600 }} />
                       </Bar>
                     )}
                   </BarChart>
@@ -633,7 +698,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                 </h2>
               </div>
               <Popover>
-                <ConfigBtn><span /></ConfigBtn>
+                <ConfigBtn />
                 <PopoverContent className="w-72" align="end">
                   <div className="space-y-5 p-1">
                     <p className="font-semibold text-sm">Configurar gráfico</p>
@@ -645,7 +710,6 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                           ...p,
                           agrupar: v,
                           // Al cambiar el modo, setear el período por defecto correspondiente
-                          periodo: v === "dia" ? "7" : v === "semana" ? "4" : "6",
                         }))}
                         className="space-y-1.5"
                       >
@@ -657,9 +721,10 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
 
                     <ConfigSection title="Métrica">
                       <RadioGroup value={progCfg.metrica} onValueChange={(v) => setProgCfg((p) => ({ ...p, metrica: v }))} className="space-y-1.5">
-                        <RadioRow value="progreso"  label="Progreso %" />
-                        <RadioRow value="puntaje"   label="Puntaje promedio" />
-                        <RadioRow value="intentos"  label="Intentos" />
+                        <RadioRow value="progreso"         label="Progreso %" />
+                        <RadioRow value="puntaje"          label="Puntaje promedio" />
+                        <RadioRow value="intentos"         label="Intentos actividades" />
+                        <RadioRow value="intentosLeccion"  label="Intentos lección" />
                       </RadioGroup>
                     </ConfigSection>
                   </div>
@@ -670,17 +735,39 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
               <div className="h-64">
                 {loading ? (
                   <div className="h-full rounded-xl bg-muted animate-pulse" aria-hidden="true" />
+                ) : processedProg.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                    <TrendingUp className="w-8 h-8 opacity-30" aria-hidden="true" />
+                    <p className="text-sm">Sin datos para el período seleccionado</p>
+                  </div>
                 ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={processedProg}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="week" tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
+                    <XAxis
+                      dataKey="week"
+                      height={44}
+                      tick={({ x, y, payload }: any) => {
+                        const [line1, line2] = String(payload.value).split("\n")
+                        return (
+                          <g transform={`translate(${x},${y})`}>
+                            <text x={0} y={0} dy={12} textAnchor="middle" fill="var(--muted-foreground)" fontSize={11} fontWeight={600}>{line1}</text>
+                            {line2 && <text x={0} y={0} dy={24} textAnchor="middle" fill="var(--muted-foreground)" fontSize={10}>{line2}</text>}
+                          </g>
+                        )
+                      }}
+                    />
                     <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
                     <Tooltip {...tooltipStyle} />
                     <Line
                       type="monotone"
                       dataKey={progDataKey}
-                      name={progCfg.metrica === "intentos" ? "Intentos" : progCfg.metrica === "puntaje" ? "Puntaje" : "Progreso %"}
+                      name={
+                        progCfg.metrica === "intentos"        ? "Intentos actividades"
+                        : progCfg.metrica === "intentosLeccion" ? "Intentos lección"
+                        : progCfg.metrica === "puntaje"         ? "Puntaje promedio"
+                        : "Progreso %"
+                      }
                       stroke="var(--primary)"
                       strokeWidth={3}
                       dot={{ fill: "var(--primary)", strokeWidth: 2, r: 5 }}
@@ -693,15 +780,15 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
           </div>
         </div>
 
-        {/* ── Fila: Tipos + Desempeño ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* ── Fila: Tipos + Top Alumnos + Distribución de Niveles ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr_1fr] gap-5">
 
           {/* Tipos de Actividad */}
           <div className="rounded-3xl border-2 border-border bg-card shadow-sm overflow-hidden">
             <div className="flex flex-row items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-sm font-black text-foreground">Tipos de Actividad</h2>
               <Popover>
-                <ConfigBtn><span /></ConfigBtn>
+                <ConfigBtn />
                 <PopoverContent className="w-72" align="end">
                   <div className="space-y-5 p-1">
                     <p className="font-semibold text-sm">Configurar gráfico</p>
@@ -741,6 +828,11 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
             <div className="p-5">
               {loading ? (
                 <div className="h-48 rounded-xl bg-muted animate-pulse" aria-hidden="true" />
+              ) : processedTipos.length === 0 ? (
+                <div className="h-48 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                  <Target className="w-8 h-8 opacity-30" aria-hidden="true" />
+                  <p className="text-sm">Sin datos para el período seleccionado</p>
+                </div>
               ) : tipoCfg.vista === "dona" ? (
                 <>
                   <div className="h-48">
@@ -784,39 +876,30 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
             </div>
           </div>
 
-          {/* Desempeño Individual */}
-          <div className="rounded-3xl border-2 border-border bg-card shadow-sm overflow-hidden lg:col-span-2">
+          {/* Top Alumnos */}
+          <div className="rounded-3xl border-2 border-border bg-card shadow-sm overflow-hidden">
             <div className="flex flex-row items-center justify-between px-5 py-4 border-b border-border">
-              <h2 className="text-sm font-black text-foreground">Desempeño Individual</h2>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center">
+                  <Trophy className="w-4 h-4 text-amber-500" aria-hidden="true" />
+                </div>
+                <h2 className="text-sm font-black text-foreground">Top Alumnos</h2>
+              </div>
               <Popover>
-                <ConfigBtn><span /></ConfigBtn>
-                <PopoverContent className="w-72" align="end">
+                <ConfigBtn />
+                <PopoverContent className="w-64" align="end">
                   <div className="space-y-5 p-1">
-                    <p className="font-semibold text-sm">Configurar tabla</p>
-
-                    <ConfigSection title="Ordenar por">
-                      <RadioGroup value={despCfg.ordenar} onValueChange={(v) => setDespCfg((p) => ({ ...p, ordenar: v }))} className="space-y-1.5">
-                        <RadioRow value="nombre"    label="Nombre" />
-                        <RadioRow value="correctas" label="% Correctas" />
-                        <RadioRow value="intentos"  label="Intentos" />
-                        <RadioRow value="tiempo"    label="Tiempo promedio" />
+                    <p className="font-semibold text-sm">Configurar ranking</p>
+                    <ConfigSection title="Filtrar por">
+                      <RadioGroup value={topCfg.filtro} onValueChange={(v) => setTopCfg((p) => ({ ...p, filtro: v }))} className="space-y-1.5">
+                        <RadioRow value="racha"     label="Racha de días" />
+                        <RadioRow value="estrellas" label="Estrellas totales" />
                       </RadioGroup>
                     </ConfigSection>
-
-                    <ConfigSection title="Filtrar">
-                      <RadioGroup value={despCfg.filtrar} onValueChange={(v) => setDespCfg((p) => ({ ...p, filtrar: v }))} className="space-y-1.5">
-                        <RadioRow value="todos"  label="Todos" />
-                        <RadioRow value="apoyo"  label="Necesitan apoyo (< 50%)" />
-                        <RadioRow value="alto"   label="Rendimiento alto (> 80%)" />
-                      </RadioGroup>
-                    </ConfigSection>
-
                     <ConfigSection title="Mostrar">
-                      <RadioGroup value={despCfg.mostrar} onValueChange={(v) => setDespCfg((p) => ({ ...p, mostrar: v }))} className="space-y-1.5">
-                        <RadioRow value="5"    label="5 alumnos" />
-                        <RadioRow value="10"   label="10 alumnos" />
-                        <RadioRow value="20"   label="20 alumnos" />
-                        <RadioRow value="todos" label="Todos" />
+                      <RadioGroup value={topCfg.cantidad} onValueChange={(v) => setTopCfg((p) => ({ ...p, cantidad: v }))} className="space-y-1.5">
+                        <RadioRow value="3" label="Top 3" />
+                        <RadioRow value="5" label="Top 5" />
                       </RadioGroup>
                     </ConfigSection>
                   </div>
@@ -824,62 +907,322 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
               </Popover>
             </div>
             <div className="p-5">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Estudiante</th>
-                      <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Correctas</th>
-                      <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Intentos</th>
-                      <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Tiempo Prom.</th>
-                      <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Progreso</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {processedDesp.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="py-8 text-center text-muted-foreground text-sm">
-                          No hay alumnos con los filtros seleccionados
-                        </td>
-                      </tr>
+              {loading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => <div key={i} className="h-12 rounded-xl bg-muted animate-pulse" />)}
+                </div>
+              ) : processedTop.length === 0 ? (
+                <div className="h-40 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                  <Trophy className="w-8 h-8 opacity-30" aria-hidden="true" />
+                  <p className="text-sm">Sin datos disponibles</p>
+                </div>
+              ) : (
+                <ol className="space-y-3" aria-label="Ranking de alumnos">
+                  {processedTop.map((student, idx) => {
+                    const rowBg        = idx === 0 ? "bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60"
+                      : idx === 1 ? "bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60"
+                      : idx === 2 ? "bg-orange-50 dark:bg-orange-950/20 border border-orange-200/60"
+                      : "border border-border"
+                    const MedalIcon  = idx === 0 ? Crown : idx === 1 ? Award : idx === 2 ? Award : null
+                    const medalColor = idx === 0 ? "text-amber-500" : idx === 1 ? "text-slate-400" : "text-orange-400"
+                    const initials   = student.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
+
+                    const valorChip = topCfg.filtro === "racha" ? (
+                      <span className="flex items-center gap-1.5 bg-orange-100 text-orange-700 px-3 py-1.5 rounded-full shrink-0">
+                        <Flame className="w-5 h-5 fill-orange-500 text-orange-500 shrink-0" aria-hidden="true" />
+                        <span className="text-xs font-black">{student.racha}</span>
+                      </span>
+                    ) : topCfg.filtro === "estrellas" ? (
+                      <span className="flex items-center gap-1.5 bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full shrink-0">
+                        <Star className="w-5 h-5 fill-amber-400 text-amber-400 shrink-0" aria-hidden="true" />
+                        <span className="text-xs font-black">{student.estrellas}</span>
+                      </span>
                     ) : (
-                      processedDesp.map((student) => (
-                        <tr key={student.id} className="border-b border-border hover:bg-muted/30 transition-colors">
-                          <td className="py-3 px-3 text-sm font-bold">{student.name}</td>
-                          <td className="py-3 px-3">
-                            <span className={`text-sm font-black ${
-                              student.correctas >= 80 ? "text-emerald-600"
-                              : student.correctas >= 50 ? "text-amber-600"
-                              : "text-red-500"
-                            }`}>
+                      <span className="flex items-center gap-1.5 bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-full shrink-0">
+                        <div className="w-4 h-4 rounded-md overflow-hidden shrink-0">
+                          <img src={student.nivelIcon} alt="" className="w-full h-full object-cover" />
+                        </div>
+                        <span className="text-xs font-black">Nv. {student.nivel}</span>
+                      </span>
+                    )
+
+                    return (
+                      <li key={student.id} className={`flex items-center gap-3 px-4 py-3 rounded-2xl ${rowBg}`}>
+                        {/* Posición */}
+                        <span className="w-7 flex items-center justify-center shrink-0" aria-label={`Posición ${idx + 1}`}>
+                          {MedalIcon
+                            ? <MedalIcon className={`w-6 h-6 ${medalColor}`} aria-hidden="true" />
+                            : <span className="text-sm font-black text-muted-foreground">{idx + 1}</span>
+                          }
+                        </span>
+                        {/* Avatar + badge nivel */}
+                        <button
+                          type="button"
+                          onClick={() => openProfile({ alumnoId: student.id, name: student.name, colorPerfil: student.colorPerfil })}
+                          className="relative shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                          aria-label={`Ver perfil de ${student.name}`}
+                        >
+                          <div
+                            className="w-11 h-11 rounded-full flex items-center justify-center text-white font-black text-sm shadow-sm"
+                            style={{ backgroundColor: student.colorPerfil ?? "#93c5fd" }}
+                          >
+                            {initials}
+                          </div>
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-lg overflow-hidden border-2 border-card">
+                            <img src={student.nivelIcon} alt={student.nivelNombre} className="w-full h-full object-cover" />
+                          </div>
+                        </button>
+                        {/* Nombre + nivel */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-foreground truncate">{student.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">Nv. {student.nivel} · {student.nivelNombre}</p>
+                        </div>
+                        {/* Valor con ícono */}
+                        {valorChip}
+                      </li>
+                    )
+                  })}
+                </ol>
+              )}
+            </div>
+          </div>
+
+          {/* Distribución de Niveles */}
+          <div className="rounded-3xl border-2 border-border bg-card shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-5 py-4 border-b border-border">
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                <BarChart3 className="w-4 h-4 text-primary" aria-hidden="true" />
+              </div>
+              <h2 className="text-sm font-black text-foreground">Distribución de Niveles</h2>
+            </div>
+            <div className="p-5">
+              {loading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4].map((i) => <div key={i} className="h-8 rounded-xl bg-muted animate-pulse" />)}
+                </div>
+              ) : nivelDistData.length === 0 ? (
+                <div className="h-40 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                  <BarChart3 className="w-8 h-8 opacity-30" aria-hidden="true" />
+                  <p className="text-sm">Sin datos disponibles</p>
+                </div>
+              ) : (
+                <ol className="space-y-4" aria-label="Distribución de alumnos por nivel">
+                  {nivelDistData.map((d) => {
+                    const pct      = grupoStudents.length > 0 ? Math.round((d.count / grupoStudents.length) * 100) : 0
+                    const barColor = d.nivel <= 3 ? "bg-emerald-400"
+                      : d.nivel <= 6 ? "bg-teal-500"
+                      : d.nivel <= 8 ? "bg-primary"
+                      : "bg-violet-500"
+                    return (
+                      <li key={d.nivel} className="space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 shrink-0 overflow-hidden rounded-xl">
+                              <img src={d.icon} alt={d.nombre} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-foreground truncate leading-tight">{d.nombre}</p>
+                              <p className="text-xs text-muted-foreground">Nivel {d.nivel}</p>
+                            </div>
+                          </span>
+                          <div className="text-right shrink-0">
+                            <p className="text-sm font-black text-foreground">{d.count} alumno{d.count !== 1 ? "s" : ""}</p>
+                            <p className="text-xs text-muted-foreground">{pct}%</p>
+                          </div>
+                        </div>
+                        <div className="h-2.5 rounded-full bg-muted overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Nivel ${d.nivel}: ${d.count} alumnos`}>
+                          <div className={`h-full rounded-full ${barColor} transition-all duration-500`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ol>
+              )}
+            </div>
+          </div>
+
+        </div>
+
+        {/* ── Desempeño Individual (fila completa, paginada) ── */}
+        <div className="rounded-3xl border-2 border-border bg-card shadow-sm overflow-hidden">
+          <div className="flex flex-row items-center justify-between px-5 py-4 border-b border-border">
+            <div>
+              <h2 className="text-sm font-black text-foreground">Desempeño Individual</h2>
+              {processedDesp.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {processedDesp.length} alumno{processedDesp.length !== 1 ? "s" : ""}
+                  {totalDespPages > 1 && ` · Pág ${despPage + 1} de ${totalDespPages}`}
+                </p>
+              )}
+            </div>
+            <Popover>
+              <ConfigBtn />
+              <PopoverContent className="w-64" align="end">
+                <div className="space-y-5 p-1">
+                  <p className="font-semibold text-sm">Configurar tabla</p>
+                  <ConfigSection title="Ordenar por">
+                    <RadioGroup value={despCfg.ordenar} onValueChange={(v) => { setDespCfg((p) => ({ ...p, ordenar: v })); setDespPage(0) }} className="space-y-1.5">
+                      <RadioRow value="nombre"    label="Nombre" />
+                      <RadioRow value="correctas" label="% Correctas" />
+                      <RadioRow value="intentos"  label="Intentos" />
+                      <RadioRow value="tiempo"    label="Tiempo promedio" />
+                    </RadioGroup>
+                  </ConfigSection>
+                  <ConfigSection title="Filtrar">
+                    <RadioGroup value={despCfg.filtrar} onValueChange={(v) => { setDespCfg((p) => ({ ...p, filtrar: v })); setDespPage(0) }} className="space-y-1.5">
+                      <RadioRow value="todos"  label="Todos" />
+                      <RadioRow value="apoyo"  label="Necesitan apoyo (< 50%)" />
+                      <RadioRow value="alto"   label="Rendimiento alto (> 80%)" />
+                    </RadioGroup>
+                  </ConfigSection>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="p-5">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b-2 border-border bg-muted/30">
+                    <th scope="col" className="text-left py-3 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Estudiante</th>
+                    <th scope="col" className="text-left py-3 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Correctas</th>
+                    <th scope="col" className="text-left py-3 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Int. Lección</th>
+                    <th scope="col" className="text-left py-3 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Tiempo Prom.</th>
+                    <th scope="col" className="text-left py-3 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider min-w-[140px]">Progreso</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {processedDesp.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-10 text-center text-muted-foreground text-sm">
+                        No hay alumnos con los filtros seleccionados
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedDesp.map((student, rowIdx) => {
+                      const initials = student.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
+                      const badgeBg  = student.correctas >= 80 ? "bg-emerald-100 text-emerald-700"
+                        : student.correctas >= 50 ? "bg-amber-100 text-amber-700"
+                        : "bg-red-100 text-red-600"
+                      const barColor = student.correctas >= 80 ? "bg-emerald-500"
+                        : student.correctas >= 50 ? "bg-amber-400"
+                        : "bg-red-400"
+                      return (
+                        <tr key={student.id} className={`transition-colors hover:bg-muted/40 ${rowIdx % 2 !== 0 ? "bg-muted/10" : ""}`}>
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => openProfile({ alumnoId: student.id, name: student.name, colorPerfil: student.colorPerfil })}
+                                className="relative shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                aria-label={`Ver perfil de ${student.name}`}
+                              >
+                                <div
+                                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-sm shadow-sm"
+                                  style={{ backgroundColor: student.colorPerfil ?? "#93c5fd" }}
+                                >
+                                  {initials}
+                                </div>
+                                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-lg overflow-hidden border-2 border-card">
+                                  <img src={student.nivelIcon} alt={student.nivelNombre} className="w-full h-full object-cover" />
+                                </div>
+                              </button>
+                              <p className="text-sm font-bold text-foreground truncate flex-1 min-w-0">{student.name}</p>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-black ${badgeBg}`}>
                               {student.correctas}%
                             </span>
                           </td>
-                          <td className="py-3 px-3 text-sm text-muted-foreground">{student.intentos}</td>
-                          <td className="py-3 px-3 text-sm text-muted-foreground">{student.tiempo}</td>
-                          <td className="py-3 px-3 w-28">
-                            <div className="h-2 rounded-full bg-muted overflow-hidden">
-                              <div
-                                role="progressbar"
-                                aria-valuenow={student.correctas}
-                                aria-valuemin={0}
-                                aria-valuemax={100}
-                                aria-label={`Progreso de ${student.name}: ${student.correctas}%`}
-                                className="h-full rounded-full bg-primary transition-all"
-                                style={{ width: `${student.correctas}%` }}
-                              />
-                            </div>
+                          <td className="py-3.5 px-4">
+                            <span className="text-sm font-semibold text-foreground">{student.intentos}</span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="text-sm text-muted-foreground">{student.tiempo}</span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <UITooltip>
+                              <UITooltipTrigger asChild>
+                                <div className="h-2.5 rounded-full bg-muted overflow-hidden cursor-default">
+                                  <div
+                                    role="progressbar"
+                                    aria-valuenow={student.progreso}
+                                    aria-valuemin={0}
+                                    aria-valuemax={100}
+                                    aria-label={`Progreso de ${student.name}: ${student.progreso}%`}
+                                    className={`h-full rounded-full ${barColor} transition-all duration-500`}
+                                    style={{ width: `${student.progreso}%` }}
+                                  />
+                                </div>
+                              </UITooltipTrigger>
+                              <UITooltipContent side="top">
+                                {student.leccionesCompletadas} lección{student.leccionesCompletadas !== 1 ? "es" : ""} completada{student.leccionesCompletadas !== 1 ? "s" : ""} · {student.progreso}% {cursoId ? "del curso" : "de todos los cursos"}
+                              </UITooltipContent>
+                            </UITooltip>
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
+
+            {/* Paginación */}
+            {totalDespPages > 1 && (
+              <div className="flex items-center justify-between pt-4 border-t border-border mt-2">
+                <span className="text-xs text-muted-foreground">
+                  {despPage * DESP_PAGE_SIZE + 1}–{Math.min((despPage + 1) * DESP_PAGE_SIZE, processedDesp.length)} de {processedDesp.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setDespPage((p) => p - 1)}
+                    disabled={despPage === 0}
+                    aria-label="Página anterior"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-all hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+                  </button>
+                  {Array.from({ length: totalDespPages }, (_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setDespPage(i)}
+                      aria-label={`Ir a página ${i + 1}`}
+                      aria-current={despPage === i ? "page" : undefined}
+                      className={`h-8 w-8 rounded-lg text-xs font-bold transition-all ${
+                        despPage === i
+                          ? "bg-primary text-primary-foreground"
+                          : "border border-border bg-card text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setDespPage((p) => p + 1)}
+                    disabled={despPage >= totalDespPages - 1}
+                    aria-label="Página siguiente"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-all hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    <ChevronRight className="w-4 h-4" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>
+
+      {/* Sheet lateral — perfil de alumno */}
+      <StudentProfileSheet
+        open={profileStudent !== null}
+        onOpenChange={(open) => { if (!open) setProfileStudent(null) }}
+        student={profileStudent}
+      />
     </div>
   )
 }

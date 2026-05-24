@@ -8,7 +8,7 @@ import {
   ArrowLeft, ChevronRight, CheckCircle2,
   Mic, Image as ImageIcon, ListOrdered, HelpCircle, PencilLine, Volume2,
   BookOpen, Youtube, Search, Paperclip, ExternalLink, FileText, RotateCcw, PlayCircle, AlignLeft,
-  ChevronDown, ChevronUp, Square,
+  ChevronDown, ChevronUp, Pause,
 } from "lucide-react"
 import { TextoConGlosario, type GlosarioEntry } from "@/components/ui/texto-con-glosario"
 
@@ -85,7 +85,7 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
   const [loading, setLoading] = useState(true)
   const [readingExpanded, setReadingExpanded] = useState(true)
   const [glosario, setGlosario] = useState<GlosarioEntry[]>([])
-  const [isReading, setIsReading] = useState(false)
+  const [readingState, setReadingState] = useState<"idle" | "playing" | "played">("idle")
 
   useEffect(() => {
     if (!user || !lessonId) return
@@ -118,14 +118,14 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
 
   async function handleReadMaterial() {
     if (!material.material_lectura) return
-    if (isReading) {
+    if (readingState === "playing") {
       stopSpeak()
-      setIsReading(false)
+      setReadingState("played")
       return
     }
-    setIsReading(true)
+    setReadingState("playing")
     await speak(material.material_lectura)
-    setIsReading(false)
+    setReadingState("played")
   }
 
   return (
@@ -134,7 +134,7 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
       <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur-md">
         <div className="max-w-3xl mx-auto px-5 h-16 flex items-center gap-4">
           <button
-            onClick={onBack}
+            onClick={() => { stopSpeak(); setReadingState("idle"); onBack() }}
             aria-label="Volver a las lecciones"
             className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.97] shrink-0"
           >
@@ -238,16 +238,16 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={handleReadMaterial}
-                    aria-label={isReading ? "Detener lectura" : "Escuchar material de lectura"}
-                    title={isReading ? "Detener" : "Escuchar"}
+                    aria-label={readingState === "playing" ? "Pausar lectura" : readingState === "played" ? "Repetir lectura" : "Escuchar material de lectura"}
+                    title={readingState === "playing" ? "Pausar" : readingState === "played" ? "Repetir" : "Escuchar"}
                     className={`flex h-11 w-11 items-center justify-center rounded-xl border-2 transition-all active:scale-95 ${
-                      isReading
+                      readingState === "playing"
                         ? "border-primary bg-primary text-primary-foreground shadow-sm"
                         : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20"
                     }`}
                   >
-                    {isReading
-                      ? <Square className="w-5 h-5 fill-current" aria-hidden />
+                    {readingState === "playing"
+                      ? <Pause className="w-5 h-5" aria-hidden />
                       : <Volume2 className="w-5 h-5" aria-hidden />}
                   </button>
                   <button
@@ -283,7 +283,7 @@ export function StudentLesson({ lessonId, lessonName, onSelectActivity, onStartL
         {!loading && activities.length > 0 && onStartLesson && (
           <div className="flex justify-center">
             <button
-              onClick={onStartLesson}
+              onClick={() => { stopSpeak(); setReadingState("idle"); onStartLesson?.() }}
               className="flex items-center gap-2.5 rounded-2xl bg-primary px-8 py-4 text-base font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:opacity-90 hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.97]"
             >
               {completadas === activities.length

@@ -13,6 +13,7 @@ import {
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useAuth } from "@/lib/auth-context"
 import { useStudents } from "@/hooks/teacher/use-students"
+import { StudentProfileSheet, type StudentProfileSheetStudent } from "@/components/teacher/student-profile-sheet"
 import { useSpeakOnHover } from "@/components/ui/accessible-tooltip"
 import { supabase } from "@/lib/supabase"
 import {
@@ -50,6 +51,7 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
   const [alumnoSeleccionado, setAlumnoSeleccionado] = useState<{ id: string; nombre: string } | null>(null)
   const [buscandoCursos,     setBuscandoCursos]     = useState<string | null>(null)
   const [errorReporte,       setErrorReporte]       = useState<string | null>(null)
+  const [profileStudent,     setProfileStudent]     = useState<StudentProfileSheetStudent | null>(null)
 
   const abrirReporte = (alumnoId: string, cursoId: string, cursoTitulo: string) => {
     const qs = new URLSearchParams({ name: cursoTitulo, openStudent: alumnoId, back: "students" }).toString()
@@ -239,15 +241,21 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
                     }`}>
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
-                        <div
-                          style={student.colorPerfil ? { backgroundColor: student.colorPerfil } : undefined}
-                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-base font-bold text-primary-foreground ${
-                            student.colorPerfil ? "" : student.needsSupport ? "bg-amber-500" : "bg-primary"
-                          }`}
-                          aria-hidden="true"
+                        <button
+                          type="button"
+                          onClick={() => setProfileStudent({ alumnoId: student.id, name: student.name, colorPerfil: student.colorPerfil })}
+                          aria-label={`Ver perfil de ${student.name}`}
+                          className="shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl"
                         >
-                          {student.name.charAt(0)}
-                        </div>
+                          <div
+                            style={student.colorPerfil ? { backgroundColor: student.colorPerfil } : undefined}
+                            className={`flex h-11 w-11 items-center justify-center rounded-xl text-base font-bold text-primary-foreground ${
+                              student.colorPerfil ? "" : student.needsSupport ? "bg-amber-500" : "bg-primary"
+                            }`}
+                          >
+                            {student.name.charAt(0)}
+                          </div>
+                        </button>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h2 className="text-sm font-bold text-foreground">{student.name}</h2>
@@ -339,6 +347,12 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <StudentProfileSheet
+        open={profileStudent !== null}
+        onOpenChange={(open) => { if (!open) setProfileStudent(null) }}
+        student={profileStudent}
+      />
     </div>
   )
 }

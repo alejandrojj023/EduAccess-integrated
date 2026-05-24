@@ -249,7 +249,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
     if (showsOptions && actOptions.some(o => !o.text.trim())) return
     if (showsOptions && !actOptions.some(o => o.isCorrect)) return
     if (configuringType.type === "sequence" && actSequenceSteps.filter(s => s.previewUrl || s.existingUrl).length < 3) return
-    if (configuringType.type === "fill" && (!actFillEnunciado.trim() || !actFillEnunciado.includes("___") || !actCorrectAnswer.trim())) return
+    if (configuringType.type === "fill" && (!actFillEnunciado.trim() || !actFillEnunciado.includes("___") || (actFillEnunciado.split("___").length - 1) > 1 || !actCorrectAnswer.trim())) return
     if (configuringType.type === "sound" && !actCorrectAnswer.trim()) return
     if (configuringType.type === "voice" && (!actVoiceEnunciado.trim() || !actCorrectAnswer.trim())) return
     if (configuringType.type === "wordsearch" && actPalabrasSopa.length === 0) return

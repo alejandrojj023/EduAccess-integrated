@@ -9,7 +9,7 @@ import { useAccessibility } from "@/lib/accessibility-context"
 import { supabase } from "@/lib/supabase"
 import {
   ArrowLeft, Volume2, Mic, RefreshCw, Check, X,
-  Loader2, Star,
+  Loader2, Star, Pause,
 } from "lucide-react"
 
 interface VoiceActivityProps {
@@ -64,7 +64,7 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
   const isLessonMode = lessonIndex !== undefined && lessonTotal !== undefined && lessonTotal > 0
   const lessonProgress = isLessonMode ? Math.round((lessonIndex / lessonTotal) * 100) : 0
   const { user }            = useAuth()
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
 
   const [activity,  setActivity]  = useState<ActivityData | null>(null)
   const [pregunta,  setPregunta]  = useState<PreguntaData | null>(null)
@@ -79,6 +79,9 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
   const [score,            setScore]            = useState(0)
   const [attempts,         setAttempts]         = useState(0)
   const [showCorrect,      setShowCorrect]      = useState(false)
+
+  const [questionSpeakState, setQuestionSpeakState] = useState<"idle" | "playing" | "played">("idle")
+  const questionPlayIdRef = useRef(0)
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const activityStartRef = useRef<number>(Date.now())
@@ -121,6 +124,8 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
     setActivity(act)
     setPregunta(pq)
     setPhase("question")
+    setQuestionSpeakState("idle")
+    questionPlayIdRef.current = 0
 
     if (settings.voiceEnabled) {
       const instrucciones = act.instrucciones?.trim()
@@ -144,6 +149,19 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
   const speakQuestion = useCallback((text: string) => {
     speak(text)
   }, [speak])
+
+  async function handleQuestionSpeak() {
+    if (!pregunta) return
+    if (questionSpeakState === "playing") {
+      stopSpeak()
+      setQuestionSpeakState("played")
+      return
+    }
+    const playId = ++questionPlayIdRef.current
+    setQuestionSpeakState("playing")
+    await speak(pregunta.enunciado)
+    if (questionPlayIdRef.current === playId) setQuestionSpeakState("played")
+  }
 
   // Mantener ref sincronizado con el estado de intentos para evitar closures obsoletas
   useEffect(() => { attemptsRef.current = attempts }, [attempts])
@@ -421,11 +439,14 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
             <div className="flex justify-center">
               <div className="flex items-center gap-3 flex-wrap">
                 <button
-                  onClick={() => speakQuestion(pregunta!.enunciado)}
+                  onClick={handleQuestionSpeak}
                   className="w-12 h-12 shrink-0 rounded-2xl border border-border/70 bg-muted/40 hover:bg-muted flex items-center justify-center transition-colors shadow-sm"
-                  aria-label="Escuchar pregunta"
+                  aria-label={questionSpeakState === "playing" ? "Pausar pregunta" : questionSpeakState === "played" ? "Repetir pregunta" : "Escuchar pregunta"}
                 >
-                  <Volume2 className="w-5 h-5 text-primary" aria-hidden="true" />
+                  {questionSpeakState === "playing"
+                    ? <Pause className="w-5 h-5 text-primary" aria-hidden="true" />
+                    : <Volume2 className="w-5 h-5 text-primary" aria-hidden="true" />
+                  }
                 </button>
                 <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground text-center">
                   {pregunta?.enunciado}
@@ -433,7 +454,7 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
               </div>
             </div>
             <p className="text-sm text-muted-foreground mt-4 text-center">
-              Toca el ícono para escuchar la pregunta
+              {questionSpeakState === "playing" ? "Toca para pausar" : questionSpeakState === "played" ? "Toca para repetir" : "Toca el ícono para escuchar la pregunta"}
             </p>
           </CardContent>
         </Card>

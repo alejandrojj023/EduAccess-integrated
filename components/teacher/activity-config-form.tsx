@@ -331,6 +331,7 @@ export function ActivityConfigForm({
 
   const [distInput, setDistInput] = useState("")
   const [voiceAnswerInput, setVoiceAnswerInput] = useState("")
+  const [shortAnswerInput, setShortAnswerInput] = useState("")
   const [fillEnunciadoBlurred, setFillEnunciadoBlurred] = useState(false)
   const [fillCorrectBlurred, setFillCorrectBlurred] = useState(false)
   const [soundCorrectBlurred, setSoundCorrectBlurred] = useState(false)
@@ -378,6 +379,23 @@ export function ActivityConfigForm({
 
   function removeVoiceAnswer(ans: string) {
     onCorrectAnswerChange(voiceAnswers.filter(a => a !== ans).join(","))
+    onDirty?.()
+  }
+
+  const shortAnswers = showShort
+    ? correctAnswer.split("|").filter(s => s.trim()).map(s => s.trim())
+    : []
+
+  function addShortAnswer() {
+    const ans = shortAnswerInput.trim()
+    if (!ans || shortAnswers.includes(ans)) return
+    onCorrectAnswerChange([...shortAnswers, ans].join("|"))
+    setShortAnswerInput("")
+    onDirty?.()
+  }
+
+  function removeShortAnswer(ans: string) {
+    onCorrectAnswerChange(shortAnswers.filter(a => a !== ans).join("|"))
     onDirty?.()
   }
 
@@ -795,6 +813,16 @@ export function ActivityConfigForm({
                 Recuerda incluir <strong>___</strong> para marcar el espacio en blanco.
               </p>
             )}
+            {(fillEnunciado.split("___").length - 1) > 1 && (
+              <p
+                className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center gap-1.5"
+                role="alert"
+                aria-live="polite"
+              >
+                <span aria-hidden="true">⚠</span>
+                Solo se permite <strong>un espacio en blanco</strong> por oración. Elimina los ___ extra.
+              </p>
+            )}
             {fillEnunciado.includes("___") && (
               <div className="p-3 bg-muted rounded-xl text-sm font-medium text-foreground">
                 Vista previa:{" "}
@@ -1038,28 +1066,61 @@ export function ActivityConfigForm({
       {/* ── Respuesta Corta ───────────────────────────────────────── */}
       {showShort && (
         <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-3">
-          <h2 className="text-sm font-semibold text-foreground">Respuesta Correcta</h2>
-          <Input
-            value={correctAnswer}
-            onChange={(e) => { onCorrectAnswerChange(e.target.value); setShortCorrectBlurred(false); onDirty?.() }}
-            onBlur={() => setShortCorrectBlurred(true)}
-            aria-label="Respuesta correcta esperada"
-            placeholder="Escribe la respuesta esperada"
-            className="border-border"
-          />
-          {shortCorrectBlurred && !correctAnswer.trim() && (
+          <h2 className="text-sm font-semibold text-foreground">Respuestas Correctas</h2>
+          <div className="flex gap-2">
+            <Input
+              value={shortAnswerInput}
+              onChange={(e) => { setShortAnswerInput(e.target.value); setShortCorrectBlurred(false) }}
+              onBlur={() => setShortCorrectBlurred(true)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addShortAnswer() } }}
+              aria-label="Agregar respuesta correcta"
+              placeholder="Ej: 3 o tres"
+              className="border-border flex-1"
+            />
+            <button
+              type="button"
+              onClick={addShortAnswer}
+              disabled={!shortAnswerInput.trim()}
+              aria-label="Agregar respuesta correcta"
+              className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all shrink-0"
+            >
+              <Plus className="w-4 h-4" aria-hidden="true" />
+              Agregar
+            </button>
+          </div>
+          {shortAnswers.length > 0 && (
+            <div className="flex flex-wrap gap-2 p-3 bg-muted rounded-xl">
+              {shortAnswers.map((ans, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/30 px-3 py-1 rounded-lg text-xs font-medium"
+                >
+                  {ans}
+                  <button
+                    type="button"
+                    onClick={() => removeShortAnswer(ans)}
+                    aria-label={`Eliminar ${ans}`}
+                    className="text-primary hover:opacity-70 transition-opacity"
+                  >
+                    <X className="w-3 h-3" aria-hidden="true" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          {shortCorrectBlurred && shortAnswers.length === 0 && (
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-1.5" role="alert" aria-live="polite">
               <span aria-hidden="true">⚠</span>
-              Escribe la respuesta que se comparará con la del alumno.
+              Agrega al menos una respuesta correcta.
             </p>
           )}
-          {showValidation && !correctAnswer.trim() && (
+          {showValidation && shortAnswers.length === 0 && (
             <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2" role="alert">
               La respuesta correcta es obligatoria antes de guardar.
             </p>
           )}
           <p className="text-xs text-muted-foreground">
-            El sistema comparará la respuesta del estudiante con esta.
+            Escribe una respuesta y presiona <strong>Agregar</strong>. Se acepta cualquiera de las que agregues.
           </p>
         </div>
       )}

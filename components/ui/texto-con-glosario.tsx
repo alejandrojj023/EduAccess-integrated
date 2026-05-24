@@ -1,9 +1,10 @@
 "use client"
 
+import { useState } from "react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import { useAccessibility } from "@/lib/accessibility-context"
-import { Volume2 } from "lucide-react"
+import { Volume2, Pause } from "lucide-react"
 
 export interface GlosarioEntry {
   palabra: string
@@ -36,8 +37,27 @@ function resaltarPalabras(texto: string, glosario: GlosarioEntry[]) {
 }
 
 export function TextoConGlosario({ texto, glosario, className }: TextoConGlosarioProps) {
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
+  const [speakingWord, setSpeakingWord] = useState<string | null>(null)
+  const [playedWord, setPlayedWord] = useState<string | null>(null)
   const tokens = resaltarPalabras(texto, glosario)
+
+  async function handleDefSpeak(word: string, definicion: string) {
+    if (speakingWord === word) {
+      stopSpeak()
+      setSpeakingWord(null)
+      setPlayedWord(word)
+      return
+    }
+    if (speakingWord !== null) {
+      stopSpeak()
+      setPlayedWord(speakingWord)
+    }
+    setSpeakingWord(word)
+    await speak(definicion)
+    setSpeakingWord(null)
+    setPlayedWord(word)
+  }
 
   return (
     <span className={className}>
@@ -54,7 +74,6 @@ export function TextoConGlosario({ texto, glosario, className }: TextoConGlosari
                 tabIndex={0}
                 aria-label={`Definición de: ${token.texto.replace(/[.,;:!?¿¡()]/g, "")}`}
                 onMouseEnter={() => {
-                  // El listener global omite role="button", así que leemos la palabra manualmente
                   if (
                     settings.voiceEnabled &&
                     (settings.tooltipMode === "voice" || settings.tooltipMode === "both")
@@ -79,15 +98,23 @@ export function TextoConGlosario({ texto, glosario, className }: TextoConGlosari
               <p className="text-base text-muted-foreground leading-snug">
                 {token.definicion}
               </p>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-3 h-9 text-sm w-full justify-start"
-                onClick={() => speak(token.definicion)}
-              >
-                <Volume2 className="w-4 h-4 mr-2" aria-hidden="true" />
-                Escuchar definición
-              </Button>
+              {settings.voiceEnabled && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-3 h-9 text-sm w-full justify-start"
+                  onClick={() => handleDefSpeak(token.texto, token.definicion)}
+                >
+                  {speakingWord === token.texto
+                    ? <Pause className="w-4 h-4 mr-2" aria-hidden="true" />
+                    : <Volume2 className="w-4 h-4 mr-2" aria-hidden="true" />}
+                  {speakingWord === token.texto
+                    ? "Pausar"
+                    : playedWord === token.texto
+                      ? "Repetir definición"
+                      : "Escuchar definición"}
+                </Button>
+              )}
             </PopoverContent>
           </Popover>
         ) : (

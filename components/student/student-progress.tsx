@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useStudentProgress, type LessonAttempt } from "@/hooks/student/use-student-progress"
@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase"
 import {
   ArrowLeft,
   Volume2,
+  Pause,
   Star,
   CheckCircle,
   Clock,
@@ -67,7 +68,9 @@ function StarRow({ stars, size = "w-5 h-5" }: { stars: number | null; size?: str
 
 export function StudentProgress({ onBack }: StudentProgressProps) {
   const { user } = useAuth()
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
+  const [progressSpeakState, setProgressSpeakState] = useState<"idle" | "playing" | "played">("idle")
+  const progressPlayIdRef = useRef(0)
   const { lessons: lessonProgressData, stats, loading } = useStudentProgress()
   const localColor = typeof window !== "undefined" ? localStorage.getItem("ea_avatar_color") : null
 
@@ -136,10 +139,16 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
     setLoadingAttempt(null)
   }
 
-  const handleReadInstructions = () => {
-    speak(
-      `Tu reporte de progreso. Has completado ${completedLessons} de ${totalLessons} lecciones. Tu puntaje promedio es ${averageScore} por ciento. Tu racha actual es de ${currentStreak} dias.`
-    )
+  const handleReadInstructions = async () => {
+    if (progressSpeakState === "playing") {
+      stopSpeak()
+      setProgressSpeakState("played")
+      return
+    }
+    const playId = ++progressPlayIdRef.current
+    setProgressSpeakState("playing")
+    await speak(`Tu reporte de progreso. Has completado ${completedLessons} de ${totalLessons} lecciones, con un progreso general del ${overallProgress} por ciento. Llevas ${totalAttempts} intentos de lección y has acumulado ${totalStars} estrellas. Tu nivel actual es ${nivelNombre}. Tu puntaje promedio es ${averageScore} por ciento y tu racha actual es de ${currentStreak} días.`)
+    if (progressPlayIdRef.current === playId) setProgressSpeakState("played")
   }
 
   const statCards = [
@@ -199,9 +208,14 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
           </div>
           {settings.voiceEnabled && (
             <button type="button" onClick={handleReadInstructions}
+              aria-label={progressSpeakState === "playing" ? "Pausar resumen" : progressSpeakState === "played" ? "Repetir resumen" : "Escuchar resumen de progreso"}
               className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98]">
-              <Volume2 className="w-4 h-4" aria-hidden />
-              <span className="hidden sm:inline">Escuchar</span>
+              {progressSpeakState === "playing"
+                ? <Pause className="w-4 h-4" aria-hidden />
+                : <Volume2 className="w-4 h-4" aria-hidden />}
+              <span className="hidden sm:inline">
+                {progressSpeakState === "playing" ? "Pausar" : progressSpeakState === "played" ? "Repetir" : "Escuchar"}
+              </span>
             </button>
           )}
         </div>

@@ -40,6 +40,7 @@ import {
   Trophy,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { StudentProfileSheet, type StudentProfileSheetStudent } from "@/components/teacher/student-profile-sheet"
 
 /* ─── Nivel nombres ─────────────────────────────────────────────────────── */
 const NIVEL_NOMBRES: Record<number, string> = {
@@ -171,6 +172,7 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
   const [selectedLeccionId, setSelectedLeccionId] = useState<string | null>(null)
   const [selectedSesionId, setSelectedSesionId] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [profileStudent, setProfileStudent] = useState<StudentProfileSheetStudent | null>(null)
   const barraRef = useRef<HTMLElement>(null)
 
   const fetchStudents = useCallback(async () => {
@@ -1013,13 +1015,19 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
                     className="rounded-2xl border border-border bg-card px-5 py-4 shadow-sm transition-all hover:shadow-md hover:border-primary/20">
                     {/* Una sola fila: avatar + nombre + estrellas + barra + % + menú */}
                     <div className="flex items-center gap-3">
-                      <div
-                        style={student.colorPerfil ? { backgroundColor: student.colorPerfil } : undefined}
-                        className={`w-10 h-10 rounded-xl ${student.colorPerfil ? "" : "bg-primary"} flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0`}
-                        aria-hidden="true"
+                      <button
+                        type="button"
+                        onClick={() => setProfileStudent({ alumnoId: student.id, name: student.nombre, colorPerfil: student.colorPerfil })}
+                        aria-label={`Ver perfil de ${student.nombre}`}
+                        className="shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl"
                       >
-                        {getInitials(student.nombre)}
-                      </div>
+                        <div
+                          style={student.colorPerfil ? { backgroundColor: student.colorPerfil } : undefined}
+                          className={`w-10 h-10 rounded-xl ${student.colorPerfil ? "" : "bg-primary"} flex items-center justify-center text-primary-foreground font-bold text-sm`}
+                        >
+                          {getInitials(student.nombre)}
+                        </div>
+                      </button>
                       <span className="font-bold text-foreground text-sm shrink-0">{student.nombre}</span>
                       <span className="flex items-center gap-1 text-sm font-semibold text-amber-500 shrink-0">
                         <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
@@ -1085,6 +1093,11 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
         </AlertDialogContent>
       </AlertDialog>
 
+      <StudentProfileSheet
+        open={profileStudent !== null}
+        onOpenChange={(open) => { if (!open) setProfileStudent(null) }}
+        student={profileStudent}
+      />
     </div>
   )
 }

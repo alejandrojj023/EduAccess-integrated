@@ -406,7 +406,7 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
     if (showsOptions && options.some(o => !o.text.trim())) return
     if (showsOptions && !options.some(o => o.isCorrect)) return
     if (selectedType === "sequence" && sequenceSteps.filter(s => s.previewUrl || s.existingUrl).length < 3) return
-    if (selectedType === "fill" && (!fillEnunciado.trim() || !fillEnunciado.includes("___") || !correctAnswer.trim())) return
+    if (selectedType === "fill" && (!fillEnunciado.trim() || !fillEnunciado.includes("___") || (fillEnunciado.split("___").length - 1) > 1 || !correctAnswer.trim())) return
     if (selectedType === "sound" && !correctAnswer.trim()) return
     if (selectedType === "short" && !correctAnswer.trim()) return
     if (selectedType === "wordsearch" && wsBuilderWords.length === 0) return

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,7 +9,7 @@ import { useAccessibility } from "@/lib/accessibility-context"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import {
-  ArrowLeft, Volume2, Type, Eye, EyeOff, Mic, Sparkles, Check,
+  ArrowLeft, Volume2, Pause, Type, Eye, EyeOff, Mic, Sparkles, Check,
   User, Settings, Gauge, MessageSquare,
   Sun, Moon, Contrast, X, Pencil, Lock, AlertCircle,
 } from "lucide-react"
@@ -50,9 +50,13 @@ function loadAvatarColor(): string | null {
 // ═══════════════════════════════════════════════════════════
 
 export function AccessibilitySettings({ onBack }: AccessibilitySettingsProps) {
-  const { settings, updateSettings, speak } = useAccessibility()
+  const { settings, updateSettings, speak, stopSpeak } = useAccessibility()
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>("accesibilidad")
+  const [headerSpeakState, setHeaderSpeakState] = useState<"idle" | "playing" | "played">("idle")
+  const [testSpeakState, setTestSpeakState] = useState<"idle" | "playing" | "played">("idle")
+  const headerPlayIdRef = useRef(0)
+  const testPlayIdRef = useRef(0)
 
   // ── Profile state ────────────────────────────────────────
   const [editName, setEditName] = useState(user?.name ?? "")
@@ -181,11 +185,24 @@ export function AccessibilitySettings({ onBack }: AccessibilitySettingsProps) {
             <Button
               variant="outline"
               size="lg"
-              onClick={() => speak("Ajustes. Tienes dos secciones: Perfil y Accesibilidad.")}
+              aria-label={headerSpeakState === "playing" ? "Pausar" : headerSpeakState === "played" ? "Repetir" : "Escuchar descripción"}
+              onClick={async () => {
+                if (headerSpeakState === "playing") {
+                  stopSpeak()
+                  setHeaderSpeakState("played")
+                  return
+                }
+                const playId = ++headerPlayIdRef.current
+                setHeaderSpeakState("playing")
+                await speak("Ajustes. Tienes dos secciones: Perfil y Accesibilidad.")
+                if (headerPlayIdRef.current === playId) setHeaderSpeakState("played")
+              }}
               className="h-12"
             >
-              <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />
-              Escuchar
+              {headerSpeakState === "playing"
+                ? <Pause className="w-5 h-5 mr-2" aria-hidden="true" />
+                : <Volume2 className="w-5 h-5 mr-2" aria-hidden="true" />}
+              {headerSpeakState === "playing" ? "Pausar" : headerSpeakState === "played" ? "Repetir" : "Escuchar"}
             </Button>
           )}
         </div>
@@ -596,10 +613,23 @@ export function AccessibilitySettings({ onBack }: AccessibilitySettingsProps) {
                       <Button
                         variant="outline"
                         className="w-full h-11 border-2"
-                        onClick={() => speak("Esta es una prueba de lectura en voz alta. La configuración funciona correctamente.")}
+                        aria-label={testSpeakState === "playing" ? "Pausar prueba de voz" : testSpeakState === "played" ? "Repetir prueba de voz" : "Probar voz"}
+                        onClick={async () => {
+                          if (testSpeakState === "playing") {
+                            stopSpeak()
+                            setTestSpeakState("played")
+                            return
+                          }
+                          const playId = ++testPlayIdRef.current
+                          setTestSpeakState("playing")
+                          await speak("Esta es una prueba de lectura en voz alta. La configuración funciona correctamente.")
+                          if (testPlayIdRef.current === playId) setTestSpeakState("played")
+                        }}
                       >
-                        <Volume2 className="w-4 h-4 mr-2" aria-hidden="true" />
-                        Probar voz
+                        {testSpeakState === "playing"
+                          ? <Pause className="w-4 h-4 mr-2" aria-hidden="true" />
+                          : <Volume2 className="w-4 h-4 mr-2" aria-hidden="true" />}
+                        {testSpeakState === "playing" ? "Pausar" : testSpeakState === "played" ? "Repetir" : "Probar voz"}
                       </Button>
                     </div>
                   </>

@@ -57,43 +57,60 @@ export async function PUT(request, { params }) {
       );
     }
 
-    const updateFields = {
-      titulo,
-      contenido: contenido || null,
-      material_lectura: material_lectura || null,
-      material_audiovisual: material_audiovisual || null,
-      material_pdf_url: material_pdf_url || null,
-      material_pdf_titulo: material_pdf_titulo || null,
-      material_imagen_url: material_imagen_url || null,
-    };
+    // 1. Update lesson record
     const { error: updateError } = await supabaseAdmin
       .from("leccion")
-      .update(updateFields)
+      .update({
+        titulo,
+        contenido: contenido || null,
+        material_lectura: material_lectura || null,
+        material_audiovisual: material_audiovisual || null,
+        material_pdf_url: material_pdf_url || null,
+        material_pdf_titulo: material_pdf_titulo || null,
+        material_imagen_url: material_imagen_url || null,
+      })
       .eq("id_leccion", lessonId);
 
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
-    // Delete existing preguntas before deleting activities (safe even with CASCADE)
+    // 2. Get current activity IDs in DB
     const { data: existingActs } = await supabaseAdmin
       .from("actividad")
       .select("id_actividad")
       .eq("id_leccion", lessonId);
-    if (existingActs && existingActs.length > 0) {
+
+    const existingIdSet = new Set((existingActs ?? []).map((a) => a.id_actividad));
+    const incomingActivities = Array.isArray(activities) ? activities : [];
+
+    // Incoming IDs that actually exist in DB (real UUIDs, not Date.now() temp IDs)
+    const incomingExistingIds = new Set(
+      incomingActivities
+        .filter((a) => a.id && existingIdSet.has(a.id))
+        .map((a) => a.id),
+    );
+
+    // 3. Delete activities removed by the teacher (preserves intento_actividad of kept ones)
+    const idsToDelete = [...existingIdSet].filter(
+      (id) => !incomingExistingIds.has(id),
+    );
+    if (idsToDelete.length > 0) {
       await supabaseAdmin
         .from("pregunta")
         .delete()
-        .in(
-          "id_actividad",
-          existingActs.map((a) => a.id_actividad),
-        );
+        .in("id_actividad", idsToDelete);
+      await supabaseAdmin
+        .from("actividad")
+        .delete()
+        .in("id_actividad", idsToDelete);
     }
-    await supabaseAdmin.from("actividad").delete().eq("id_leccion", lessonId);
 
-    if (Array.isArray(activities) && activities.length > 0) {
-      const actividadesData = activities.map((act, index) => ({
-        id_leccion: lessonId,
+    // 4. Process each activity in order
+    for (let i = 0; i < incomingActivities.length; i++) {
+      const act = incomingActivities[i];
+      const orden = i + 1;
+      const actData = {
         tipo: activityTypeMap[act.type] ?? "seleccion_guiada",
         titulo: act.title,
         instrucciones: act.instrucciones || null,
@@ -102,78 +119,79 @@ export async function PUT(request, { params }) {
           : null,
         imagen_url: act.imagen_url ?? null,
         audio_url: act.audio_url ?? null,
-        orden: index + 1,
+        orden,
         publicado: true,
-      }));
+      };
 
-      const { data: insertedActivities, error: actError } = await supabaseAdmin
-        .from("actividad")
-        .insert(actividadesData)
-        .select("id_actividad, orden");
+      let actId;
 
-      if (actError) {
-        return NextResponse.json({ error: actError.message }, { status: 500 });
+      if (act.id && existingIdSet.has(act.id)) {
+        // UPDATE existing activity — preserves id_actividad and linked intento_actividad
+        await supabaseAdmin
+          .from("actividad")
+          .update(actData)
+          .eq("id_actividad", act.id);
+        actId = act.id;
+        // Refresh preguntas for this activity
+        await supabaseAdmin
+          .from("pregunta")
+          .delete()
+          .eq("id_actividad", actId);
+      } else {
+        // INSERT new activity
+        const { data: inserted, error: insErr } = await supabaseAdmin
+          .from("actividad")
+          .insert({ ...actData, id_leccion: lessonId })
+          .select("id_actividad")
+          .single();
+        if (insErr || !inserted) {
+          console.error("Error inserting activity:", insErr);
+          continue;
+        }
+        actId = inserted.id_actividad;
       }
 
-      // Insert pregunta rows for sound/voice/fill/sequence types
-      if (insertedActivities) {
-        for (let i = 0; i < activities.length; i++) {
-          const act = activities[i];
-          const insertedAct = insertedActivities.find(
-            (a) => a.orden === i + 1,
-          );
-          if (!insertedAct) continue;
+      // Insert pregunta for sound / voice / fill types
+      if (act.pregunta && actId) {
+        const defaultEnunciado =
+          act.type === "voice"
+            ? "Escucha y responde"
+            : act.type === "fill"
+              ? "Completa la oración"
+              : "Escucha y arma la oración";
+        const enunciado =
+          act.pregunta.enunciado || act.instrucciones || defaultEnunciado;
+        const { error: pqError } = await supabaseAdmin
+          .from("pregunta")
+          .insert({
+            id_actividad: actId,
+            enunciado,
+            respuesta_esperada: act.pregunta.respuesta_esperada || "",
+            palabras_distractoras: act.pregunta.palabras_distractoras || null,
+            oraciones_contexto: act.pregunta.oraciones_contexto || null,
+            tipo_respuesta_esperada:
+              act.pregunta.tipo_respuesta_esperada ||
+              (act.type === "voice" ? "voz" : "texto"),
+            orden: 1,
+            puntaje_maximo: 100,
+          });
+        if (pqError) console.error("Error inserting pregunta:", pqError);
+      }
 
-          if (act.pregunta) {
-            const defaultEnunciado =
-              act.type === "voice"
-                ? "Escucha y responde"
-                : act.type === "fill"
-                  ? "Completa la oración"
-                  : "Escucha y arma la oración";
-            const enunciado =
-              act.pregunta.enunciado ||
-              act.instrucciones ||
-              defaultEnunciado;
-            const { error: pqError } = await supabaseAdmin
-              .from("pregunta")
-              .insert({
-                id_actividad: insertedAct.id_actividad,
-                enunciado,
-                respuesta_esperada:
-                  act.pregunta.respuesta_esperada || "",
-                palabras_distractoras:
-                  act.pregunta.palabras_distractoras || null,
-                oraciones_contexto:
-                  act.pregunta.oraciones_contexto || null,
-                tipo_respuesta_esperada:
-                  act.pregunta.tipo_respuesta_esperada ||
-                  (act.type === "voice" ? "voz" : "texto"),
-                orden: 1,
-                puntaje_maximo: 100,
-              });
-            if (pqError) {
-              console.error("Error inserting pregunta:", pqError);
-            }
-          }
-
-          if (act.steps && Array.isArray(act.steps)) {
-            const stepsData = act.steps.map((step, idx) => ({
-              id_actividad: insertedAct.id_actividad,
-              enunciado: step.description || `Paso ${idx + 1}`,
-              imagen_url: step.imagen_url || null,
-              orden: idx + 1,
-              tipo_respuesta_esperada: "opcion",
-              puntaje_maximo: 1,
-            }));
-            const { error: stepsError } = await supabaseAdmin
-              .from("pregunta")
-              .insert(stepsData);
-            if (stepsError) {
-              console.error("Error inserting sequence steps:", stepsError);
-            }
-          }
-        }
+      // Insert pregunta rows for sequence steps
+      if (act.steps && Array.isArray(act.steps) && actId) {
+        const stepsData = act.steps.map((step, idx) => ({
+          id_actividad: actId,
+          enunciado: step.description || `Paso ${idx + 1}`,
+          imagen_url: step.imagen_url || null,
+          orden: idx + 1,
+          tipo_respuesta_esperada: "opcion",
+          puntaje_maximo: 1,
+        }));
+        const { error: stepsError } = await supabaseAdmin
+          .from("pregunta")
+          .insert(stepsData);
+        if (stepsError) console.error("Error inserting sequence steps:", stepsError);
       }
     }
 

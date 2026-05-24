@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useAuth } from "@/lib/auth-context"
-import { Check, Contrast, Eye, Gauge, MessageSquare, Mic, Moon, Sun, Type, Volume2, ZapOff } from "lucide-react"
+import { Check, Contrast, Eye, Gauge, MessageSquare, Mic, Moon, Pause, Sun, Type, Volume2, ZapOff } from "lucide-react"
 import type { ContrastLevel, TooltipMode } from "@/lib/accessibility-context"
 
 function useSpanishVoices() {
@@ -26,8 +26,10 @@ function useSpanishVoices() {
 }
 
 export function AccessibilityQuickPanel() {
-  const { settings, updateSettings, speak } = useAccessibility()
+  const { settings, updateSettings, speak, stopSpeak } = useAccessibility()
   const { user } = useAuth()
+  const [testSpeakState, setTestSpeakState] = useState<"idle" | "playing" | "played">("idle")
+  const testPlayIdRef = useRef(0)
   const voices = useSpanishVoices()
 
   const contrastOptions: { id: ContrastLevel; label: string; desc: string; icon: typeof Sun }[] = [
@@ -202,10 +204,23 @@ export function AccessibilityQuickPanel() {
                     variant="outline"
                     size="sm"
                     className="w-full border-2"
-                    onClick={() => speak("Esta es una prueba de lectura en voz alta.")}
+                    aria-label={testSpeakState === "playing" ? "Pausar prueba" : testSpeakState === "played" ? "Repetir prueba" : "Probar voz"}
+                    onClick={async () => {
+                      if (testSpeakState === "playing") {
+                        stopSpeak()
+                        setTestSpeakState("played")
+                        return
+                      }
+                      const playId = ++testPlayIdRef.current
+                      setTestSpeakState("playing")
+                      await speak("Esta es una prueba de lectura en voz alta.")
+                      if (testPlayIdRef.current === playId) setTestSpeakState("played")
+                    }}
                   >
-                    <Volume2 className="w-3.5 h-3.5 mr-2" aria-hidden="true" />
-                    Probar voz
+                    {testSpeakState === "playing"
+                      ? <Pause className="w-3.5 h-3.5 mr-2" aria-hidden="true" />
+                      : <Volume2 className="w-3.5 h-3.5 mr-2" aria-hidden="true" />}
+                    {testSpeakState === "playing" ? "Pausar" : testSpeakState === "played" ? "Repetir" : "Probar voz"}
                   </Button>
                 </div>
               )}

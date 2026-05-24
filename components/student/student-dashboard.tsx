@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useStudentDashboard } from "@/hooks/student/use-student-dashboard"
@@ -16,6 +16,7 @@ import {
   BookOpen,
   Play,
   Volume2,
+  Pause,
   Settings,
   LogOut,
   ChevronRight,
@@ -32,7 +33,7 @@ interface StudentDashboardProps {
 
 export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps) {
   const { user } = useAuth()
-  const { speak, settings } = useAccessibility()
+  const { speak, stopSpeak, settings } = useAccessibility()
   const { courses, gamification, loading } = useStudentDashboard()
 
   const [avatarColor] = useState<string | null>(() =>
@@ -41,6 +42,8 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
   const colorPerfil = gamification.colorPerfil ?? avatarColor
 
   const [pendingInvitations, setPendingInvitations] = useState(0)
+  const [dashSpeakState, setDashSpeakState] = useState<"idle" | "playing" | "played">("idle")
+  const dashPlayIdRef = useRef(0)
 
   useEffect(() => {
     if (!user) return
@@ -103,11 +106,17 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
     onNavigate(`course-${elegido.id}|${elegido.name}`)
   }, [courses, onNavigate])
 
-  const handleReadInstructions = useCallback(() => {
-    speak(
-      `Hola ${user?.name}! Tienes ${courses.length} cursos asignados. Tu nivel es ${nivelNombre} y llevas ${estrellasTotales} estrellas.`
-    )
-  }, [speak, user?.name, courses.length, nivelNombre, estrellasTotales])
+  const handleReadInstructions = useCallback(async () => {
+    if (dashSpeakState === "playing") {
+      stopSpeak()
+      setDashSpeakState("played")
+      return
+    }
+    const playId = ++dashPlayIdRef.current
+    setDashSpeakState("playing")
+    await speak(`Hola ${user?.name}! Tienes ${courses.length} cursos asignados. Tu nivel es ${nivelNombre} y llevas ${estrellasTotales} estrellas.`)
+    if (dashPlayIdRef.current === playId) setDashSpeakState("played")
+  }, [speak, stopSpeak, dashSpeakState, user?.name, courses.length, nivelNombre, estrellasTotales])
 
   const initials = (user?.name ?? "E").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
   const firstName = user?.name?.split(" ")[0] ?? "Estudiante"
@@ -133,10 +142,14 @@ export function StudentDashboard({ onNavigate, onLogout }: StudentDashboardProps
                 type="button"
                 onClick={handleReadInstructions}
                 className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground active:scale-[0.98]"
-                aria-label="Escuchar resumen"
+                aria-label={dashSpeakState === "playing" ? "Pausar resumen" : dashSpeakState === "played" ? "Repetir resumen" : "Escuchar resumen"}
               >
-                <Volume2 className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline text-xs">Escuchar</span>
+                {dashSpeakState === "playing"
+                  ? <Pause className="h-4 w-4" aria-hidden="true" />
+                  : <Volume2 className="h-4 w-4" aria-hidden="true" />}
+                <span className="hidden sm:inline text-xs">
+                  {dashSpeakState === "playing" ? "Pausar" : dashSpeakState === "played" ? "Repetir" : "Escuchar"}
+                </span>
               </button>
             )}
             <button
