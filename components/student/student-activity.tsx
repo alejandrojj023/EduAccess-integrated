@@ -251,6 +251,7 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
   const lessonStartRef = useRef<number>(Date.now())
   const currentAttemptsRef = useRef<number>(1)
   const answerRef = useRef<string>("")
+  const soundActxRef = useRef<{ actx: AudioContext; source: AudioBufferSourceNode } | null>(null)
   const [lessonElapsedSecs, setLessonElapsedSecs] = useState(0)
 
   // Word search (sopa_letras) state
@@ -514,8 +515,11 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
           text,
         }))
         setWordBank(tokens)
-        // Auto-speak sentence via Web Speech API after a short delay
-        if (settings.voiceEnabled) timerId = setTimeout(() => speak(pq.respuesta_esperada), 600)
+        // Auto-speak: lee instrucciones del docente, no la oración a reconstruir
+        if (settings.voiceEnabled) {
+          const cfg = parseActivityConfig(activity.instrucciones)
+          timerId = setTimeout(() => speak(cfg.instrucciones || "Escucha la oración y ordena las palabras"), 600)
+        }
       })
 
     return () => clearTimeout(timerId)
@@ -895,6 +899,12 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
 
   async function playSoundSentence(speakingRate = 1) {
     if (!soundPregunta) return
+    // Detener audio previo antes de iniciar uno nuevo
+    if (soundActxRef.current) {
+      try { soundActxRef.current.source.stop() } catch {}
+      try { soundActxRef.current.actx.close() } catch {}
+      soundActxRef.current = null
+    }
     try {
       const res = await fetch("/api/tts", {
         method: "POST",
@@ -909,7 +919,11 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
       const source  = actx.createBufferSource()
       source.buffer = decoded
       source.connect(actx.destination)
-      source.onended = () => actx.close()
+      soundActxRef.current = { actx, source }
+      source.onended = () => {
+        actx.close()
+        if (soundActxRef.current?.actx === actx) soundActxRef.current = null
+      }
       source.start(0)
     } catch {}
   }
@@ -1357,19 +1371,21 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                 })}
               </div>
 
-              <div className="relative flex items-center justify-center gap-4">
-                <p className="text-xl font-black text-amber-600 dark:text-amber-400">{earnedStars % 1 === 0 ? earnedStars : earnedStars.toFixed(1)} de 5 estrellas</p>
-                {lessonElapsedSecs > 0 && (
-                  <div className="inline-flex items-center gap-1.5 bg-card rounded-full px-3 py-1 border border-border">
-                    <Clock className="w-3.5 h-3.5 text-foreground" aria-hidden="true" />
-                    <span className="text-sm font-semibold text-foreground">
+              <p className="relative text-center text-xl font-black text-amber-600 dark:text-amber-400">
+                {earnedStars % 1 === 0 ? earnedStars : earnedStars.toFixed(1)} de 5 estrellas
+              </p>
+              {lessonElapsedSecs > 0 && (
+                <div className="flex justify-center">
+                  <div className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 rounded-full px-4 py-1.5">
+                    <Clock className="w-3.5 h-3.5 text-amber-500" aria-hidden="true" />
+                    <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">
                       {lessonElapsedSecs < 60
                         ? `${lessonElapsedSecs} seg`
                         : `${Math.floor(lessonElapsedSecs / 60)}:${String(lessonElapsedSecs % 60).padStart(2, "0")} min`}
                     </span>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               <p className="relative text-center text-base text-orange-700 dark:text-orange-400 font-semibold border-t border-amber-500/30 pt-4">
                 {getStarMessage(Math.round(earnedStars))}
@@ -2011,11 +2027,14 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
 
             {/* Word search activity — sopa de letras */}
             {activity?.tipo === "sopa_letras" && wsGrid.length > 0 && (
-              <div className="space-y-2">
-                {/* Grid + word list side by side */}
-                <div className="flex gap-3 items-start">
-                  {/* Grid */}
-                  <Card className={`border-2 transition-all flex-1 min-w-0 ${wsWrongFlash ? "border-destructive" : "border-border"}`}>
+              <div className="space-y-3">
+                {/* Instruction text — above the grid */}
+                <p className="text-center text-xs text-muted-foreground">
+                  Toca la primera y última letra de cada palabra
+                </p>
+
+                {/* Grid — full width */}
+                <Card className={`border-2 transition-all ${wsWrongFlash ? "border-destructive" : "border-border"}`}>
                     <CardContent className="p-2 flex justify-center overflow-x-auto">
                       <div
                         className="inline-grid gap-1"
@@ -2054,37 +2073,28 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                     </CardContent>
                   </Card>
 
-                  {/* Word list — vertical, right side */}
-                  <Card className="border-2 w-36 shrink-0">
-                    <CardContent className="p-3">
-                      <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
-                        {wsFoundWords.size}/{wsPalabras.length}
-                      </p>
-                      <div className="flex flex-col gap-1.5">
-                        {wsPalabras.map(word => {
-                          const colorIdx = wsWordColors.get(word)
-                          const color = colorIdx !== undefined ? WS_COLORS[colorIdx] : null
-                          return (
-                            <span
-                              key={word}
-                              className={`px-2 py-1 rounded-lg border-2 font-bold text-sm text-center transition-all ${
-                                color
-                                  ? `${color.light} ${color.border} ${color.text} line-through`
-                                  : "bg-muted border-border text-foreground"
-                              }`}
-                            >
-                              {word}
-                            </span>
-                          )
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
+                {/* Word list — horizontal, centered below the grid */}
+                <div className="flex flex-wrap justify-center gap-2 pt-1">
+                  <p className="w-full text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    {wsFoundWords.size}/{wsPalabras.length} palabras encontradas
+                  </p>
+                  {wsPalabras.map(word => {
+                    const colorIdx = wsWordColors.get(word)
+                    const color = colorIdx !== undefined ? WS_COLORS[colorIdx] : null
+                    return (
+                      <span
+                        key={word}
+                        className={`px-2 py-1 rounded-lg border-2 font-bold text-sm text-center transition-all ${
+                          color
+                            ? `${color.light} ${color.border} ${color.text} line-through`
+                            : "bg-muted border-border text-foreground"
+                        }`}
+                      >
+                        {word}
+                      </span>
+                    )
+                  })}
                 </div>
-
-                <p className="text-center text-xs text-muted-foreground">
-                  Toca la primera y última letra de cada palabra
-                </p>
                 {/* Give up button */}
                 {wsFoundWords.size < wsPalabras.length && (
                   <Button
@@ -2167,10 +2177,12 @@ export function StudentActivity({ activityId, lessonId, lessonName, onBack, onCo
                 <SpeakableText as="p" className="text-lg text-muted-foreground">
                   {isCorrect
                     ? activity?.tipo === "sopa_letras"
-                      ? `¡Encontraste todas las palabras! ${wsPalabras.length} de ${wsPalabras.length}.`
+                      ? wsFoundWords.size === wsPalabras.length
+                        ? `¡Encontraste todas las ${wsPalabras.length} palabras!`
+                        : `¡Encontraste ${wsFoundWords.size} de ${wsPalabras.length} palabras!`
                       : "¡Muy bien! Has respondido correctamente."
                     : activity?.tipo === "sopa_letras"
-                      ? `Encontraste ${wsFoundWords.size} de ${wsPalabras.length} palabras. ¡Sigue practicando!`
+                      ? `¡Encontraste ${wsFoundWords.size} de ${wsPalabras.length} palabras!`
                       : activity?.tipo === "secuenciacion"
                         ? "Puedes ver el orden correcto arriba. ¡Sigue practicando!"
                         : ""}
