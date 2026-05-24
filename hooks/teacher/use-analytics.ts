@@ -25,11 +25,12 @@ export interface PerformanceData {
 }
 
 export interface ProgressData {
-  week:      string   // "Sem N"
-  weekStart: string   // ISO date inicio de semana (para agrupar por mes)
-  progreso:  number   // avg puntaje %
-  puntaje:   number
-  intentos:  number
+  week:             string   // "Sem N"
+  weekStart:        string   // ISO date inicio de semana (para agrupar por mes)
+  progreso:         number   // avg puntaje %
+  puntaje:          number
+  intentos:         number   // intentos de actividad
+  intentosLeccion:  number   // sesiones únicas de lección
 }
 
 export interface ActivityTypeData {
@@ -183,7 +184,7 @@ export function useAnalytics(filters: AnalyticsFilters): UseAnalyticsReturn {
     // 4. Intentos con filtros (fecha, alumno) + join a actividad→leccion para rendimiento por lección
     let intentosQuery = supabase
       .from("intento_actividad")
-      .select("id_alumno, puntaje_total, tiempo_total_segundos, fecha_creacion, actividad:id_actividad(id_leccion, leccion(titulo))")
+      .select("id_alumno, id_intento_leccion, puntaje_total, tiempo_total_segundos, fecha_creacion, actividad:id_actividad(id_leccion, leccion(titulo))")
       .in("id_grupo", grupoIds)
     if (filters.alumnoId)   intentosQuery = intentosQuery.eq("id_alumno", filters.alumnoId)
     if (filters.fechaDesde) intentosQuery = intentosQuery.gte("fecha_creacion", filters.fechaDesde)
@@ -199,14 +200,16 @@ export function useAnalytics(filters: AnalyticsFilters): UseAnalyticsReturn {
       : intentosRaw ?? []
 
     // Rendimiento por lección desde intento_actividad (misma fuente que los KPIs)
-    const leccionMap = new Map<string, { titulo: string; puntajes: number[]; total: number }>()
+    // sessionIds: sesiones únicas de lección por leccionId (para contar intentos a nivel lección)
+    const leccionMap = new Map<string, { titulo: string; puntajes: number[]; total: number; sessionIds: Set<string> }>()
     intentos?.forEach((i: any) => {
       const leccionId = i.actividad?.id_leccion
       if (!leccionId) return
       const titulo = i.actividad?.leccion?.titulo ?? "Sin título"
-      const prev   = leccionMap.get(leccionId) ?? { titulo, puntajes: [] as number[], total: 0 }
+      const prev   = leccionMap.get(leccionId) ?? { titulo, puntajes: [] as number[], total: 0, sessionIds: new Set<string>() }
       prev.total++
       if (i.puntaje_total != null) prev.puntajes.push(Number(i.puntaje_total))
+      if (i.id_intento_leccion) prev.sessionIds.add(i.id_intento_leccion)
       leccionMap.set(leccionId, prev)
     })
 
@@ -215,43 +218,63 @@ export function useAnalytics(filters: AnalyticsFilters): UseAnalyticsReturn {
         const avg = data.puntajes.length > 0
           ? Math.round(data.puntajes.reduce((a, b) => a + b, 0) / data.puntajes.length)
           : 0
+        // total_intentos = sesiones únicas de lección; fallback a conteo de actividades si no hay FK
+        const total_intentos = data.sessionIds.size > 0 ? data.sessionIds.size : data.total
         return {
           lesson:           data.titulo.length > 14 ? data.titulo.substring(0, 14) + "…" : data.titulo,
           lessonFull:       data.titulo,
           correctas:        avg,
           incorrectas:      100 - avg,
-          total_intentos:   data.total,
+          total_intentos,
           promedio_puntaje: avg,
         }
       })
     )
 
-    // 5. intentos ya está cargado arriba (reutilizamos la misma variable)
-
-    // Stats generales
+    // 5. Stats generales basadas en sesiones de lección (intento_leccion via id_intento_leccion FK)
+    //    totalAttempts = sesiones únicas de lección (no conteo de actividades individuales)
+    //    averageTime   = duración promedio por sesión de lección (suma de segundos de actividades por sesión)
     const pts  = intentos?.flatMap((i: any) => i.puntaje_total != null ? [i.puntaje_total] : []) ?? []
-    const segs = intentos?.flatMap((i: any) => i.tiempo_total_segundos != null ? [i.tiempo_total_segundos] : []) ?? []
-    const avgCorrect = pts.length  > 0 ? Math.round(pts.reduce((a: number, b: number) => a + b, 0) / pts.length) : 0
-    const avgSecs    = segs.length > 0 ? segs.reduce((a: number, b: number) => a + b, 0) / segs.length : 0
+    const avgCorrect = pts.length > 0 ? Math.round(pts.reduce((a: number, b: number) => a + b, 0) / pts.length) : 0
+
+    // Agrupar tiempo por sesión de lección para obtener duración real por lección
+    const lessonSessionSecs = new Map<string, number>()
+    intentos?.forEach((i: any) => {
+      if (!i.id_intento_leccion || i.tiempo_total_segundos == null) return
+      lessonSessionSecs.set(
+        i.id_intento_leccion,
+        (lessonSessionSecs.get(i.id_intento_leccion) ?? 0) + i.tiempo_total_segundos,
+      )
+    })
+    const totalLessonAttempts = lessonSessionSecs.size || (intentos?.length ?? 0)
+    const lessonDurations = Array.from(lessonSessionSecs.values())
+    const avgLessonSecs = lessonDurations.length > 0
+      ? lessonDurations.reduce((a, b) => a + b, 0) / lessonDurations.length
+      : (() => {
+          // Fallback para datos sin id_intento_leccion: promedio de segundos por actividad
+          const segs = intentos?.flatMap((i: any) => i.tiempo_total_segundos != null ? [i.tiempo_total_segundos] : []) ?? []
+          return segs.length > 0 ? segs.reduce((a: number, b: number) => a + b, 0) / segs.length : 0
+        })()
 
     setOverallStats({
       averageCorrect: avgCorrect,
-      totalAttempts:  intentos?.length ?? 0,
-      averageTime:    `${(avgSecs / 60).toFixed(1)} min`,
+      totalAttempts:  totalLessonAttempts,
+      averageTime:    `${(avgLessonSecs / 60).toFixed(1)} min`,
       activeStudents: alumnoIds.length,
     })
 
     // 6. Progreso DIARIO — el componente re-agrupa por semana o mes según config
-    const dayMap = new Map<string, { pts: number[]; count: number }>()
+    const dayMap = new Map<string, { pts: number[]; count: number; sessionIds: Set<string> }>()
     // Primera fecha de intento por lección (para calcular progreso acumulado real)
     const leccionPrimeraFecha = new Map<string, string>()
     intentos?.forEach((i: any) => {
       const fecha     = new Date(i.fecha_creacion)
       const dateISO   = fechaTijuana(fecha)
       const leccionId = i.actividad?.id_leccion
-      const prev      = dayMap.get(dateISO) ?? { pts: [] as number[], count: 0 }
+      const prev      = dayMap.get(dateISO) ?? { pts: [] as number[], count: 0, sessionIds: new Set<string>() }
       prev.count++
       if (i.puntaje_total != null) prev.pts.push(i.puntaje_total)
+      if (i.id_intento_leccion) prev.sessionIds.add(i.id_intento_leccion)
       dayMap.set(dateISO, prev)
       // Registrar la fecha más antigua de primer intento por lección
       if (leccionId) {
@@ -274,27 +297,31 @@ export function useAnalytics(filters: AnalyticsFilters): UseAnalyticsReturn {
           : avg
         const d = new Date(dateISO + "T12:00:00")
         return {
-          week:      d.toLocaleString("es", { day: "2-digit", month: "short" }),
-          weekStart: dateISO,
+          week:            d.toLocaleString("es", { day: "2-digit", month: "short" }),
+          weekStart:       dateISO,
           progreso,
-          puntaje:   avg,
-          intentos:  data.count,
+          puntaje:         avg,
+          intentos:        data.count,
+          intentosLeccion: data.sessionIds.size,
         }
       })
     )
 
-    // 7. Tipos de actividad
-    const { data: actividades } = await supabase
-      .from("actividad")
-      .select("tipo, leccion:id_leccion ( curso:id_curso ( id_grupo ) )")
-
+    // 7. Tipos de actividad — filtrado por las lecciones ya calculadas (respeta filtro de curso/grupo)
+    //    todasLecciones ya fue construido con el filtro de cursoId/grupoId correcto.
+    const leccionIdsTipos = todasLecciones?.map((l: any) => l.id_leccion) ?? []
     const tipoCount = new Map<string, number>()
-    actividades?.forEach((a: any) => {
-      const gId = a.leccion?.curso?.id_grupo
-      if (grupoIds.includes(gId)) {
+
+    if (leccionIdsTipos.length > 0) {
+      const { data: actividades } = await supabase
+        .from("actividad")
+        .select("tipo")
+        .in("id_leccion", leccionIdsTipos)
+
+      actividades?.forEach((a: any) => {
         tipoCount.set(a.tipo, (tipoCount.get(a.tipo) ?? 0) + 1)
-      }
-    })
+      })
+    }
 
     setActivityTypeData(
       Array.from(tipoCount.entries()).map(([tipo, count]) => ({
@@ -313,10 +340,26 @@ export function useAnalytics(filters: AnalyticsFilters): UseAnalyticsReturn {
 
         const ai   = intentos?.filter((i: any) => i.id_alumno === alumnoId) ?? []
         const aPts = ai.flatMap((i: any) => i.puntaje_total != null ? [i.puntaje_total] : [])
-        const aSeg = ai.flatMap((i: any) => i.tiempo_total_segundos != null ? [i.tiempo_total_segundos] : [])
-
         const avgP = aPts.length > 0 ? Math.round(aPts.reduce((a: number, b: number) => a + b, 0) / aPts.length) : 0
-        const avgS = aSeg.length > 0 ? aSeg.reduce((a: number, b: number) => a + b, 0) / aSeg.length : 0
+
+        // Sesiones únicas de lección por alumno (consistente con KPI "Intentos de Lecciones")
+        const studentSessions = new Map<string, number>()  // id_intento_leccion → duración total (secs)
+        ai.forEach((i: any) => {
+          if (!i.id_intento_leccion) return
+          studentSessions.set(
+            i.id_intento_leccion,
+            (studentSessions.get(i.id_intento_leccion) ?? 0) + (i.tiempo_total_segundos ?? 0),
+          )
+        })
+
+        const lessonAttemptCount = studentSessions.size > 0 ? studentSessions.size : ai.length
+        const sessionDurations   = Array.from(studentSessions.values())
+        const avgSessionSecs     = sessionDurations.length > 0
+          ? sessionDurations.reduce((a, b) => a + b, 0) / sessionDurations.length
+          : (() => {
+              const segs = ai.flatMap((i: any) => i.tiempo_total_segundos != null ? [i.tiempo_total_segundos] : [])
+              return segs.length > 0 ? segs.reduce((a: number, b: number) => a + b, 0) / segs.length : 0
+            })()
 
         const nombre = perfil?.nombre ?? "Alumno"
         const partes = nombre.split(" ")
@@ -326,9 +369,9 @@ export function useAnalytics(filters: AnalyticsFilters): UseAnalyticsReturn {
           id:            alumnoId,
           name:          nombreCorto,
           correctas:     avgP,
-          intentos:      ai.length,
-          tiempo:        `${(avgS / 60).toFixed(1)} min`,
-          tiempoSeconds: avgS,
+          intentos:      lessonAttemptCount,
+          tiempo:        `${(avgSessionSecs / 60).toFixed(1)} min`,
+          tiempoSeconds: avgSessionSecs,
         }
       })
     )

@@ -184,8 +184,8 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
 
   // ── Hover TTS stats ─────────────────────────────────────────
   const hoverCorrect  = useSpeakOnHover(`Respuestas correctas: ${overallStats.averageCorrect}%`)
-  const hoverIntentos = useSpeakOnHover(`Total de intentos: ${overallStats.totalAttempts}`)
-  const hoverTiempo   = useSpeakOnHover(`Tiempo promedio: ${overallStats.averageTime}`)
+  const hoverIntentos = useSpeakOnHover(`Intentos de lecciones: ${overallStats.totalAttempts}`)
+  const hoverTiempo   = useSpeakOnHover(`Tiempo promedio por lección: ${overallStats.averageTime}`)
   const hoverActivos  = useSpeakOnHover(`Estudiantes activos: ${overallStats.activeStudents}`)
 
   // ── Datos procesados por configuración ─────────────────────
@@ -215,18 +215,19 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
       keyFn: (iso: string) => string,
       labelFn: (iso: string) => string,
     ) {
-      const map = new Map<string, { label: string; pts: number[]; intentos: number }>()
+      const map = new Map<string, { label: string; pts: number[]; intentos: number; intentosLeccion: number }>()
       data.forEach((item) => {
         if (!item.weekStart) return
         const key  = keyFn(item.weekStart)
-        const prev = map.get(key) ?? { label: labelFn(item.weekStart), pts: [] as number[], intentos: 0 }
+        const prev = map.get(key) ?? { label: labelFn(item.weekStart), pts: [] as number[], intentos: 0, intentosLeccion: 0 }
         prev.pts.push(item.puntaje)
         prev.intentos += item.intentos
+        prev.intentosLeccion += item.intentosLeccion
         map.set(key, prev)
       })
       return Array.from(map.values()).map((m) => {
         const avg = m.pts.length > 0 ? Math.round(m.pts.reduce((a, b) => a + b, 0) / m.pts.length) : 0
-        return { week: m.label, weekStart: "", progreso: avg, puntaje: avg, intentos: m.intentos }
+        return { week: m.label, weekStart: "", progreso: avg, puntaje: avg, intentos: m.intentos, intentosLeccion: m.intentosLeccion }
       })
     }
 
@@ -281,7 +282,9 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
     )
   }, [progressData, progCfg])
 
-  const progDataKey = progCfg.metrica === "intentos" ? "intentos" : progCfg.metrica
+  const progDataKey = progCfg.metrica === "intentos" ? "intentos"
+    : progCfg.metrica === "intentosLeccion" ? "intentosLeccion"
+    : progCfg.metrica
 
   // Tipos de actividad
   const processedTipos = useMemo(() =>
@@ -336,7 +339,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
           {settings.voiceEnabled && (
             <button type="button"
               onClick={async () => {
-                const text = `Analíticas. Promedio correcto: ${overallStats.averageCorrect}%. Intentos totales: ${overallStats.totalAttempts}. Tiempo promedio: ${overallStats.averageTime}. Estudiantes activos: ${overallStats.activeStudents}.`
+                const text = `Analíticas. Promedio correcto: ${overallStats.averageCorrect}%. Intentos de lecciones: ${overallStats.totalAttempts}. Tiempo promedio por lección: ${overallStats.averageTime}. Estudiantes activos: ${overallStats.activeStudents}.`
                 if (analyticsAudioState === "playing") { stopSpeak(); setAnalyticsAudioState("paused") }
                 else { setAnalyticsAudioState("playing"); await speak(text); setAnalyticsAudioState("ended") }
               }}
@@ -512,7 +515,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                   ? <div className="h-8 w-16 rounded-lg bg-white/30 animate-pulse mb-0.5" aria-hidden="true" />
                   : <p className="text-2xl font-black text-white">{overallStats.totalAttempts}</p>
                 }
-                <p className="text-xs font-medium text-white/80 mt-0.5">Total Intentos</p>
+                <p className="text-xs font-medium text-white/80 mt-0.5">Intentos de Lecciones</p>
               </div>
             </li>
             <li>
@@ -525,7 +528,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                   ? <div className="h-8 w-24 rounded-lg bg-white/30 animate-pulse mb-0.5" aria-hidden="true" />
                   : <p className="text-2xl font-black text-white">{overallStats.averageTime}</p>
                 }
-                <p className="text-xs font-medium text-white/80 mt-0.5">Tiempo Promedio</p>
+                <p className="text-xs font-medium text-white/80 mt-0.5">Tiempo por Lección</p>
               </div>
             </li>
             <li>
@@ -668,9 +671,10 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
 
                     <ConfigSection title="Métrica">
                       <RadioGroup value={progCfg.metrica} onValueChange={(v) => setProgCfg((p) => ({ ...p, metrica: v }))} className="space-y-1.5">
-                        <RadioRow value="progreso"  label="Progreso %" />
-                        <RadioRow value="puntaje"   label="Puntaje promedio" />
-                        <RadioRow value="intentos"  label="Intentos" />
+                        <RadioRow value="progreso"        label="Progreso %" />
+                        <RadioRow value="puntaje"         label="Puntaje promedio" />
+                        <RadioRow value="intentosLeccion" label="Intentos de lección" />
+                        <RadioRow value="intentos"        label="Intentos de actividad" />
                       </RadioGroup>
                     </ConfigSection>
                   </div>
@@ -691,7 +695,12 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                     <Line
                       type="monotone"
                       dataKey={progDataKey}
-                      name={progCfg.metrica === "intentos" ? "Intentos" : progCfg.metrica === "puntaje" ? "Puntaje" : "Progreso %"}
+                      name={
+                        progCfg.metrica === "intentos" ? "Intentos de actividad"
+                        : progCfg.metrica === "intentosLeccion" ? "Intentos de lección"
+                        : progCfg.metrica === "puntaje" ? "Puntaje"
+                        : "Progreso %"
+                      }
                       stroke="var(--primary)"
                       strokeWidth={3}
                       dot={{ fill: "var(--primary)", strokeWidth: 2, r: 5 }}
@@ -841,7 +850,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                     <tr className="border-b border-border">
                       <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Estudiante</th>
                       <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Correctas</th>
-                      <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Intentos</th>
+                      <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Intentos Lecc.</th>
                       <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Tiempo Prom.</th>
                       <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Progreso</th>
                     </tr>
