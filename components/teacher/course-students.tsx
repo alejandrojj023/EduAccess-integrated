@@ -462,70 +462,13 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
       .map(([titulo, { total, count }]) => ({ titulo, promedio: Math.round(total / count) }))
       .sort((a, b) => a.promedio - b.promedio)[0] ?? null
 
-    // Nombres de tipos de actividad para el resumen
-    const TIPO_NOMBRES: Record<string, string> = {
-      identificacion:          "identificación de imágenes",
-      reconocimiento_sonidos:  "reconocimiento de sonidos",
-      secuenciacion:           "secuenciación",
-      seleccion_guiada:        "selección guiada",
-      respuesta_corta:         "respuesta corta",
-      respuesta_oral:          "respuesta oral",
-      completar_oracion:       "completar oración",
-      sopa_letras:             "sopa de letras",
-    }
-
-    // Stats por tipo de actividad (promedio de puntaje y tiempo)
-    const tipoStats: Record<string, { total: number; count: number; tiempoTotal: number; tiempoCount: number }> = {}
-    sesionesVisibles.forEach(s => s.actividades.forEach(act => {
-      const tipo = act.tipo ?? "desconocido"
-      if (!tipoStats[tipo]) tipoStats[tipo] = { total: 0, count: 0, tiempoTotal: 0, tiempoCount: 0 }
-      tipoStats[tipo].total += act.puntaje
-      tipoStats[tipo].count++
-      if (act.tiempoSegundos != null) {
-        tipoStats[tipo].tiempoTotal += act.tiempoSegundos
-        tipoStats[tipo].tiempoCount++
-      }
-    }))
-
-    const tipoConMayorDificultad = Object.entries(tipoStats)
-      .filter(([, s]) => s.count >= 2)
-      .map(([tipo, s]) => ({ tipo, promedio: Math.round(s.total / s.count) }))
-      .sort((a, b) => a.promedio - b.promedio)[0] ?? null
-
-    const tiempoRanking = Object.entries(tipoStats)
-      .filter(([, s]) => s.tiempoCount >= 2)
-      .map(([tipo, s]) => ({ tipo, tiempoPromedio: Math.round(s.tiempoTotal / s.tiempoCount) }))
-      .sort((a, b) => b.tiempoPromedio - a.tiempoPromedio)
-
-    const sopaEnLeccion = tiempoRanking.find(t => t.tipo === "sopa_letras") ?? null
-    const segundoMasLento = tiempoRanking.find(t => t.tipo !== "sopa_letras") ?? null
-
-    // Resumen diagnóstico (texto natural)
-    const partesDiagnostico: string[] = []
-    if (tipoConMayorDificultad) {
-      const nombre = TIPO_NOMBRES[tipoConMayorDificultad.tipo] ?? tipoConMayorDificultad.tipo
-      partesDiagnostico.push(`Muestra más dificultad en actividades de ${nombre} (promedio ${tipoConMayorDificultad.promedio}%).`)
-    }
-    if (sopaEnLeccion) {
-      const seg = sopaEnLeccion.tiempoPromedio
-      const tiempoStr = seg >= 60 ? `${Math.floor(seg / 60)} min ${seg % 60} s` : `${seg} s`
-      partesDiagnostico.push(`Sopa de letras: promedio ${tiempoStr} por actividad.`)
-    }
-    if (segundoMasLento) {
-      const nombre = TIPO_NOMBRES[segundoMasLento.tipo] ?? segundoMasLento.tipo
-      const seg = segundoMasLento.tiempoPromedio
-      const tiempoStr = seg >= 60 ? `${Math.floor(seg / 60)} min ${seg % 60} s` : `${seg} s`
-      partesDiagnostico.push(`También tarda en ${nombre} (promedio ${tiempoStr}).`)
-    }
-    const resumenDiagnostico = partesDiagnostico.length > 0 ? partesDiagnostico.join(" ") : null
-
     // Tiempo total acumulado en la lección
     const tiempoTotalSeg = sesionesVisibles.reduce((acc, s) => acc + (s.duracionSegundos ?? 0), 0)
     const tiempoFormateado = formatTiempo(tiempoTotalSeg)
 
     async function handleReporteAudio() {
       if (!reporte) return
-      const text = `Reporte de ${reporte.student.nombre}. Progreso: ${progresoStat}. Estrellas: ${totalEstrellas}. Sesiones: ${totalSesiones}. ${resumenDiagnostico ?? "Sin datos de diagnóstico adicionales."}`
+      const text = `Reporte de ${reporte.student.nombre}. Progreso: ${progresoStat}. Estrellas: ${totalEstrellas}. Sesiones: ${totalSesiones}.`
       if (reporteAudioState === "playing") { stopSpeak(); setReporteAudioState("paused") }
       else { setReporteAudioState("playing"); await speak(text); setReporteAudioState("ended") }
     }
@@ -767,13 +710,6 @@ export function CourseStudents({ courseId, courseName, onBack, onInvite, openStu
 
               </div>
 
-              {/* ── Resumen diagnóstico ── */}
-              {resumenDiagnostico && (
-                <section aria-label="Resumen diagnóstico" className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800/40 p-5 shadow-sm">
-                  <h3 className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-2">Resumen</h3>
-                  <p className="text-sm text-foreground leading-relaxed">{resumenDiagnostico}</p>
-                </section>
-              )}
 
               {/* ── Sección: Detalle de intentos ── */}
               <section ref={barraRef} aria-label="Detalle de intentos" className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
