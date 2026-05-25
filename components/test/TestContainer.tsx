@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import { useTestState } from '@/hooks/test/useTestState';
 import { TestResult } from '@/utils/test/scoring';
 import { TestIntro } from './TestIntro';
@@ -10,6 +12,8 @@ import { TestResults } from './TestResults';
 import { TestCompleted } from './TestCompleted';
 
 export function TestContainer() {
+  const router = useRouter();
+  const [showExitModal, setShowExitModal] = useState(false);
   const {
     state,
     startTest,
@@ -21,6 +25,16 @@ export function TestContainer() {
     resetTest,
     getTestSummary
   } = useTestState();
+
+  const isInProgress = state.currentStep === 'visual' || state.currentStep === 'auditivo';
+
+  const handleBack = () => {
+    if (isInProgress) {
+      setShowExitModal(true);
+    } else {
+      router.push("/");
+    }
+  };
 
   const handleTestComplete = () => {
     const summary = getTestSummary();
@@ -94,6 +108,21 @@ export function TestContainer() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4">
       <div className="mx-auto max-w-4xl">
+
+        {/* Botón regresar */}
+        {state.currentStep !== 'completed' && (
+          <div className="mb-4">
+            <button
+              type="button"
+              onClick={handleBack}
+              aria-label="Regresar"
+              className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 shadow-sm transition-all hover:bg-gray-50 active:scale-[0.98]"
+            >
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+              Regresar
+            </button>
+          </div>
+        )}
         {/* Progress Bar */}
         {state.currentStep !== 'intro' && state.currentStep !== 'completed' && (
           <div className="mb-6">
@@ -129,6 +158,43 @@ export function TestContainer() {
           {renderCurrentStep()}
         </div>
       </div>
+
+      {/* Modal confirmación al salir durante el test */}
+      {showExitModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="exit-test-title"
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white border border-gray-200 shadow-2xl p-6 space-y-4">
+            <div className="space-y-1">
+              <h2 id="exit-test-title" className="text-base font-bold text-gray-900">
+                ¿Salir del test?
+              </h2>
+              <p className="text-sm text-gray-500">
+                Perderás tu avance en este módulo si sales ahora.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowExitModal(false)}
+                className="w-full h-11 rounded-xl bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 active:scale-[0.98] transition-all"
+              >
+                Continuar el test
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowExitModal(false); router.push("/"); }}
+                className="w-full h-11 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 active:scale-[0.98] transition-all"
+              >
+                Salir de todas formas
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

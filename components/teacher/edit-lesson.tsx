@@ -9,9 +9,11 @@ import {
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
-import { ArrowLeft, Save, Volume2, Pause, Play, RotateCcw, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip, BookMarked, Pencil, ImageIcon, List, ListOrdered, HelpCircle, PencilLine, Mic, AlignLeft, Upload, X, Lock } from "lucide-react"
+import { ArrowLeft, Save, Volume2, Pause, Play, RotateCcw, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip, BookMarked, Pencil, ImageIcon, List, ListOrdered, HelpCircle, PencilLine, Mic, AlignLeft, Upload, X, Lock, MoreVertical, Eye } from "lucide-react"
 import { parseActivityConfig, serializeActivityConfig } from "@/lib/activity-config"
 import { ActivityConfigForm, ActivityOption, SequenceStep, getActivitySpeakText } from "@/components/teacher/activity-config-form"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { StudentActivity } from "@/components/student/student-activity"
 
 interface EditLessonProps {
   lessonId: string | null
@@ -329,6 +331,8 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
   const [activitiesWithAttempts,  setActivitiesWithAttempts]  = useState<Map<string, number>>(new Map())
   const [blockedDeleteInfo,       setBlockedDeleteInfo]       = useState<{ title: string; count: number } | null>(null)
   const [showSaveProgressWarning, setShowSaveProgressWarning] = useState(false)
+  const [previewActivityId,       setPreviewActivityId]       = useState<string | null>(null)
+  const [openMenuId,              setOpenMenuId]              = useState<string | null>(null)
 
   const handleConfirmActivity = async () => {
     if (!configuringType) return
@@ -548,6 +552,19 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
           </div>
         </main>
       </div>
+    )
+  }
+
+  /* ── Preview screen ── */
+  if (previewActivityId) {
+    return (
+      <StudentActivity
+        activityId={previewActivityId}
+        onBack={() => setPreviewActivityId(null)}
+        onComplete={() => setPreviewActivityId(null)}
+        onVoiceActivity={() => setPreviewActivityId(null)}
+        previewMode
+      />
     )
   }
 
@@ -953,27 +970,52 @@ export function EditLesson({ lessonId, onBack, onSave }: EditLessonProps) {
                           <span className="text-xs text-muted-foreground line-clamp-1">{preview} · {diffLabel}</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button type="button" onClick={() => handleEditActivity(activity)}
-                          aria-label={`Editar ${activity.title}`}
-                          className="flex items-center justify-center rounded-lg p-1.5 text-primary hover:bg-primary/10 transition-colors">
-                          <Pencil className="w-4 h-4" aria-hidden="true" />
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button type="button"
+                          onClick={() => setPreviewActivityId(activity.id)}
+                          aria-label={`Vista previa de ${activity.title}`}
+                          title="Vista previa"
+                          className="flex items-center justify-center rounded-lg p-1.5 text-muted-foreground hover:bg-muted transition-colors">
+                          <Eye className="w-4 h-4" aria-hidden="true" />
                         </button>
-                        {(activitiesWithAttempts.get(activity.id) ?? 0) > 0 ? (
-                          <button type="button"
-                            onClick={() => setBlockedDeleteInfo({ title: activity.title, count: activitiesWithAttempts.get(activity.id)! })}
-                            aria-label={`No se puede eliminar ${activity.title}: ya fue respondida por alumnos`}
-                            title="Ya fue respondida por alumnos"
-                            className="flex items-center justify-center rounded-lg p-1.5 text-muted-foreground/40 cursor-not-allowed">
-                            <Trash2 className="w-4 h-4" aria-hidden="true" />
-                          </button>
-                        ) : (
-                          <button type="button" onClick={() => setActivityToRemove(activity.id)}
-                            aria-label={`Eliminar ${activity.title}`}
-                            className="flex items-center justify-center rounded-lg p-1.5 text-destructive hover:bg-destructive/10 transition-colors">
-                            <Trash2 className="w-4 h-4" aria-hidden="true" />
-                          </button>
-                        )}
+                        <Popover open={openMenuId === activity.id} onOpenChange={(open) => setOpenMenuId(open ? activity.id : null)}>
+                          <PopoverTrigger asChild>
+                            <button type="button"
+                              aria-label={`Más opciones para ${activity.title}`}
+                              aria-haspopup="menu"
+                              aria-expanded={openMenuId === activity.id}
+                              className="flex items-center justify-center rounded-lg p-1.5 text-muted-foreground hover:bg-muted transition-colors">
+                              <MoreVertical className="w-4 h-4" aria-hidden="true" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" className="w-36 p-1">
+                            <div role="menu" className="flex flex-col gap-0.5">
+                              <button type="button" role="menuitem"
+                                onClick={() => { handleEditActivity(activity); setOpenMenuId(null) }}
+                                className="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
+                                <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                                Editar
+                              </button>
+                              {(activitiesWithAttempts.get(activity.id) ?? 0) > 0 ? (
+                                <button type="button" role="menuitem"
+                                  onClick={() => { setBlockedDeleteInfo({ title: activity.title, count: activitiesWithAttempts.get(activity.id)! }); setOpenMenuId(null) }}
+                                  aria-disabled="true"
+                                  title="Ya fue respondida por alumnos"
+                                  className="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground/40 cursor-not-allowed text-left">
+                                  <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                                  Borrar
+                                </button>
+                              ) : (
+                                <button type="button" role="menuitem"
+                                  onClick={() => { setActivityToRemove(activity.id); setOpenMenuId(null) }}
+                                  className="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors text-left">
+                                  <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                                  Borrar
+                                </button>
+                              )}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                     </li>
                   )

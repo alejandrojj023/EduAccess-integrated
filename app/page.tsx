@@ -232,6 +232,7 @@ function AppContent() {
         <LandingPage
           onStudentLogin={() => router.push("/iniciar-sesion")}
           onTeacherLogin={() => router.push("/iniciar-sesion")}
+          onRegister={() => router.push("/registro")}
           onScreeningTest={() => router.push("/tamizaje")}
         />
       )

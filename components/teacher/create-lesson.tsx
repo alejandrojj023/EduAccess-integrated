@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
-import { ArrowLeft, Save, Volume2, Pause, Play, RotateCcw, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip, BookMarked, Pencil, Upload, ImageIcon, List, HelpCircle, PencilLine, Mic, AlignLeft, X } from "lucide-react"
+import { ArrowLeft, Save, Volume2, Pause, Play, RotateCcw, FileText, Plus, Trash2, GripVertical, ChevronLeft, BookOpen, Youtube, Search, Paperclip, BookMarked, Pencil, Upload, ImageIcon, List, HelpCircle, PencilLine, Mic, AlignLeft, X, MoreVertical, Eye } from "lucide-react"
 import { parseActivityConfig, serializeActivityConfig } from "@/lib/activity-config"
 import { ActivityConfigForm, ActivityOption, SequenceStep, getActivitySpeakText } from "@/components/teacher/activity-config-form"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 interface CreateLessonProps {
   courseId: string | null
@@ -68,6 +69,7 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
   // Inline config state
   const [configuringType,    setConfiguringType]    = useState<{ type: string; label: string } | null>(null)
   const [editingActivityId,  setEditingActivityId]  = useState<string | null>(null)
+  const [openMenuId,         setOpenMenuId]         = useState<string | null>(null)
   const [actInstrucciones,   setActInstrucciones]   = useState("")
   const [actDificultad,      setActDificultad]      = useState("facil")
   const [actOptions,         setActOptions]         = useState<ActivityOption[]>([
@@ -808,19 +810,42 @@ export function CreateLesson({ courseId, onBack, onSave }: CreateLessonProps) {
                           <span className="text-xs text-muted-foreground line-clamp-1">{preview} · {diffLabel}</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex items-center gap-1 shrink-0">
                         <button type="button"
-                          onClick={() => handleEditActivity(activity)}
-                          aria-label={`Editar ${activity.title}`}
-                          className="flex items-center justify-center rounded-lg p-1.5 text-primary hover:bg-primary/10 transition-colors">
-                          <Pencil className="w-4 h-4" aria-hidden="true" />
+                          aria-disabled="true"
+                          aria-label="Vista previa disponible después de guardar la lección"
+                          title="Guarda la lección primero"
+                          onClick={(e) => e.preventDefault()}
+                          className="flex items-center justify-center rounded-lg p-1.5 text-muted-foreground/30 cursor-not-allowed">
+                          <Eye className="w-4 h-4" aria-hidden="true" />
                         </button>
-                        <button type="button"
-                          onClick={() => handleRemoveActivity(activity.id)}
-                          aria-label={`Eliminar ${activity.title}`}
-                          className="flex items-center justify-center rounded-lg p-1.5 text-destructive hover:bg-destructive/10 transition-colors">
-                          <Trash2 className="w-4 h-4" aria-hidden="true" />
-                        </button>
+                        <Popover open={openMenuId === activity.id} onOpenChange={(open) => setOpenMenuId(open ? activity.id : null)}>
+                          <PopoverTrigger asChild>
+                            <button type="button"
+                              aria-label={`Más opciones para ${activity.title}`}
+                              aria-haspopup="menu"
+                              aria-expanded={openMenuId === activity.id}
+                              className="flex items-center justify-center rounded-lg p-1.5 text-muted-foreground hover:bg-muted transition-colors">
+                              <MoreVertical className="w-4 h-4" aria-hidden="true" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" className="w-36 p-1">
+                            <div role="menu" className="flex flex-col gap-0.5">
+                              <button type="button" role="menuitem"
+                                onClick={() => { handleEditActivity(activity); setOpenMenuId(null) }}
+                                className="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
+                                <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                                Editar
+                              </button>
+                              <button type="button" role="menuitem"
+                                onClick={() => { handleRemoveActivity(activity.id); setOpenMenuId(null) }}
+                                className="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors text-left">
+                                <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                                Borrar
+                              </button>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                     </li>
                   )
