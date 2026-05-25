@@ -19,7 +19,7 @@ import { fechaTijuana } from "@/lib/utils"
 import { useSpeakOnHover } from "@/components/ui/accessible-tooltip"
 import {
   ArrowLeft, Volume2, Pause, Play, RotateCcw, BarChart3, TrendingUp, Clock,
-  CheckCircle, Users, Target, SlidersHorizontal,
+  CheckCircle, Users, Target, SlidersHorizontal, ChevronLeft, ChevronRight, Star, Flame,
 } from "lucide-react"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -109,7 +109,8 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
     vista:  "dona",
     tipos:  TIPOS_ACTIVIDAD.map((t) => t.value),
   })
-  const [despCfg, setDespCfg] = useState({ ordenar: "nombre", filtrar: "todos", mostrar: "5" })
+  const [despCfg, setDespCfg] = useState({ ordenar: "nombre", filtrar: "todos" })
+  const [despPage, setDespPage] = useState(0)
 
   // ── Hook de analíticas ──────────────────────────────────────
   const toISODay = (d: Date) => fechaTijuana(d)
@@ -182,10 +183,13 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
     fetchAlumnos()
   }, [user, grupoId])
 
+  // Reset pagination al cambiar filtros o cuando llegan nuevos datos
+  useEffect(() => { setDespPage(0) }, [despCfg.ordenar, despCfg.filtrar, studentPerformance])
+
   // ── Hover TTS stats ─────────────────────────────────────────
   const hoverCorrect  = useSpeakOnHover(`Respuestas correctas: ${overallStats.averageCorrect}%`)
-  const hoverIntentos = useSpeakOnHover(`Total de intentos: ${overallStats.totalAttempts}`)
-  const hoverTiempo   = useSpeakOnHover(`Tiempo promedio: ${overallStats.averageTime}`)
+  const hoverIntentos = useSpeakOnHover(`Intentos de lecciones: ${overallStats.totalAttempts}`)
+  const hoverTiempo   = useSpeakOnHover(`Tiempo promedio por lección: ${overallStats.averageTime}`)
   const hoverActivos  = useSpeakOnHover(`Estudiantes activos: ${overallStats.activeStudents}`)
 
   // ── Datos procesados por configuración ─────────────────────
@@ -215,18 +219,19 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
       keyFn: (iso: string) => string,
       labelFn: (iso: string) => string,
     ) {
-      const map = new Map<string, { label: string; pts: number[]; intentos: number }>()
+      const map = new Map<string, { label: string; pts: number[]; intentos: number; intentosLeccion: number }>()
       data.forEach((item) => {
         if (!item.weekStart) return
         const key  = keyFn(item.weekStart)
-        const prev = map.get(key) ?? { label: labelFn(item.weekStart), pts: [] as number[], intentos: 0 }
+        const prev = map.get(key) ?? { label: labelFn(item.weekStart), pts: [] as number[], intentos: 0, intentosLeccion: 0 }
         prev.pts.push(item.puntaje)
         prev.intentos += item.intentos
+        prev.intentosLeccion += item.intentosLeccion
         map.set(key, prev)
       })
       return Array.from(map.values()).map((m) => {
         const avg = m.pts.length > 0 ? Math.round(m.pts.reduce((a, b) => a + b, 0) / m.pts.length) : 0
-        return { week: m.label, weekStart: "", progreso: avg, puntaje: avg, intentos: m.intentos }
+        return { week: m.label, weekStart: "", progreso: avg, puntaje: avg, intentos: m.intentos, intentosLeccion: m.intentosLeccion }
       })
     }
 
@@ -281,7 +286,9 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
     )
   }, [progressData, progCfg])
 
-  const progDataKey = progCfg.metrica === "intentos" ? "intentos" : progCfg.metrica
+  const progDataKey = progCfg.metrica === "intentos" ? "intentos"
+    : progCfg.metrica === "intentosLeccion" ? "intentosLeccion"
+    : progCfg.metrica
 
   // Tipos de actividad
   const processedTipos = useMemo(() =>
@@ -289,21 +296,28 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
     [activityTypeData, tipoCfg.tipos]
   )
 
+  const DESP_PAGE_SIZE = 10
+
   // Desempeño individual
   const processedDesp = useMemo(() => {
     let data = [...studentPerformance]
     // Ordenar
-    if (despCfg.ordenar === "correctas") data.sort((a, b) => b.correctas - a.correctas)
-    else if (despCfg.ordenar === "intentos") data.sort((a, b) => b.intentos - a.intentos)
-    else if (despCfg.ordenar === "tiempo") data.sort((a, b) => b.tiempoSeconds - a.tiempoSeconds)
+    if      (despCfg.ordenar === "correctas")     data.sort((a, b) => b.correctas - a.correctas)
+    else if (despCfg.ordenar === "intentos")      data.sort((a, b) => b.intentos - a.intentos)
+    else if (despCfg.ordenar === "tiempo")        data.sort((a, b) => b.tiempoSeconds - a.tiempoSeconds)
+    else if (despCfg.ordenar === "estrellas")     data.sort((a, b) => b.estrellas - a.estrellas)
+    else if (despCfg.ordenar === "estrellas_asc") data.sort((a, b) => a.estrellas - b.estrellas)
+    else if (despCfg.ordenar === "racha")         data.sort((a, b) => b.racha - a.racha)
+    else if (despCfg.ordenar === "racha_asc")     data.sort((a, b) => a.racha - b.racha)
     else data.sort((a, b) => a.name.localeCompare(b.name))
-    // Filtrar
-    if (despCfg.filtrar === "apoyo") data = data.filter((s) => s.correctas < 50)
-    else if (despCfg.filtrar === "alto") data = data.filter((s) => s.correctas > 80)
-    // Mostrar
-    if (despCfg.mostrar !== "todos") data = data.slice(0, parseInt(despCfg.mostrar))
+    // Filtrar por rendimiento
+    if      (despCfg.filtrar === "apoyo") data = data.filter((s) => s.correctas < 50)
+    else if (despCfg.filtrar === "alto")  data = data.filter((s) => s.correctas > 80)
     return data
   }, [studentPerformance, despCfg])
+
+  const despTotalPages  = Math.ceil(processedDesp.length / DESP_PAGE_SIZE)
+  const paginatedDesp   = processedDesp.slice(despPage * DESP_PAGE_SIZE, (despPage + 1) * DESP_PAGE_SIZE)
 
   // ── Estilos comunes Tooltip ─────────────────────────────────
   const tooltipStyle = {
@@ -336,7 +350,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
           {settings.voiceEnabled && (
             <button type="button"
               onClick={async () => {
-                const text = `Analíticas. Promedio correcto: ${overallStats.averageCorrect}%. Intentos totales: ${overallStats.totalAttempts}. Tiempo promedio: ${overallStats.averageTime}. Estudiantes activos: ${overallStats.activeStudents}.`
+                const text = `Analíticas. Promedio correcto: ${overallStats.averageCorrect}%. Intentos de lecciones: ${overallStats.totalAttempts}. Tiempo promedio por lección: ${overallStats.averageTime}. Estudiantes activos: ${overallStats.activeStudents}.`
                 if (analyticsAudioState === "playing") { stopSpeak(); setAnalyticsAudioState("paused") }
                 else { setAnalyticsAudioState("playing"); await speak(text); setAnalyticsAudioState("ended") }
               }}
@@ -512,7 +526,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                   ? <div className="h-8 w-16 rounded-lg bg-white/30 animate-pulse mb-0.5" aria-hidden="true" />
                   : <p className="text-2xl font-black text-white">{overallStats.totalAttempts}</p>
                 }
-                <p className="text-xs font-medium text-white/80 mt-0.5">Total Intentos</p>
+                <p className="text-xs font-medium text-white/80 mt-0.5">Intentos de Lecciones</p>
               </div>
             </li>
             <li>
@@ -525,7 +539,7 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                   ? <div className="h-8 w-24 rounded-lg bg-white/30 animate-pulse mb-0.5" aria-hidden="true" />
                   : <p className="text-2xl font-black text-white">{overallStats.averageTime}</p>
                 }
-                <p className="text-xs font-medium text-white/80 mt-0.5">Tiempo Promedio</p>
+                <p className="text-xs font-medium text-white/80 mt-0.5">Tiempo por Lección</p>
               </div>
             </li>
             <li>
@@ -668,9 +682,10 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
 
                     <ConfigSection title="Métrica">
                       <RadioGroup value={progCfg.metrica} onValueChange={(v) => setProgCfg((p) => ({ ...p, metrica: v }))} className="space-y-1.5">
-                        <RadioRow value="progreso"  label="Progreso %" />
-                        <RadioRow value="puntaje"   label="Puntaje promedio" />
-                        <RadioRow value="intentos"  label="Intentos" />
+                        <RadioRow value="progreso"        label="Progreso %" />
+                        <RadioRow value="puntaje"         label="Puntaje promedio" />
+                        <RadioRow value="intentosLeccion" label="Intentos de lección" />
+                        <RadioRow value="intentos"        label="Intentos de actividad" />
                       </RadioGroup>
                     </ConfigSection>
                   </div>
@@ -691,7 +706,12 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                     <Line
                       type="monotone"
                       dataKey={progDataKey}
-                      name={progCfg.metrica === "intentos" ? "Intentos" : progCfg.metrica === "puntaje" ? "Puntaje" : "Progreso %"}
+                      name={
+                        progCfg.metrica === "intentos" ? "Intentos de actividad"
+                        : progCfg.metrica === "intentosLeccion" ? "Intentos de lección"
+                        : progCfg.metrica === "puntaje" ? "Puntaje"
+                        : "Progreso %"
+                      }
                       stroke="var(--primary)"
                       strokeWidth={3}
                       dot={{ fill: "var(--primary)", strokeWidth: 2, r: 5 }}
@@ -809,7 +829,11 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                       <RadioGroup value={despCfg.ordenar} onValueChange={(v) => setDespCfg((p) => ({ ...p, ordenar: v }))} className="space-y-1.5">
                         <RadioRow value="nombre"    label="Nombre" />
                         <RadioRow value="correctas" label="% Correctas" />
-                        <RadioRow value="intentos"  label="Intentos" />
+                        <RadioRow value="intentos"  label="Intentos de lección" />
+                        <RadioRow value="estrellas"     label="Estrellas mayor a menor" />
+                        <RadioRow value="estrellas_asc" label="Estrellas menor a mayor" />
+                        <RadioRow value="racha"         label="Racha mayor a menor" />
+                        <RadioRow value="racha_asc"     label="Racha menor a mayor" />
                         <RadioRow value="tiempo"    label="Tiempo promedio" />
                       </RadioGroup>
                     </ConfigSection>
@@ -819,15 +843,6 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                         <RadioRow value="todos"  label="Todos" />
                         <RadioRow value="apoyo"  label="Necesitan apoyo (< 50%)" />
                         <RadioRow value="alto"   label="Rendimiento alto (> 80%)" />
-                      </RadioGroup>
-                    </ConfigSection>
-
-                    <ConfigSection title="Mostrar">
-                      <RadioGroup value={despCfg.mostrar} onValueChange={(v) => setDespCfg((p) => ({ ...p, mostrar: v }))} className="space-y-1.5">
-                        <RadioRow value="5"    label="5 alumnos" />
-                        <RadioRow value="10"   label="10 alumnos" />
-                        <RadioRow value="20"   label="20 alumnos" />
-                        <RadioRow value="todos" label="Todos" />
                       </RadioGroup>
                     </ConfigSection>
                   </div>
@@ -841,51 +856,117 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
                     <tr className="border-b border-border">
                       <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Estudiante</th>
                       <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Correctas</th>
-                      <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Intentos</th>
+                      <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Intentos Lecc.</th>
                       <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Tiempo Prom.</th>
                       <th scope="col" className="text-left py-2.5 px-3 text-xs font-bold text-muted-foreground">Progreso</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {processedDesp.length === 0 ? (
+                    {paginatedDesp.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="py-8 text-center text-muted-foreground text-sm">
                           No hay alumnos con los filtros seleccionados
                         </td>
                       </tr>
                     ) : (
-                      processedDesp.map((student) => (
-                        <tr key={student.id} className="border-b border-border hover:bg-muted/30 transition-colors">
-                          <td className="py-3 px-3 text-sm font-bold">{student.name}</td>
-                          <td className="py-3 px-3">
-                            <span className={`text-sm font-black ${
-                              student.correctas >= 80 ? "text-emerald-600"
-                              : student.correctas >= 50 ? "text-amber-600"
-                              : "text-red-500"
-                            }`}>
-                              {student.correctas}%
-                            </span>
-                          </td>
-                          <td className="py-3 px-3 text-sm text-muted-foreground">{student.intentos}</td>
-                          <td className="py-3 px-3 text-sm text-muted-foreground">{student.tiempo}</td>
-                          <td className="py-3 px-3 w-28">
-                            <div className="h-2 rounded-full bg-muted overflow-hidden">
-                              <div
-                                role="progressbar"
-                                aria-valuenow={student.correctas}
-                                aria-valuemin={0}
-                                aria-valuemax={100}
-                                aria-label={`Progreso de ${student.name}: ${student.correctas}%`}
-                                className="h-full rounded-full bg-primary transition-all"
-                                style={{ width: `${student.correctas}%` }}
-                              />
-                            </div>
-                          </td>
-                        </tr>
+                      paginatedDesp.map((student) => (
+                          <tr key={student.id} className="border-b border-border hover:bg-muted/30 transition-colors">
+                            {/* Estudiante: avatar con color real del perfil + nombre + nivel */}
+                            <td className="py-3 px-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className="relative shrink-0">
+                                  <div
+                                    className="w-9 h-9 rounded-full flex items-center justify-center shadow-sm"
+                                    style={{ backgroundColor: student.colorPerfil }}
+                                    aria-hidden="true"
+                                  >
+                                    <span className="text-sm font-black text-white">{student.name.charAt(0).toUpperCase()}</span>
+                                  </div>
+                                  {/* Badge del nivel */}
+                                  <div className="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#1e1b4b] border-2 border-card flex items-center justify-center shadow-sm" aria-hidden="true">
+                                    <img
+                                      src={student.nivelIcon}
+                                      alt={student.nivelNombre}
+                                      className="w-4 h-4 object-contain"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-bold text-foreground leading-tight truncate">{student.name}</p>
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <span className="text-xs text-muted-foreground">Nv. {student.nivel} · {student.nivelNombre}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className={`text-sm font-black ${
+                                student.correctas >= 80 ? "text-emerald-600"
+                                : student.correctas >= 50 ? "text-amber-600"
+                                : "text-red-500"
+                              }`}>
+                                {student.correctas}%
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-sm text-muted-foreground">{student.intentos}</td>
+                            <td className="py-3 px-3 text-sm text-muted-foreground">{student.tiempo}</td>
+                            <td className="py-3 px-3 w-28">
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                                  <div
+                                    role="progressbar"
+                                    aria-valuenow={student.correctas}
+                                    aria-valuemin={0}
+                                    aria-valuemax={100}
+                                    aria-label={`Progreso de ${student.name}: ${student.correctas}%`}
+                                    className="h-full rounded-full bg-primary transition-all"
+                                    style={{ width: `${student.correctas}%` }}
+                                  />
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <Star className="w-3 h-3 text-amber-400 fill-amber-400" aria-hidden="true" />
+                                  <span className="text-xs text-muted-foreground font-medium">{student.estrellas}</span>
+                                </div>
+                                <div className="flex items-center gap-0.5 shrink-0">
+                                  <Flame className="w-3 h-3 text-orange-500" aria-hidden="true" />
+                                  <span className="text-xs text-muted-foreground font-medium">{student.racha}</span>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
                       ))
                     )}
                   </tbody>
                 </table>
+
+                {/* Paginación */}
+                {despTotalPages > 1 && (
+                  <div className="flex items-center justify-between pt-3 mt-2 border-t border-border">
+                    <button
+                      type="button"
+                      onClick={() => setDespPage((p) => Math.max(0, p - 1))}
+                      disabled={despPage === 0}
+                      aria-label="Página anterior"
+                      className="flex items-center gap-1 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
+                      Anterior
+                    </button>
+                    <span className="text-xs text-muted-foreground">
+                      Página <span className="font-bold text-foreground">{despPage + 1}</span> de <span className="font-bold text-foreground">{despTotalPages}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setDespPage((p) => Math.min(despTotalPages - 1, p + 1))}
+                      disabled={despPage >= despTotalPages - 1}
+                      aria-label="Página siguiente"
+                      className="flex items-center gap-1 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-muted active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Siguiente
+                      <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
