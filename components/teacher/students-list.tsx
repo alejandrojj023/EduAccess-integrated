@@ -244,7 +244,7 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
               {filteredStudents.map((student) => (
                 <li key={student.id}>
                   <article
-                    aria-label={`${student.name}${student.needsSupport ? ", necesita apoyo" : ""}, progreso ${student.progress}%`}
+                    aria-label={`${student.name}${student.needsSupport ? ", necesita apoyo" : ""}, progreso ${student.progress}%, ${student.completedLessons} de ${student.totalLessons} lecciones completadas`}
                     className={`rounded-2xl border bg-card p-5 shadow-sm transition-all hover:shadow-md ${
                       student.needsSupport ? "border-amber-200 bg-amber-50/30" : "border-border hover:border-primary/20"
                     }`}>
@@ -275,7 +275,7 @@ export function StudentsList({ onNavigate, onBack }: StudentsListProps) {
                             </span>
                             <span className="flex items-center gap-1">
                               <CheckCircle className="w-3 h-3" aria-hidden="true" />
-                              {student.completedActivities}/{student.totalActivities} actividades
+                              {student.completedLessons}/{student.totalLessons} lecciones
                             </span>
                           </div>
                         </div>

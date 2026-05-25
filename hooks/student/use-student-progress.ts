@@ -35,6 +35,7 @@ interface ProgressStats {
   totalStars: number
   nivelNombre: string
   nivelEmoji: string
+  nivelIcon: string
   colorPerfil: string | null
 }
 
@@ -57,6 +58,7 @@ export function useStudentProgress(): UseStudentProgressReturn {
     totalStars: 0,
     nivelNombre: NIVELES[1].nombre,
     nivelEmoji: NIVELES[1].emoji,
+    nivelIcon: NIVELES[1].icon,
     colorPerfil: null,
   })
   const [loading, setLoading] = useState(true)
@@ -159,14 +161,13 @@ export function useStudentProgress(): UseStudentProgressReturn {
 
       const completedCount = lessonsData.filter((l) => l.completed).length
       const totalCount = lessonsData.length
-      const avgScore =
-        completedCount > 0
-          ? Math.round(
-              lessonsData
-                .filter((l) => l.completed)
-                .reduce((acc, l) => acc + l.score, 0) / completedCount
-            )
-          : 0
+      const intentosConPuntaje = (historialRaw ?? []).filter((h: any) => h.promedio_puntaje != null)
+      const avgScore = intentosConPuntaje.length > 0
+        ? Math.round(
+            intentosConPuntaje.reduce((acc: number, h: any) => acc + (h.promedio_puntaje ?? 0), 0)
+            / intentosConPuntaje.length
+          )
+        : 0
       const totalAtt = historialRaw?.length ?? 0
 
       setStats({
@@ -179,6 +180,7 @@ export function useStudentProgress(): UseStudentProgressReturn {
         totalStars: gami?.estrellas_totales ?? 0,
         nivelNombre: (NIVELES[gami?.nivel ?? 1] ?? NIVELES[1]).nombre,
         nivelEmoji:  (NIVELES[gami?.nivel ?? 1] ?? NIVELES[1]).emoji,
+        nivelIcon:   (NIVELES[gami?.nivel ?? 1] ?? NIVELES[1]).icon,
         colorPerfil: perfilResult.data?.color_perfil ?? null,
       })
 

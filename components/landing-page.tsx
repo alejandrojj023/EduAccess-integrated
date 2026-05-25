@@ -97,7 +97,7 @@ export function LandingPage({ onStudentLogin, onTeacherLogin, onScreeningTest }:
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-[#008e92]">
               <img src="/2.svg" alt="" className="h-full w-full object-cover" width={36} height={36} />
-            </div>
+            </div>k
             <span className="text-lg font-bold tracking-tight text-neutral-900">EduAccess</span>
           </div>
           <nav className="flex items-center gap-2">
