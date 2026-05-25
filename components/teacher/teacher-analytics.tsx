@@ -219,19 +219,20 @@ export function TeacherAnalytics({ onBack }: TeacherAnalyticsProps) {
       keyFn: (iso: string) => string,
       labelFn: (iso: string) => string,
     ) {
-      const map = new Map<string, { label: string; pts: number[]; intentos: number; intentosLeccion: number }>()
+      const map = new Map<string, { label: string; pts: number[]; intentos: number; intentosLeccion: number; maxProgreso: number }>()
       data.forEach((item) => {
         if (!item.weekStart) return
         const key  = keyFn(item.weekStart)
-        const prev = map.get(key) ?? { label: labelFn(item.weekStart), pts: [] as number[], intentos: 0, intentosLeccion: 0 }
+        const prev = map.get(key) ?? { label: labelFn(item.weekStart), pts: [] as number[], intentos: 0, intentosLeccion: 0, maxProgreso: 0 }
         prev.pts.push(item.puntaje)
         prev.intentos += item.intentos
         prev.intentosLeccion += item.intentosLeccion
+        prev.maxProgreso = Math.max(prev.maxProgreso, item.progreso)
         map.set(key, prev)
       })
       return Array.from(map.values()).map((m) => {
         const avg = m.pts.length > 0 ? Math.round(m.pts.reduce((a, b) => a + b, 0) / m.pts.length) : 0
-        return { week: m.label, weekStart: "", progreso: avg, puntaje: avg, intentos: m.intentos, intentosLeccion: m.intentosLeccion }
+        return { week: m.label, weekStart: "", progreso: m.maxProgreso, puntaje: avg, intentos: m.intentos, intentosLeccion: m.intentosLeccion }
       })
     }
 
