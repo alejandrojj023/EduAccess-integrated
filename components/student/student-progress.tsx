@@ -13,7 +13,6 @@ import {
   RotateCcw,
   Star,
   CheckCircle,
-  Clock,
   TrendingUp,
   BookOpen,
   Target,
@@ -90,7 +89,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
     currentStreak,
     totalStars,
     nivelNombre,
-    nivelEmoji,
+    nivelIcon,
     colorPerfil,
   } = stats
 
@@ -141,7 +140,7 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
   }
 
   const handleReadInstructions = async () => {
-    const text = `Tu reporte de progreso. Has completado ${completedLessons} de ${totalLessons} lecciones. Tu puntaje promedio es ${averageScore} por ciento. Tu racha actual es de ${currentStreak} dias.`
+    const text = `Tu reporte de progreso. Has completado ${completedLessons} de ${totalLessons} lecciones. Respondiste bien a la primera el ${averageScore} por ciento de las actividades. Tienes ${totalEstrellas} estrellas en total. Has hecho ${totalAttempts} intentos de lección. Tu racha actual es de ${currentStreak} días.`
     if (progressAudioState === "playing") {
       stopSpeak()
       setProgressAudioState("paused")
@@ -168,8 +167,8 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
       border: "border-white/20",
       icon: <Target className="w-6 h-6 text-white" aria-hidden />,
       value: `${averageScore}%`,
-      label: "Promedio",
-      description: `Tu promedio de calificaciones es ${averageScore} por ciento. ¡Sigue así para mejorarlo!`,
+      label: "Aciertos al 1er intento",
+      description: `El ${averageScore} por ciento de las actividades las respondiste bien a la primera, sin necesitar reintentos. ¡Sigue practicando!`,
     },
     {
       gradient: "from-amber-400 to-orange-500",
@@ -184,10 +183,10 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
       gradient: "from-violet-400 to-violet-600",
       shadow: "shadow-violet-500/20",
       border: "border-white/20",
-      icon: <Clock className="w-6 h-6 text-white" aria-hidden />,
+      icon: <RotateCcw className="w-6 h-6 text-white" aria-hidden />,
       value: totalAttempts,
-      label: "Lecciones intentadas",
-      description: `Has intentado ${totalAttempts} lecciones en total. Cada intento es una oportunidad de aprender.`,
+      label: "Intentos de lección",
+      description: `Has hecho ${totalAttempts} intentos de lección en total. Cada intento es una oportunidad de aprender.`,
     },
   ]
 
@@ -248,7 +247,8 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
                 <h2 className="text-lg font-black text-white leading-tight">{user?.name}</h2>
                 <div className="flex items-center gap-3 mt-1.5">
                   <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold text-white">
-                    {nivelEmoji} {nivelNombre}
+                    <img src={nivelIcon} alt="" aria-hidden className="w-4 h-4 object-contain" />
+                    {nivelNombre}
                   </span>
                   <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold text-white">
                     <Flame className="w-3 h-3" /> {currentStreak} días
@@ -441,9 +441,9 @@ export function StudentProgress({ onBack }: StudentProgressProps) {
           loading ? undefined
           : `¡Veamos cómo vas, campeón! ` +
             `Lecciones completadas: ${completedLessons} de ${totalLessons}. ` +
-            `Promedio: ${averageScore} por ciento. ` +
+            `Aciertos al primer intento: ${averageScore} por ciento. ` +
             `Estrellas totales: ${totalEstrellas}. ` +
-            (totalAttempts > 0 ? `Lecciones intentadas: ${totalAttempts}. ` : "") +
+            (totalAttempts > 0 ? `Intentos de lección: ${totalAttempts}. ` : "") +
             `Progreso general: ${Math.round(overallProgress)} por ciento. ` +
             `¡Estás haciendo un trabajo increíble! ¡Sigue así!`
         }
