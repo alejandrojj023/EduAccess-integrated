@@ -235,7 +235,7 @@ export function useAnalytics(filters: AnalyticsFilters): UseAnalyticsReturn {
     setPerformanceData(
       Array.from(leccionMap.values()).map((data) => {
         const avg = data.puntajes.length > 0
-          ? Math.round(data.puntajes.reduce((a, b) => a + b, 0) / data.puntajes.length)
+          ? Math.round(data.puntajes.reduce((a, b) => a + b, 0) / data.puntajes.length * 10) / 10
           : 0
         // total_intentos = sesiones únicas de lección; fallback a conteo de actividades si no hay FK
         const total_intentos = data.sessionIds.size > 0 ? data.sessionIds.size : data.total
@@ -306,7 +306,7 @@ export function useAnalytics(filters: AnalyticsFilters): UseAnalyticsReturn {
     setProgressData(
       sortedDays.map(([dateISO, data]) => {
         const avg = data.pts.length > 0
-          ? Math.round(data.pts.reduce((a, b) => a + b, 0) / data.pts.length)
+          ? Math.round(data.pts.reduce((a, b) => a + b, 0) / data.pts.length * 10) / 10
           : 0
         // Progreso real: lecciones iniciadas hasta esta fecha / total lecciones publicadas
         const leccionesIniciadas = Array.from(leccionPrimeraFecha.values())
