@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useAccessibility } from "@/lib/accessibility-context"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
@@ -11,11 +11,7 @@ import {
   Pause,
   Play,
   RotateCcw,
-  Image,
-  Music,
   ListOrdered,
-  CheckSquare,
-  PenLine,
   Mic,
   ChevronRight,
   Edit,
@@ -25,6 +21,9 @@ import {
   AlignLeft,
   Search,
   Lock,
+  ImageIcon,
+  HelpCircle,
+  PencilLine,
 } from "lucide-react"
 import { parseActivityConfig, serializeActivityConfig } from "@/lib/activity-config"
 import { StudentActivity } from "@/components/student/student-activity"
@@ -72,14 +71,14 @@ interface SequenceStep {
 }
 
 const activityTypes = [
-  { id: "image" as const, label: "Identificacion de imagenes", icon: Image, color: "bg-chart-1" },
-  { id: "sound" as const, label: "Reconocimiento de sonidos", icon: Music, color: "bg-chart-2" },
-  { id: "sequence" as const, label: "Ordenar secuencias", icon: ListOrdered, color: "bg-chart-3" },
-  { id: "multiple" as const, label: "Opcion multiple", icon: CheckSquare, color: "bg-chart-4" },
-  { id: "short" as const, label: "Respuesta corta escrita", icon: PenLine, color: "bg-chart-5" },
-  { id: "voice" as const, label: "Respuesta por voz", icon: Mic, color: "bg-primary" },
-  { id: "fill" as const, label: "Completar oracion", icon: AlignLeft, color: "bg-teal-500" },
-  { id: "wordsearch" as const, label: "Sopa de letras", icon: Search, color: "bg-pink-500" },
+  { id: "image"      as const, label: "Identificacion de imagenes", icon: ImageIcon,   gradient: "from-blue-400 to-blue-600" },
+  { id: "sound"      as const, label: "Reconocimiento de sonidos",  icon: Volume2,     gradient: "from-violet-400 to-violet-600" },
+  { id: "sequence"   as const, label: "Ordenar secuencias",         icon: ListOrdered, gradient: "from-amber-400 to-orange-500" },
+  { id: "multiple"   as const, label: "Opcion multiple",            icon: HelpCircle,  gradient: "from-primary to-primary/80" },
+  { id: "short"      as const, label: "Respuesta corta escrita",    icon: PencilLine,  gradient: "from-emerald-400 to-teal-500" },
+  { id: "voice"      as const, label: "Respuesta por voz",          icon: Mic,         gradient: "from-rose-400 to-rose-600" },
+  { id: "fill"       as const, label: "Completar oracion",          icon: AlignLeft,   gradient: "from-cyan-400 to-cyan-600" },
+  { id: "wordsearch" as const, label: "Sopa de letras",             icon: Search,      gradient: "from-indigo-400 to-indigo-600" },
 ]
 
 const dbToFormType: Record<string, ActivityType> = {
@@ -102,6 +101,17 @@ const dbToTypeLabel: Record<string, string> = {
   respuesta_oral: "Respuesta por voz",
   completar_oracion: "Completar oracion",
   sopa_letras: "Sopa de letras",
+}
+
+
+function extractDisplayText(instrucciones: string | null): string {
+  if (!instrucciones) return ""
+  try {
+    const parsed = JSON.parse(instrucciones)
+    return typeof parsed.instrucciones === "string" ? parsed.instrucciones : instrucciones
+  } catch {
+    return instrucciones
+  }
 }
 
 const difficultyFromInt = (n: number | null): string => {
@@ -707,34 +717,45 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                           <h3 className="text-sm font-semibold text-foreground">{lessonActivities[0]?.lessonTitle}</h3>
                         </div>
                         <ul className="space-y-2 list-none p-0">
-                          {lessonActivities.map((activity) => (
+                          {lessonActivities.map((activity) => {
+                            const dispType = activityTypes.find(t => t.id === activity.type) ?? null
+                            const displayText = extractDisplayText(activity.instrucciones)
+                            return (
                             <li key={activity.id}
                               className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
+                              {dispType && (
+                                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${dispType.gradient}`} aria-hidden="true">
+                                  <dispType.icon className="w-4 h-4 text-white" />
+                                </span>
+                              )}
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-foreground">{activity.typeLabel}</p>
-                                {activity.instrucciones ? (
-                                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                                    {activity.instrucciones}
+                                <p className="text-sm font-semibold text-foreground truncate">{activity.typeLabel}</p>
+                                {displayText ? (
+                                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                    {displayText}
                                   </p>
                                 ) : (
                                   <p className="text-xs text-muted-foreground/60 mt-0.5 italic">
                                     Sin instrucciones configuradas
                                   </p>
                                 )}
-                                {activity.nivel_dificultad != null && (
-                                  <span className="inline-block mt-1 text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium capitalize">
-                                    {difficultyFromInt(activity.nivel_dificultad)}
-                                  </span>
-                                )}
-                                {(activitiesWithAttempts.get(activity.id) ?? 0) > 0 && (
-                                  <span className="inline-flex items-center gap-1 mt-1 text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
-                                    <Lock className="w-2.5 h-2.5" aria-hidden="true" />
-                                    {activitiesWithAttempts.get(activity.id)} resp.
-                                  </span>
-                                )}
+                                <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                                  {activity.nivel_dificultad != null && (
+                                    <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium capitalize">
+                                      {difficultyFromInt(activity.nivel_dificultad)}
+                                    </span>
+                                  )}
+                                  {(activitiesWithAttempts.get(activity.id) ?? 0) > 0 && (
+                                    <span className="inline-flex items-center gap-1 text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
+                                      <Lock className="w-2.5 h-2.5" aria-hidden="true" />
+                                      {activitiesWithAttempts.get(activity.id)} resp.
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 <button type="button"
+                                  aria-label={`Vista previa de ${activity.typeLabel}`}
                                   className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted active:scale-[0.98] transition-all"
                                   onClick={() => {
                                     setPreviewActivityId(activity.id)
@@ -744,14 +765,16 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
                                   Vista previa
                                 </button>
                                 <button type="button"
-                                  className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted active:scale-[0.98] transition-all"
+                                  aria-label={`Editar ${activity.typeLabel}`}
+                                  className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all"
                                   onClick={() => openConfigForEdit(activity)}>
                                   <Edit className="w-4 h-4" aria-hidden="true" />
                                   Editar
                                 </button>
                               </div>
                             </li>
-                          ))}
+                            )
+                          })}
                         </ul>
                       </div>
                     )
@@ -1035,8 +1058,8 @@ export function ActivityBuilder({ onBack, onSave }: ActivityBuilderProps) {
             <button key={type.id}
               onClick={() => openConfigForNew(type.id)}
               className="rounded-2xl border border-border bg-card shadow-sm p-6 hover:shadow-md hover:border-primary/30 transition-all text-left group active:scale-[0.98]">
-              <div className={`w-12 h-12 ${type.color} rounded-xl flex items-center justify-center mb-4 transition-transform duration-200 group-hover:scale-105`}>
-                <type.icon className="w-5 h-5 text-primary-foreground" aria-hidden="true" />
+              <div className={`w-12 h-12 bg-gradient-to-br ${type.gradient} rounded-xl flex items-center justify-center mb-4 transition-transform duration-200 group-hover:scale-105`}>
+                <type.icon className="w-5 h-5 text-white" aria-hidden="true" />
               </div>
               <h2 className="text-sm font-bold text-foreground mb-1">{type.label}</h2>
               <div className="flex items-center text-primary text-xs font-medium mt-3">
