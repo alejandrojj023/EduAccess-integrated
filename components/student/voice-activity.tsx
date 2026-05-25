@@ -85,6 +85,7 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
   const activityStartRef = useRef<number>(Date.now())
   const speakTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const questionTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const micTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const attemptsRef = useRef(0)
 
   // ── Load activity + pregunta ─────────────────────────────────
@@ -94,6 +95,7 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
     return () => {
       clearTimeout(speakTimerRef.current)
       clearTimeout(questionTimerRef.current)
+      clearTimeout(micTimerRef.current)
     }
   }, [activityId])
 
@@ -128,9 +130,9 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
       if (instrucciones) {
         speakTimerRef.current = setTimeout(() => {
           speak(instrucciones)
-          const delay = Math.max(2000, instrucciones.length * 60)
+          const delay = Math.max(2500, instrucciones.length * 75)
           questionTimerRef.current = setTimeout(() => {
-            if (pq.enunciado?.trim()) speakQuestion(pq.enunciado)
+            if (pq.enunciado?.trim()) setTimeout(() => speakQuestion(pq.enunciado), 300)
           }, delay)
         }, 600)
       } else {
@@ -224,9 +226,23 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
     } else {
       setTranscript("")
       setInterimTranscript("")
-      setIsRecording(true)
-      recognitionRef.current?.start()
-      speak("Escuchando. Habla ahora.")
+      try {
+        const ctx = new AudioContext()
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.frequency.value = 880
+        osc.type = "sine"
+        gain.gain.setValueAtTime(0.3, ctx.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2)
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start()
+        osc.stop(ctx.currentTime + 0.2)
+      } catch { /* navegador sin Web Audio API */ }
+      micTimerRef.current = setTimeout(() => {
+        setIsRecording(true)
+        recognitionRef.current?.start()
+      }, 250)
     }
   }
 
