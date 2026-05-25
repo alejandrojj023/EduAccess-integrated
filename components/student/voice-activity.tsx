@@ -275,7 +275,7 @@ export function VoiceActivity({ activityId, onBack, onComplete, lessonIndex, les
         intentoId = data.id_intento ?? undefined
       }
     }
-    onComplete({ correct: false, attempts: MAX_ATTEMPTS, intentoId })
+    onComplete({ correct: false, attempts: 1, intentoId })
   }
 
   async function handleFinish() {
