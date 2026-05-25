@@ -185,7 +185,7 @@ function AppContent() {
       }
     } else {
       if (pathname === "/" || pathname === "/iniciar-sesion" || pathname === "/registro" || pathname.startsWith("/maestro")) {
-        router.replace(needsTest ? "/estudiante/test-inicial" : "/estudiante")
+        router.replace("/estudiante")
       }
     }
   }, [loading, isAuthenticated, user, needsTest, pathname, router])
@@ -195,7 +195,7 @@ function AppContent() {
       router.push("/maestro")
     } else {
       // Verificación real: ¿el alumno ya completó el test?
-      router.push(needsTest ? "/estudiante/test-inicial" : "/estudiante")
+      router.push("/estudiante")
     }
   }
 
