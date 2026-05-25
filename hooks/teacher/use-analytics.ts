@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
-import { fechaTijuana } from "@/lib/utils"
+import { fechaTijuana, NIVELES } from "@/lib/utils"
 
 // ============================================================
 // Tipos exportados
@@ -47,6 +47,12 @@ export interface StudentPerformance {
   intentos:      number
   tiempo:        string
   tiempoSeconds: number
+  nivel:         number
+  nivelNombre:   string
+  nivelIcon:     string
+  estrellas:     number
+  racha:         number
+  colorPerfil:   string
 }
 
 export interface OverallStats {
@@ -68,6 +74,19 @@ export interface UseAnalyticsReturn {
 // ============================================================
 // Mapas de colores y etiquetas
 // ============================================================
+
+const nivelNombres: Record<number, string> = {
+  1:  "Semilla Dormida",
+  2:  "Semilla Saltarina",
+  3:  "Brote Brillante",
+  4:  "Trébol de la Suerte",
+  5:  "Girasol Sonriente",
+  6:  "Cactus Valiente",
+  7:  "Árbol Alegre",
+  8:  "Flor Guardiana",
+  9:  "Gran Roble",
+  10: "Bosque Mágico",
+}
 
 const tipoColores: Record<string, string> = {
   identificacion:         "#0d9488",
@@ -332,49 +351,65 @@ export function useAnalytics(filters: AnalyticsFilters): UseAnalyticsReturn {
       }))
     )
 
-    // 8. Desempeño individual por alumno
-    const studentPerfData: StudentPerformance[] = await Promise.all(
-      alumnoIds.map(async (alumnoId) => {
-        const { data: perfil } = await supabase
-          .from("perfil").select("nombre").eq("id_perfil", alumnoId).single()
+    // 8. Desempeño individual por alumno — batch queries (2 queries en paralelo vs N individuales)
+    const [perfilesResult, gamiResult] = await Promise.all([
+      supabase.from("perfil").select("id_perfil, nombre, color_perfil").in("id_perfil", alumnoIds),
+      supabase.from("gamificacion").select("id_alumno, nivel, estrellas_totales, streaks_dias").in("id_alumno", alumnoIds),
+    ])
 
-        const ai   = intentos?.filter((i: any) => i.id_alumno === alumnoId) ?? []
-        const aPts = ai.flatMap((i: any) => i.puntaje_total != null ? [i.puntaje_total] : [])
-        const avgP = aPts.length > 0 ? Math.round(aPts.reduce((a: number, b: number) => a + b, 0) / aPts.length) : 0
+    const perfilMap = new Map((perfilesResult.data ?? []).map((p: any) => [p.id_perfil, { nombre: p.nombre as string, colorPerfil: p.color_perfil as string | null }]))
+    const gamiMap   = new Map((gamiResult.data ?? []).map((g: any) => [g.id_alumno, g]))
 
-        // Sesiones únicas de lección por alumno (consistente con KPI "Intentos de Lecciones")
-        const studentSessions = new Map<string, number>()  // id_intento_leccion → duración total (secs)
-        ai.forEach((i: any) => {
-          if (!i.id_intento_leccion) return
-          studentSessions.set(
-            i.id_intento_leccion,
-            (studentSessions.get(i.id_intento_leccion) ?? 0) + (i.tiempo_total_segundos ?? 0),
-          )
-        })
+    const studentPerfData: StudentPerformance[] = alumnoIds.map((alumnoId) => {
+      const perfilData  = perfilMap.get(alumnoId)
+      const nombreRaw   = perfilData?.nombre ?? "Alumno"
+      const partes      = nombreRaw.split(" ")
+      const name        = partes.length > 1 ? `${partes[0]} ${partes[1].charAt(0)}.` : nombreRaw
+      const colorPerfil = perfilData?.colorPerfil ?? "#6366f1"
 
-        const lessonAttemptCount = studentSessions.size > 0 ? studentSessions.size : ai.length
-        const sessionDurations   = Array.from(studentSessions.values())
-        const avgSessionSecs     = sessionDurations.length > 0
-          ? sessionDurations.reduce((a, b) => a + b, 0) / sessionDurations.length
-          : (() => {
-              const segs = ai.flatMap((i: any) => i.tiempo_total_segundos != null ? [i.tiempo_total_segundos] : [])
-              return segs.length > 0 ? segs.reduce((a: number, b: number) => a + b, 0) / segs.length : 0
-            })()
+      const gami        = gamiMap.get(alumnoId)
+      const nivel       = gami?.nivel ?? 1
+      const nivelNombre = nivelNombres[nivel] ?? "Semilla Dormida"
+      const nivelIcon   = NIVELES[nivel]?.icon ?? NIVELES[1].icon
 
-        const nombre = perfil?.nombre ?? "Alumno"
-        const partes = nombre.split(" ")
-        const nombreCorto = partes.length > 1 ? `${partes[0]} ${partes[1].charAt(0)}.` : nombre
+      const ai   = intentos?.filter((i: any) => i.id_alumno === alumnoId) ?? []
+      const aPts = ai.flatMap((i: any) => i.puntaje_total != null ? [i.puntaje_total] : [])
+      const avgP = aPts.length > 0 ? Math.round(aPts.reduce((a: number, b: number) => a + b, 0) / aPts.length) : 0
 
-        return {
-          id:            alumnoId,
-          name:          nombreCorto,
-          correctas:     avgP,
-          intentos:      lessonAttemptCount,
-          tiempo:        `${(avgSessionSecs / 60).toFixed(1)} min`,
-          tiempoSeconds: avgSessionSecs,
-        }
+      // Sesiones únicas de lección (consistente con KPI "Intentos de Lecciones")
+      const studentSessions = new Map<string, number>()
+      ai.forEach((i: any) => {
+        if (!i.id_intento_leccion) return
+        studentSessions.set(
+          i.id_intento_leccion,
+          (studentSessions.get(i.id_intento_leccion) ?? 0) + (i.tiempo_total_segundos ?? 0),
+        )
       })
-    )
+
+      const lessonAttemptCount = studentSessions.size > 0 ? studentSessions.size : ai.length
+      const sessionDurations   = Array.from(studentSessions.values())
+      const avgSessionSecs     = sessionDurations.length > 0
+        ? sessionDurations.reduce((a, b) => a + b, 0) / sessionDurations.length
+        : (() => {
+            const segs = ai.flatMap((i: any) => i.tiempo_total_segundos != null ? [i.tiempo_total_segundos] : [])
+            return segs.length > 0 ? segs.reduce((a: number, b: number) => a + b, 0) / segs.length : 0
+          })()
+
+      return {
+        id:            alumnoId,
+        name,
+        correctas:     avgP,
+        intentos:      lessonAttemptCount,
+        tiempo:        `${(avgSessionSecs / 60).toFixed(1)} min`,
+        tiempoSeconds: avgSessionSecs,
+        nivel,
+        nivelNombre,
+        nivelIcon,
+        estrellas:     gami?.estrellas_totales ?? 0,
+        racha:         gami?.streaks_dias ?? 0,
+        colorPerfil,
+      }
+    })
 
     setStudentPerformance(studentPerfData)
     setLoading(false)
