@@ -77,10 +77,11 @@ const FAQS = [
 interface LandingPageProps {
   onStudentLogin: () => void
   onTeacherLogin: () => void
+  onRegister: () => void
   onScreeningTest?: () => void
 }
 
-export function LandingPage({ onStudentLogin, onTeacherLogin, onScreeningTest }: LandingPageProps) {
+export function LandingPage({ onStudentLogin, onTeacherLogin, onRegister, onScreeningTest }: LandingPageProps) {
   const speakStudent = useSpeakOnHover(
     "Soy estudiante. Entra para ver tus lecciones, jugar actividades y ganar estrellas.",
   )
@@ -97,7 +98,7 @@ export function LandingPage({ onStudentLogin, onTeacherLogin, onScreeningTest }:
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-[#008e92]">
               <img src="/2.svg" alt="" className="h-full w-full object-cover" width={36} height={36} />
-            </div>k
+            </div>
             <span className="text-lg font-bold tracking-tight text-neutral-900">EduAccess</span>
           </div>
           <nav className="flex items-center gap-2">
@@ -110,10 +111,10 @@ export function LandingPage({ onStudentLogin, onTeacherLogin, onScreeningTest }:
             </button>
             <button
               type="button"
-              onClick={onStudentLogin}
+              onClick={onRegister}
               className="rounded-xl bg-[#008e92] px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-[#007c80] active:scale-[0.98]"
             >
-              Comenzar gratis
+              Regístrate
             </button>
           </nav>
         </div>
